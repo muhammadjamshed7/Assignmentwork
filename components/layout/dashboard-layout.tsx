@@ -13,7 +13,8 @@ import {
   Wrench,
   Bell,
   Search,
-  Menu
+  Menu,
+  FileText
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -25,6 +26,7 @@ import { Badge } from "@/components/ui/badge"
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Students", href: "/students", icon: Users },
+  { name: "Reports", href: "/reports", icon: FileText },
   { name: "Courses", href: "/courses", icon: BookOpen },
   { name: "Issues", href: "/issues", icon: Wrench },
   { name: "Comments/Tickets", href: "/comments", icon: MessageSquare },
