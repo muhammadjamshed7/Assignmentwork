@@ -1,0 +1,6 @@
+{
+  "name": "Academic Services Admin Dashboard",
+  "description": "Internal assessment and task management dashboard for managing students, courses, issues, and AI tool usage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
