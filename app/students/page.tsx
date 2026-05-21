@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useAppStore } from "@/store/useAppStore"
 import { useToastStore } from "@/store/useToastStore"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -73,8 +73,8 @@ export default function StudentsPage() {
     }
 
     const isDuplicate = students.some(s => 
-      s.name.toLowerCase() === nameTrimmed.toLowerCase() && 
-      (s.email ? s.email.toLowerCase() === emailTrimmed.toLowerCase() : true)
+      s.name.toLowerCase() === nameTrimmed.toLowerCase() &&
+      (s.email ?? '')?.toLowerCase() === (emailTrimmed ?? '')?.toLowerCase()
     )
 
     if (isDuplicate) {

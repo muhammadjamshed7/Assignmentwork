@@ -14,7 +14,8 @@ import {
   Bell,
   Search,
   Menu,
-  FileText
+  FileText,
+  ClipboardList
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -22,12 +23,14 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAppStore } from "@/store/useAppStore"
 import { Badge } from "@/components/ui/badge"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Students", href: "/students", icon: Users },
   { name: "Reports", href: "/reports", icon: FileText },
   { name: "Courses", href: "/courses", icon: BookOpen },
+  { name: "Prompts", href: "/prompts", icon: ClipboardList },
   { name: "Issues", href: "/issues", icon: Wrench },
   { name: "Comments/Tickets", href: "/comments", icon: MessageSquare },
   { name: "AI Tools Usage", href: "/tools", icon: BarChart3 },
@@ -48,7 +51,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <Menu className="h-5 w-5" />
         </Button>
         <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-          <form className="relative flex flex-1" action="#" method="GET">
+          <div className="relative flex flex-1">
             <label htmlFor="search-field" className="sr-only">Search</label>
             <Search className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-zinc-400" aria-hidden="true" />
             <input
@@ -58,8 +61,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               type="search"
               name="search"
             />
-          </form>
+          </div>
           <div className="flex items-center gap-x-4 lg:gap-x-6">
+            <ThemeToggle />
             <button type="button" className="-m-2.5 p-2.5 text-zinc-400 hover:text-zinc-500 relative">
               <span className="sr-only">View notifications</span>
               <Bell className="h-6 w-6" aria-hidden="true" />
@@ -96,9 +100,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
           <nav className="flex flex-1 flex-col px-4 py-8">
             <ul role="list" className="flex flex-1 flex-col gap-y-2">
-              <div className="mb-4 hidden lg:block px-2">
+              <li className="mb-4 hidden lg:block px-2 list-none">
                 <span className="text-lg font-bold tracking-tight dark:text-white">EduMetrics</span>
-              </div>
+              </li>
               {navigation.map((item) => (
                 <li key={item.name}>
                   <Link

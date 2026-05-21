@@ -3,13 +3,14 @@
 import { useState } from "react"
 import { useAppStore, IssueStatus, Role } from "@/store/useAppStore"
 import { useToastStore } from "@/store/useToastStore"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { formatDistanceToNow } from "date-fns"
 import { Pencil, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { NewIssueDialog } from "@/components/issues/new-issue-dialog"
 
 export default function CommentsPage() {
   const { comments, issues, students, addComment, updateIssueStatus, updateComment, removeComment } = useAppStore()
@@ -83,9 +84,12 @@ export default function CommentsPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] gap-8 overflow-hidden">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Comments & Tickets</h1>
-        <p className="text-zinc-500 dark:text-zinc-400">Manage issue threads and respond to students.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Comments & Tickets</h1>
+          <p className="text-zinc-500 dark:text-zinc-400">Manage issue threads and respond to students.</p>
+        </div>
+        <NewIssueDialog onIssueCreated={setSelectedIssueId} />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 flex-1 min-h-0">
@@ -130,7 +134,7 @@ export default function CommentsPage() {
                       <Badge variant="outline">{selectedIssue.priority}</Badge>
                     </CardTitle>
                     <CardDescription className="mt-1">
-                      Reported by <span className="font-semibold text-zinc-900 dark:text-zinc-50">{relatedStudent?.name}</span> • {formatDistanceToNow(new Date(selectedIssue.createdAt), { addSuffix: true })}
+                      Reported by <span className="font-semibold text-zinc-900 dark:text-zinc-50">{relatedStudent?.name}</span> / {formatDistanceToNow(new Date(selectedIssue.createdAt), { addSuffix: true })}
                     </CardDescription>
                   </div>
                   <Badge variant={selectedIssue.status === 'Resolved' ? 'success' : selectedIssue.status === 'In Progress' ? 'info' : selectedIssue.status === 'Escalated' ? 'destructive' : 'pending'}>

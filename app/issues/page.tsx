@@ -1,10 +1,11 @@
 "use client"
 
 import { useAppStore } from "@/store/useAppStore"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDistanceToNow } from "date-fns"
+import { NewIssueDialog } from "@/components/issues/new-issue-dialog"
 
 export default function IssuesPage() {
   const { issues, students } = useAppStore()
@@ -29,9 +30,12 @@ export default function IssuesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Global Issues</h1>
-        <p className="text-zinc-500 dark:text-zinc-400">Complete log of all tracked problems and their current statuses.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Global Issues</h1>
+          <p className="text-zinc-500 dark:text-zinc-400">Complete log of all tracked problems and their current statuses.</p>
+        </div>
+        <NewIssueDialog />
       </div>
 
       <Card>
@@ -48,7 +52,7 @@ export default function IssuesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {issues.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((issue) => {
+              {[...issues].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((issue) => {
                 const student = students.find(s => s.id === issue.studentId)
                 return (
                   <TableRow key={issue.id}>

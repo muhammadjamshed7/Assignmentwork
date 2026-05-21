@@ -1,4 +1,29 @@
 -- =========================================================
+-- DESTRUCTIVE RESET SCRIPT FOR CURRENT EDUMETRICS APP
+-- WARNING: This deletes everything in the public schema.
+-- Run this only when you want a fresh database for this app.
+-- =========================================================
+
+begin;
+
+-- Remove every existing table, view, policy, trigger, and function in public.
+drop schema if exists public cascade;
+
+-- Recreate Supabase's public schema and grants.
+create schema public;
+comment on schema public is 'standard public schema';
+
+grant usage on schema public to postgres, anon, authenticated, service_role;
+grant all on schema public to postgres, service_role;
+
+alter default privileges in schema public grant all on tables to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to postgres, anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to postgres, anon, authenticated, service_role;
+
+commit;
+
+-- Rebuild the current app schema from scratch.
+-- =========================================================
 -- EduMetrics current app schema
 -- Tables covered by the current UI only:
 -- students, courses, student_courses, issues, comments,

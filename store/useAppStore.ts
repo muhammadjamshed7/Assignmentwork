@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type IssueCategory = 'Prompt Issues' | 'Stealth Writer Issues' | 'Instructions Issues' | 'Data Extraction Issues' | 'Reference Memory Issues' | 'Thesis Issues' | 'Remake Required';
+export type IssueCategory = 'Prompt Issues' | 'Stealth Writer Issues' | 'Instructions Issues' | 'Data Extraction Issues' | 'Reference Memory Issues' | 'Thesis Issues' | 'Remake Required' | 'Other';
 export type IssueStatus = 'Pending' | 'In Progress' | 'Resolved' | 'Escalated';
 export type PriorityLevel = 'Low' | 'Medium' | 'High' | 'Critical';
 export type Role = 'Student' | 'Admin';
@@ -54,20 +54,35 @@ export interface AiToolUsage {
   successRate: number; // percentage
 }
 
+export interface Prompt {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  relatedCourseId?: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface AppState {
   students: Student[];
   issues: Issue[];
   comments: Comment[];
   courses: Course[];
   aiTools: AiToolUsage[];
+  prompts: Prompt[];
   
   // Actions
   addComment: (comment: Omit<Comment, 'id' | 'createdAt'>) => void;
   updateComment: (commentId: string, text: string) => void;
   removeComment: (commentId: string) => void;
   updateIssueStatus: (issueId: string, status: IssueStatus) => void;
-  addIssue: (issue: Omit<Issue, 'id' | 'createdAt'>) => void;
+  addIssue: (issue: Omit<Issue, 'id' | 'createdAt'>) => Issue;
   addStudent: (student: Omit<Student, 'id' | 'issues' | 'lastUpdate' | 'progress'>) => void;
+  addPrompt: (prompt: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => Prompt;
+  updatePrompt: (promptId: string, prompt: Omit<Prompt, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  removePrompt: (promptId: string) => void;
 }
 
 // Initial Hardcoded Data
@@ -116,46 +131,155 @@ const initialComments: Comment[] = [
   { id: 'c2', studentId: '1', issueId: 'iss_1_1', authorName: 'Sarah Jenkins', role: 'Admin', text: 'You should avoid relying purely on stealth writers. Focus on original drafting.', createdAt: new Date(Date.now() - 3600000 * 2).toISOString() },
 ];
 
+const initialPrompts: Prompt[] = [
+  {
+    id: 'p1',
+    title: 'Assignment Clarification Checklist',
+    category: 'Instructions',
+    content: 'Review the assignment brief and identify the required deliverable, citation style, word count, deadline, source requirements, and any formatting constraints. List unclear points as direct questions for the student before drafting.',
+    relatedCourseId: 'c2',
+    tags: ['brief', 'requirements', 'questions'],
+    createdAt: new Date(Date.now() - 3600000 * 72).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+  },
+  {
+    id: 'p2',
+    title: 'Thesis Repair Prompt',
+    category: 'Thesis',
+    content: 'Rewrite the thesis so it makes one specific, arguable claim. Keep it concise, name the topic clearly, and preview the main reasoning without listing every paragraph.',
+    relatedCourseId: 'c2',
+    tags: ['thesis', 'rewrite'],
+    createdAt: new Date(Date.now() - 3600000 * 96).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+  },
+  {
+    id: 'p3',
+    title: 'Data Extraction QA',
+    category: 'Data Extraction',
+    content: 'Extract only facts explicitly present in the provided source. Return a two-column table with field name and extracted value. Mark missing or ambiguous fields as "Not found" and do not infer.',
+    relatedCourseId: 'c1',
+    tags: ['data', 'qa', 'source'],
+    createdAt: new Date(Date.now() - 3600000 * 120).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+  },
+];
+
+const statusRank: Record<IssueStatus, number> = {
+  Resolved: 0,
+  'In Progress': 1,
+  Pending: 2,
+  Escalated: 3,
+};
+
+const priorityRank: Record<PriorityLevel, number> = {
+  Low: 0,
+  Medium: 1,
+  High: 2,
+  Critical: 3,
+};
+
+function summarizeStudentIssues(issues: Issue[]) {
+  const categories = Array.from(new Set(issues.map(issue => issue.category)));
+
+  return {
+    issues: categories,
+    overallStatus: issues.reduce<IssueStatus>(
+      (current, issue) => statusRank[issue.status] > statusRank[current] ? issue.status : current,
+      'Resolved'
+    ),
+    priority: issues.reduce<PriorityLevel>(
+      (current, issue) => priorityRank[issue.priority] > priorityRank[current] ? issue.priority : current,
+      'Low'
+    ),
+  };
+}
+
+function syncStudentWithIssues(student: Student, issues: Issue[], lastUpdate: string): Student {
+  const studentIssues = issues.filter(issue => issue.studentId === student.id);
+
+  return {
+    ...student,
+    ...summarizeStudentIssues(studentIssues),
+    lastUpdate,
+  };
+}
+
 export const useAppStore = create<AppState>((set) => ({
   students: initialStudents,
   issues: initialIssues,
   comments: initialComments,
   courses: initialCourses,
   aiTools: initialAiTools,
+  prompts: initialPrompts,
 
   addComment: (commentData) => set((state) => {
+    const now = new Date().toISOString();
     const newComment: Comment = {
       ...commentData,
       id: Math.random().toString(36).substring(7),
-      createdAt: new Date().toISOString()
+      createdAt: now
     };
+
+    let updatedIssues = state.issues;
     
     // Side effect: if Student role comments, mark issue as "Pending" (Needs Resolution equivalent)
     if (newComment.role === 'Student') {
-       const updatedIssues = state.issues.map(iss => 
+       updatedIssues = state.issues.map(iss => 
          iss.id === newComment.issueId ? { ...iss, status: 'Pending' as IssueStatus } : iss
        );
-       return { comments: [...state.comments, newComment], issues: updatedIssues };
     }
     
-    return { comments: [...state.comments, newComment] };
+    return {
+      comments: [...state.comments, newComment],
+      issues: updatedIssues,
+      students: state.students.map(student =>
+        student.id === newComment.studentId ? syncStudentWithIssues(student, updatedIssues, now) : student
+      ),
+    };
   }),
 
   updateComment: (commentId, text) => set((state) => ({
-    comments: state.comments.map(c => c.id === commentId ? { ...c, text, createdAt: new Date().toISOString() } : c)
+    comments: state.comments.map(c => c.id === commentId ? { ...c, text } : c)
   })),
 
   removeComment: (commentId) => set((state) => ({
     comments: state.comments.filter(c => c.id !== commentId)
   })),
 
-  updateIssueStatus: (issueId, status) => set((state) => ({
-    issues: state.issues.map((i) => i.id === issueId ? { ...i, status } : i)
-  })),
+  updateIssueStatus: (issueId, status) => set((state) => {
+    const now = new Date().toISOString();
+    const updatedIssues = state.issues.map((i) => i.id === issueId ? { ...i, status } : i);
+    const updatedIssue = updatedIssues.find(issue => issue.id === issueId);
 
-  addIssue: (issueData) => set((state) => ({
-    issues: [...state.issues, { ...issueData, id: Math.random().toString(36).substring(7), createdAt: new Date().toISOString() }]
-  })),
+    return {
+      issues: updatedIssues,
+      students: state.students.map(student =>
+        updatedIssue?.studentId === student.id ? syncStudentWithIssues(student, updatedIssues, now) : student
+      ),
+    };
+  }),
+
+  addIssue: (issueData) => {
+    const now = new Date().toISOString();
+    const newIssue: Issue = {
+      ...issueData,
+      id: Math.random().toString(36).substring(7),
+      createdAt: now,
+    };
+
+    set((state) => {
+      const updatedIssues = [newIssue, ...state.issues];
+
+      return {
+        issues: updatedIssues,
+        students: state.students.map(student =>
+          student.id === newIssue.studentId ? syncStudentWithIssues(student, updatedIssues, now) : student
+        ),
+      };
+    });
+
+    return newIssue;
+  },
 
   addStudent: (studentData) => set((state) => ({
     students: [
@@ -168,5 +292,37 @@ export const useAppStore = create<AppState>((set) => ({
       },
       ...state.students,
     ]
-  }))
+  })),
+
+  addPrompt: (promptData) => {
+    const now = new Date().toISOString();
+    const newPrompt: Prompt = {
+      ...promptData,
+      id: Math.random().toString(36).substring(7),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    set((state) => ({
+      prompts: [newPrompt, ...state.prompts],
+    }));
+
+    return newPrompt;
+  },
+
+  updatePrompt: (promptId, promptData) => set((state) => ({
+    prompts: state.prompts.map(prompt =>
+      prompt.id === promptId
+        ? {
+            ...prompt,
+            ...promptData,
+            updatedAt: new Date().toISOString(),
+          }
+        : prompt
+    ),
+  })),
+
+  removePrompt: (promptId) => set((state) => ({
+    prompts: state.prompts.filter(prompt => prompt.id !== promptId),
+  })),
 }));

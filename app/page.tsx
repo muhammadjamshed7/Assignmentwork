@@ -1,25 +1,32 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useAppStore } from "@/store/useAppStore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, BookOpen, AlertCircle, CheckCircle2, Clock, Wrench } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts'
 import { formatDistanceToNow } from "date-fns"
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#ffc658', '#ef4444'];
+const IssueCategoryChart = dynamic(
+  () => import("@/components/dashboard/charts").then(mod => mod.IssueCategoryChart),
+  {
+    ssr: false,
+    loading: ChartPlaceholder,
+  }
+)
+
+const ResolutionProgressChart = dynamic(
+  () => import("@/components/dashboard/charts").then(mod => mod.ResolutionProgressChart),
+  {
+    ssr: false,
+    loading: ChartPlaceholder,
+  }
+)
+
+function ChartPlaceholder() {
+  return <div className="h-full w-full animate-pulse rounded-md bg-zinc-100 dark:bg-zinc-900" />
+}
 
 export default function DashboardPage() {
   const { students, issues, courses, aiTools } = useAppStore()
@@ -104,18 +111,7 @@ export default function DashboardPage() {
             <CardDescription>Breakdown of all reported student issues</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={pieData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#525252" opacity={0.2} />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <Tooltip 
-                  cursor={{fill: 'transparent'}}
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                />
-                <Bar dataKey="value" fill="#18181b" radius={[4, 4, 0, 0]} className="dark:fill-zinc-50" />
-              </BarChart>
-            </ResponsiveContainer>
+            <IssueCategoryChart data={pieData} />
           </CardContent>
         </Card>
         
@@ -125,24 +121,7 @@ export default function DashboardPage() {
             <CardDescription>Current status of all tracked issues</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={resolutionProgress}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {resolutionProgress.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <ResolutionProgressChart data={resolutionProgress} />
           </CardContent>
         </Card>
       </div>

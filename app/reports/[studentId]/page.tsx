@@ -17,7 +17,7 @@ import { useToastStore } from "@/store/useToastStore"
 
 export default function StudentReportPage({ params }: { params: Promise<{ studentId: string }> }) {
   const { studentId } = use(params)
-  const { students, issues, comments, aiTools } = useAppStore()
+  const { students, issues, comments } = useAppStore()
   const { addToast } = useToastStore()
   
   const student = students.find(s => s.id === studentId)

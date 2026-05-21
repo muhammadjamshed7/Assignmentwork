@@ -2,13 +2,12 @@
 
 import { useState } from "react"
 import { useAppStore } from "@/store/useAppStore"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Search, FileText } from "lucide-react"
 import Link from "next/link"
-import { formatDistanceToNow } from "date-fns"
 
 export default function ReportsIndexPage() {
   const { students, issues } = useAppStore()

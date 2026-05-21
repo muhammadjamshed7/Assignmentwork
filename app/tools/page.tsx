@@ -1,10 +1,22 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useAppStore } from "@/store/useAppStore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+
+const AIToolsUsageChart = dynamic(
+  () => import("@/components/dashboard/charts").then(mod => mod.AIToolsUsageChart),
+  {
+    ssr: false,
+    loading: ChartPlaceholder,
+  }
+)
+
+function ChartPlaceholder() {
+  return <div className="h-full w-full animate-pulse rounded-md bg-zinc-100 dark:bg-zinc-900" />
+}
 
 export default function AIToolsPage() {
   const { aiTools } = useAppStore()
@@ -31,19 +43,7 @@ export default function AIToolsPage() {
           <CardDescription>Visual mapping of total usage versus reported student problems</CardDescription>
         </CardHeader>
         <CardContent className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#525252" opacity={0.2} />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis axisLine={false} tickLine={false} />
-              <Tooltip 
-                cursor={{fill: 'transparent'}}
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-              />
-              <Bar dataKey="usage" name="Total Usage" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="problems" name="Reported Problems" fill="#ef4444" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <AIToolsUsageChart data={chartData} />
         </CardContent>
       </Card>
 
