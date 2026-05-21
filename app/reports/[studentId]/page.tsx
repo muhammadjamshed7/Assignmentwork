@@ -1,7 +1,7 @@
 "use client"
 
 import { use, useRef } from "react"
-import { useAppStore } from "@/store/useAppStore"
+import { useAppStore, Issue, Comment } from "@/store/useAppStore"
 import { notFound } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -348,14 +348,14 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
                            <div className="w-[calc(100%-2rem)] md:w-[calc(50%-2rem)] p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
                              <div className="flex items-center justify-between mb-1">
                                <div className="font-medium text-sm text-zinc-900 dark:text-zinc-50">
-                                 {activity.type === 'issue' ? `Issue Created: ${(activity.data as any).category}` : `Comment by ${(activity.data as any).authorName}`}
+                                 {activity.type === 'issue' ? `Issue Created: ${(activity.data as Issue).category}` : `Comment by ${(activity.data as Comment).authorName}`}
                                </div>
                                <time className="text-xs text-zinc-500">
                                  {format(new Date(activity.time), 'MMM d, p')}
                                </time>
                              </div>
                              <div className="text-xs text-zinc-500 line-clamp-2">
-                               {activity.type === 'issue' ? (activity.data as any).description : (activity.data as any).text}
+                               {activity.type === 'issue' ? (activity.data as Issue).description : (activity.data as Comment).text}
                              </div>
                            </div>
                          </div>
