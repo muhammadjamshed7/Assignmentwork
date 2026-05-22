@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useAppStore, IssueStatus, Role } from "@/store/useAppStore"
+import { IssueStatus, Role } from "@/lib/data/types"
 import { useToastStore } from "@/store/useToastStore"
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -11,9 +11,19 @@ import { formatDistanceToNow } from "date-fns"
 import { Pencil, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { NewIssueDialog } from "@/components/issues/new-issue-dialog"
+import { createComment, deleteComment, updateComment } from "@/lib/data/comments"
+import { getCommentsData } from "@/lib/data/dashboard"
+import { updateIssueStatus } from "@/lib/data/issues"
+import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
+import { getErrorMessage } from "@/lib/data/client"
 
 export default function CommentsPage() {
-  const { comments, issues, students, addComment, updateIssueStatus, updateComment, removeComment } = useAppStore()
+  const { data, loading, error, refresh } = useSupabaseQuery(
+    getCommentsData,
+    { students: [], issues: [], comments: [] },
+    ["students", "issues", "comments"]
+  )
+  const { comments, issues, students } = data
   const { addToast } = useToastStore()
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(issues[0]?.id || null)
   
@@ -26,82 +36,108 @@ export default function CommentsPage() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState("")
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
+  const [formError, setFormError] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
 
-  const selectedIssue = issues.find(i => i.id === selectedIssueId)
+  const activeIssueId = selectedIssueId ?? issues[0]?.id ?? null
+  const selectedIssue = issues.find(i => i.id === activeIssueId)
   const relatedStudent = students.find(s => s.id === selectedIssue?.studentId)
-  const issueComments = comments.filter(c => c.issueId === selectedIssueId).sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  const issueComments = comments.filter(c => c.issueId === activeIssueId).sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
-  const handleSubmitReply = (e: React.FormEvent) => {
+  const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!replyText.trim() || !selectedIssueId) return
+    if (!replyText.trim() || !activeIssueId) return
+    setIsSaving(true)
+    setFormError("")
 
-    addComment({
-      studentId: relatedStudent?.id || '',
-      issueId: selectedIssueId,
-      authorName: selectedRole === 'Admin' ? 'Admin User' : (relatedStudent?.name || 'Student'),
-      role: selectedRole,
-      text: replyText
-    })
+    try {
+      await createComment({
+        studentId: relatedStudent?.id || '',
+        issueId: activeIssueId,
+        authorName: selectedRole === 'Admin' ? 'Admin User' : (relatedStudent?.name || 'Student'),
+        role: selectedRole,
+        text: replyText
+      })
 
-    if (selectedRole === 'Admin' && nextStatus) {
-      updateIssueStatus(selectedIssueId, nextStatus)
+      if (selectedRole === 'Admin' && nextStatus) {
+        await updateIssueStatus(activeIssueId, nextStatus)
+      }
+
+      await refresh()
+      setReplyText("")
+      setNextStatus("")
+      
+      addToast({
+        title: "Comment Added",
+        description: "Your comment has been successfully posted.",
+        type: "success"
+      })
+    } catch (err) {
+      setFormError(getErrorMessage(err))
+    } finally {
+      setIsSaving(false)
     }
-
-    setReplyText("")
-    setNextStatus("")
-    
-    addToast({
-      title: "Comment Added",
-      description: "Your comment has been successfully posted.",
-      type: "success"
-    })
   }
 
-  const handleUpdateComment = (id: string) => {
+  const handleUpdateComment = async (id: string) => {
     if (!editingText.trim()) return
-    updateComment(id, editingText.trim())
-    setEditingCommentId(null)
-    setEditingText("")
-    addToast({
-      title: "Comment Updated",
-      description: "The comment was successfully modified.",
-      type: "success"
-    })
+    try {
+      await updateComment(id, editingText.trim())
+      await refresh()
+      setEditingCommentId(null)
+      setEditingText("")
+      addToast({
+        title: "Comment Updated",
+        description: "The comment was successfully modified.",
+        type: "success"
+      })
+    } catch (err) {
+      setFormError(getErrorMessage(err))
+    }
   }
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deletingCommentId) return
-    removeComment(deletingCommentId)
-    setDeletingCommentId(null)
-    addToast({
-      title: "Comment Deleted",
-      description: "The comment was removed from the thread.",
-      type: "success"
-    })
+    try {
+      await deleteComment(deletingCommentId)
+      await refresh()
+      setDeletingCommentId(null)
+      addToast({
+        title: "Comment Deleted",
+        description: "The comment was removed from the thread.",
+        type: "success"
+      })
+    } catch (err) {
+      setFormError(getErrorMessage(err))
+    }
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] gap-8 overflow-hidden">
+    <div className="flex min-h-[calc(100vh-8rem)] flex-col gap-6 lg:h-[calc(100vh-8rem)] lg:overflow-hidden">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Comments & Tickets</h1>
           <p className="text-zinc-500 dark:text-zinc-400">Manage issue threads and respond to students.</p>
         </div>
-        <NewIssueDialog onIssueCreated={setSelectedIssueId} />
+        <NewIssueDialog onIssueCreated={setSelectedIssueId} onSaved={refresh} />
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6 flex-1 min-h-0">
+      {loading && <LoadingState label="Loading tickets..." />}
+      {error && <ErrorState message={error} onRetry={refresh} />}
+      {formError && <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">{formError}</div>}
+
+      <div className="grid flex-1 gap-6 lg:min-h-0 lg:grid-cols-3">
         {/* Left column: Ticket List */}
-        <Card className="flex flex-col h-full col-span-1 overflow-hidden">
+        <Card className="flex min-h-[320px] flex-col overflow-hidden lg:col-span-1 lg:h-full">
           <CardHeader className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 shrink-0">
             <CardTitle className="text-sm">Active Issues</CardTitle>
           </CardHeader>
-          <div className="flex-1 overflow-y-auto p-2 space-y-2">
+          <div className="max-h-[420px] flex-1 space-y-2 overflow-y-auto p-2 lg:max-h-none">
             {issues.map(issue => {
               const student = students.find(s => s.id === issue.studentId)
-              const isSelected = selectedIssueId === issue.id
+              const isSelected = activeIssueId === issue.id
               return (
                 <button
                   key={issue.id}
@@ -119,21 +155,24 @@ export default function CommentsPage() {
                 </button>
               )
             })}
+            {!loading && !error && issues.length === 0 && (
+              <div className="p-6 text-center text-sm text-zinc-500">No issues found. Create an issue to start a ticket thread.</div>
+            )}
           </div>
         </Card>
 
         {/* Right column: Ticket Detail & Chat */}
-        <Card className="flex flex-col h-full col-span-2 overflow-hidden">
+        <Card className="flex min-h-[520px] flex-col overflow-hidden lg:col-span-2 lg:h-full">
           {selectedIssue ? (
             <>
               <CardHeader className="border-b border-zinc-200 dark:border-zinc-800 shrink-0 bg-white dark:bg-zinc-950">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
                       {selectedIssue.category}
                       <Badge variant="outline">{selectedIssue.priority}</Badge>
                     </CardTitle>
-                    <CardDescription className="mt-1">
+                    <CardDescription className="mt-1 break-words">
                       Reported by <span className="font-semibold text-zinc-900 dark:text-zinc-50">{relatedStudent?.name}</span> / {formatDistanceToNow(new Date(selectedIssue.createdAt), { addSuffix: true })}
                     </CardDescription>
                   </div>
@@ -145,7 +184,7 @@ export default function CommentsPage() {
               
               <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-zinc-50/50 dark:bg-zinc-950/50">
                  {/* Initial Issue Description */}
-                 <div className="flex gap-4">
+                 <div className="flex gap-3 sm:gap-4">
                   <Avatar className="h-8 w-8 mt-1">
                     <AvatarFallback className="bg-zinc-200 text-xs dark:bg-zinc-800">{getInitials(relatedStudent?.name || '?')}</AvatarFallback>
                   </Avatar>
@@ -159,15 +198,15 @@ export default function CommentsPage() {
 
                  {/* Comments */}
                  {issueComments.map(comment => (
-                   <div key={comment.id} className="flex gap-4">
+                   <div key={comment.id} className="flex gap-3 sm:gap-4">
                      <Avatar className="h-8 w-8 mt-1 shrink-0">
                        <AvatarFallback className={comment.role === 'Admin' ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'bg-zinc-200 dark:bg-zinc-800'}>
                          {getInitials(comment.authorName)}
                        </AvatarFallback>
                      </Avatar>
                      <div className="flex-1 min-w-0">
-                       <div className="flex items-center gap-2 mb-1">
-                         <span className="font-semibold text-sm text-zinc-900 dark:text-zinc-50">{comment.authorName}</span>
+                       <div className="mb-1 flex flex-wrap items-center gap-2">
+                         <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{comment.authorName}</span>
                          <Badge variant={comment.role === 'Admin' ? 'success' : 'info'} className="text-[10px] uppercase px-1 py-0 h-4">
                            {comment.role}
                          </Badge>
@@ -213,8 +252,8 @@ export default function CommentsPage() {
               {/* Reply Box */}
               <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0">
                 <form onSubmit={handleSubmitReply} className="flex flex-col gap-3">
-                  <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-900 p-2 rounded-t-md border border-b-0 border-zinc-200 dark:border-zinc-800">
-                    <div className="flex gap-4 items-center px-2">
+                  <div className="flex flex-col gap-2 rounded-t-md border border-b-0 border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2 px-2 sm:gap-4">
                        <label className="text-xs font-semibold text-zinc-500">Posting as:</label>
                        <select 
                          value={selectedRole} 
@@ -226,7 +265,7 @@ export default function CommentsPage() {
                        </select>
                     </div>
                     {selectedRole === 'Admin' && (
-                      <div className="flex gap-4 items-center px-2">
+                      <div className="flex flex-wrap items-center gap-2 px-2 sm:gap-4">
                          <label className="text-xs text-zinc-500">Update Status:</label>
                          <select 
                            value={nextStatus} 
@@ -249,7 +288,7 @@ export default function CommentsPage() {
                     className="w-full min-h-[100px] p-3 rounded-b-md border border-zinc-200 dark:border-zinc-800 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:bg-zinc-950 dark:focus:ring-zinc-300 resize-none text-sm placeholder:text-zinc-400"
                   />
                   <div className="flex justify-end">
-                    <Button type="submit" disabled={!replyText.trim()}>Reply</Button>
+                    <Button type="submit" disabled={isSaving || !replyText.trim()}>{isSaving ? "Posting..." : "Reply"}</Button>
                   </div>
                 </form>
               </div>

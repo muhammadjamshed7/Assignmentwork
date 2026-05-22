@@ -1,16 +1,22 @@
 "use client"
 
 import { useState } from "react"
-import { useAppStore } from "@/store/useAppStore"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Search, FileText } from "lucide-react"
 import Link from "next/link"
+import { getReportsIndexData } from "@/lib/data/dashboard"
+import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 
 export default function ReportsIndexPage() {
-  const { students, issues } = useAppStore()
+  const { data, loading, error, refresh } = useSupabaseQuery(
+    getReportsIndexData,
+    { students: [], issues: [] },
+    ["students", "student_courses", "issues"]
+  )
+  const { students, issues } = data
   const [searchTerm, setSearchTerm] = useState("")
 
   const filteredStudents = students.filter(s => 
@@ -50,6 +56,8 @@ export default function ReportsIndexPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
+          {loading && <div className="p-6"><LoadingState label="Loading reports..." /></div>}
+          {error && <div className="p-6"><ErrorState message={error} onRetry={refresh} /></div>}
           <Table>
             <TableHeader>
               <TableRow>
@@ -92,7 +100,7 @@ export default function ReportsIndexPage() {
                   </TableRow>
                 )
               })}
-              {filteredStudents.length === 0 && (
+              {!loading && !error && filteredStudents.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center text-zinc-500">
                     No students found matching your search.

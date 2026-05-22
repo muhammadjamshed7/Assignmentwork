@@ -20,8 +20,12 @@ import {
   IssueCategory,
   IssueStatus,
   PriorityLevel,
-  useAppStore,
-} from "@/store/useAppStore"
+} from "@/lib/data/types"
+import { createComment } from "@/lib/data/comments"
+import { createIssue } from "@/lib/data/issues"
+import { listStudents } from "@/lib/data/students"
+import { useSupabaseQuery } from "@/lib/data/hooks"
+import { getErrorMessage } from "@/lib/data/client"
 
 const ISSUE_CATEGORIES: IssueCategory[] = [
   "Prompt Issues",
@@ -39,13 +43,14 @@ const PRIORITIES: PriorityLevel[] = ["Low", "Medium", "High", "Critical"]
 
 type NewIssueDialogProps = {
   onIssueCreated?: (issueId: string) => void
+  onSaved?: () => Promise<void> | void
 }
 
 const selectClassName =
   "flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300"
 
-export function NewIssueDialog({ onIssueCreated }: NewIssueDialogProps) {
-  const { students, addIssue, addComment } = useAppStore()
+export function NewIssueDialog({ onIssueCreated, onSaved }: NewIssueDialogProps) {
+  const { data: students, refresh } = useSupabaseQuery(listStudents, [], ["students", "student_courses"])
   const { addToast } = useToastStore()
   const [open, setOpen] = React.useState(false)
   const [studentId, setStudentId] = React.useState(students[0]?.id ?? "")
@@ -55,6 +60,7 @@ export function NewIssueDialog({ onIssueCreated }: NewIssueDialogProps) {
   const [description, setDescription] = React.useState("")
   const [adminComment, setAdminComment] = React.useState("")
   const [formError, setFormError] = React.useState("")
+  const [isSaving, setIsSaving] = React.useState(false)
 
   function resetForm() {
     setStudentId(students[0]?.id ?? "")
@@ -74,8 +80,10 @@ export function NewIssueDialog({ onIssueCreated }: NewIssueDialogProps) {
     }
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setIsSaving(true)
+    setFormError("")
 
     const selectedStudentId = studentId || students[0]?.id || ""
     const cleanDescription = description.trim()
@@ -83,36 +91,46 @@ export function NewIssueDialog({ onIssueCreated }: NewIssueDialogProps) {
 
     if (!selectedStudentId || !cleanDescription) {
       setFormError("Select a student and enter an issue description.")
+      setIsSaving(false)
       return
     }
 
-    const issue = addIssue({
-      studentId: selectedStudentId,
-      category,
-      description: cleanDescription,
-      priority,
-      status,
-    })
-
-    if (cleanComment) {
-      addComment({
+    try {
+      const issue = await createIssue({
         studentId: selectedStudentId,
-        issueId: issue.id,
-        authorName: "Admin User",
-        role: "Admin",
-        text: cleanComment,
+        category,
+        description: cleanDescription,
+        priority,
+        status,
       })
+
+      if (cleanComment) {
+        await createComment({
+          studentId: selectedStudentId,
+          issueId: issue.id,
+          authorName: "Admin User",
+          role: "Admin",
+          text: cleanComment,
+        })
+      }
+
+      await refresh()
+      await onSaved?.()
+
+      addToast({
+        title: "Issue Created",
+        description: cleanComment ? "The issue and admin comment were added." : "The issue was added.",
+        type: "success",
+      })
+
+      onIssueCreated?.(issue.id)
+      setOpen(false)
+      resetForm()
+    } catch (err) {
+      setFormError(getErrorMessage(err))
+    } finally {
+      setIsSaving(false)
     }
-
-    addToast({
-      title: "Issue Created",
-      description: cleanComment ? "The issue and admin comment were added." : "The issue was added.",
-      type: "success",
-    })
-
-    onIssueCreated?.(issue.id)
-    setOpen(false)
-    resetForm()
   }
 
   return (
@@ -227,8 +245,8 @@ export function NewIssueDialog({ onIssueCreated }: NewIssueDialogProps) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={students.length === 0 || !description.trim()}>
-              Create
+            <Button type="submit" disabled={isSaving || students.length === 0 || !description.trim()}>
+              {isSaving ? "Creating..." : "Create"}
             </Button>
           </DialogFooter>
         </form>

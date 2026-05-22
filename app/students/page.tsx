@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useAppStore } from "@/store/useAppStore"
 import { useToastStore } from "@/store/useToastStore"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,9 +11,21 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { createStudent, listStudents } from "@/lib/data/students"
+import { listCourses } from "@/lib/data/courses"
+import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
+import { getErrorMessage } from "@/lib/data/client"
 
 export default function StudentsPage() {
-  const { students, courses, addStudent } = useAppStore()
+  const { data, loading, error, refresh } = useSupabaseQuery(
+    async () => {
+      const [students, courses] = await Promise.all([listStudents(), listCourses()])
+      return { students, courses }
+    },
+    { students: [], courses: [] },
+    ["students", "student_courses", "courses", "issues"]
+  )
+  const { students, courses } = data
   const { addToast } = useToastStore()
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -27,6 +38,7 @@ export default function StudentsPage() {
   const [newStatus, setNewStatus] = useState<"Active" | "Inactive">("Active")
   const [newNotes, setNewNotes] = useState("")
   const [formError, setFormError] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
 
   const filteredStudents = students.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -51,61 +63,66 @@ export default function StudentsPage() {
     }
   }
 
-  const toggleCourse = (courseCode: string) => {
+  const toggleCourse = (courseId: string) => {
     setSelectedCourses(prev => 
-      prev.includes(courseCode) 
-        ? prev.filter(c => c !== courseCode) 
-        : [...prev, courseCode]
+      prev.includes(courseId) 
+        ? prev.filter(c => c !== courseId) 
+        : [...prev, courseId]
     )
   }
 
-  const handleAddStudent = (e: React.FormEvent) => {
+  const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError("")
+    setIsSaving(true)
     
-    // Validation
     const nameTrimmed = newName.trim()
     const emailTrimmed = newEmail.trim()
     
     if (!nameTrimmed) {
       setFormError("Student Name is required.")
+      setIsSaving(false)
       return
     }
 
-    const isDuplicate = students.some(s => 
-      s.name.toLowerCase() === nameTrimmed.toLowerCase() &&
-      (s.email ?? '')?.toLowerCase() === (emailTrimmed ?? '')?.toLowerCase()
-    )
+    const isDuplicate = emailTrimmed && students.some(s => (s.email ?? "").toLowerCase() === emailTrimmed.toLowerCase())
 
     if (isDuplicate) {
-      setFormError("A student with this name and email already exists.")
+      setFormError("A student with this email already exists.")
+      setIsSaving(false)
       return
     }
 
-    addStudent({
-      name: nameTrimmed,
-      email: emailTrimmed,
-      assignedCourses: selectedCourses,
-      assignedTrainer: newTrainer.trim() || 'Unassigned',
-      notes: newNotes.trim(),
-      overallStatus: newStatus === "Active" ? "In Progress" : "Pending",
-      priority: "Medium"
-    })
+    try {
+      await createStudent({
+        name: nameTrimmed,
+        email: emailTrimmed,
+        assignedCourseIds: selectedCourses,
+        assignedTrainer: newTrainer.trim() || "Unassigned",
+        notes: newNotes.trim(),
+        overallStatus: newStatus === "Active" ? "In Progress" : "Pending",
+        priority: "Medium",
+      })
+      await refresh()
 
-    addToast({
-      title: "Student Created",
-      description: `${nameTrimmed} has been added successfully.`,
-      type: "success"
-    })
+      addToast({
+        title: "Student Created",
+        description: `${nameTrimmed} has been added successfully.`,
+        type: "success"
+      })
 
-    // Reset Form
-    setIsModalOpen(false)
-    setNewName("")
-    setNewEmail("")
-    setSelectedCourses([])
-    setNewTrainer("")
-    setNewStatus("Active")
-    setNewNotes("")
+      setIsModalOpen(false)
+      setNewName("")
+      setNewEmail("")
+      setSelectedCourses([])
+      setNewTrainer("")
+      setNewStatus("Active")
+      setNewNotes("")
+    } catch (err) {
+      setFormError(getErrorMessage(err))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -140,7 +157,7 @@ export default function StudentsPage() {
                   <Label htmlFor="name">Student Name <span className="text-red-500">*</span></Label>
                   <Input 
                     id="name" 
-                    placeholder="e.g. John Doe" 
+                    placeholder="e.g. Student name" 
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                   />
@@ -163,10 +180,10 @@ export default function StudentsPage() {
                     {courses.map(course => (
                       <button
                         type="button"
-                        key={course.code}
-                        onClick={() => toggleCourse(course.code)}
+                        key={course.id}
+                        onClick={() => toggleCourse(course.id)}
                         className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 ${
-                          selectedCourses.includes(course.code)
+                          selectedCourses.includes(course.id)
                             ? 'border-transparent bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900'
                             : 'border-zinc-200 text-zinc-950 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800'
                         }`}
@@ -182,7 +199,7 @@ export default function StudentsPage() {
                     <Label htmlFor="trainer">Assigned Trainer</Label>
                     <Input 
                       id="trainer" 
-                      placeholder="e.g. Sarah Jenkins" 
+                      placeholder="e.g. Trainer name" 
                       value={newTrainer}
                       onChange={(e) => setNewTrainer(e.target.value)}
                     />
@@ -216,7 +233,7 @@ export default function StudentsPage() {
                 <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Save Student</Button>
+                <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : "Save Student"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -241,6 +258,8 @@ export default function StudentsPage() {
           </Button>
         </CardHeader>
         <CardContent className="p-0">
+          {loading && <div className="p-6"><LoadingState label="Loading students..." /></div>}
+          {error && <div className="p-6"><ErrorState message={error} onRetry={refresh} /></div>}
           <Table>
             <TableHeader>
               <TableRow>
@@ -292,7 +311,7 @@ export default function StudentsPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredStudents.length === 0 && (
+              {!loading && !error && filteredStudents.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-zinc-500">
                     No students found.

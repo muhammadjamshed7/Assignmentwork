@@ -1,8 +1,7 @@
 "use client"
 
 import { use, useRef } from "react"
-import { useAppStore, Issue, Comment } from "@/store/useAppStore"
-import { notFound } from "next/navigation"
+import { Issue, Comment } from "@/lib/data/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -14,17 +13,41 @@ import { formatDistanceToNow, format } from "date-fns"
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 import { useToastStore } from "@/store/useToastStore"
+import { listStudents } from "@/lib/data/students"
+import { listIssues } from "@/lib/data/issues"
+import { listComments } from "@/lib/data/comments"
+import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 
 export default function StudentReportPage({ params }: { params: Promise<{ studentId: string }> }) {
   const { studentId } = use(params)
-  const { students, issues, comments } = useAppStore()
+  const { data, loading, error, refresh } = useSupabaseQuery(
+    async () => {
+      const [students, issues, comments] = await Promise.all([listStudents(), listIssues(), listComments()])
+      return { students, issues, comments }
+    },
+    { students: [], issues: [], comments: [] },
+    ["students", "student_courses", "issues", "comments"]
+  )
+  const { students, issues, comments } = data
   const { addToast } = useToastStore()
   
   const student = students.find(s => s.id === studentId)
   const reportRef = useRef<HTMLDivElement>(null)
 
+  if (loading) {
+    return <LoadingState label="Loading student report..." />
+  }
+
+  if (error) {
+    return <ErrorState message={error} onRetry={refresh} />
+  }
+
   if (!student) {
-    notFound()
+    return (
+      <div className="rounded-lg border border-dashed border-zinc-200 p-8 text-center text-sm text-zinc-500 dark:border-zinc-800">
+        Student report not found.
+      </div>
+    )
   }
 
   const studentIssues = issues.filter(i => i.studentId === student.id)
@@ -103,28 +126,28 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <Link href="/reports">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="shrink-0">
               <ChevronLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Student Report</h1>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">Student Report</h1>
             <p className="text-zinc-500 dark:text-zinc-400">Detailed overview for {student.name}</p>
           </div>
         </div>
-        <Button onClick={handleExportPDF} className="gap-2">
+        <Button onClick={handleExportPDF} className="w-full gap-2 sm:w-auto">
           <Download className="h-4 w-4" />
           Export as PDF
         </Button>
       </div>
 
-      <div ref={reportRef} className="bg-white dark:bg-zinc-950 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div ref={reportRef} className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="print-header mb-8 pb-8 border-b border-zinc-200 dark:border-zinc-800">
            <h2 className="text-2xl font-bold">{student.name}</h2>
-           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
              <div>
                <p className="text-sm text-zinc-500 font-medium">Student ID</p>
                <p className="text-sm font-semibold">{student.id}</p>
@@ -145,13 +168,15 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="mb-6 grid w-full grid-cols-5 h-auto">
+          <div className="mb-6 overflow-x-auto">
+          <TabsList className="grid h-auto min-w-[680px] grid-cols-5 sm:min-w-0 sm:w-full">
             <TabsTrigger value="overview" className="py-2">Overview</TabsTrigger>
             <TabsTrigger value="issues" className="py-2">Issues</TabsTrigger>
             <TabsTrigger value="comments" className="py-2">Comments History</TabsTrigger>
             <TabsTrigger value="progress" className="py-2">Progress</TabsTrigger>
             <TabsTrigger value="tools" className="py-2">AI Tools</TabsTrigger>
           </TabsList>
+          </div>
           
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

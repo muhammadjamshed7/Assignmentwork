@@ -1,12 +1,13 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useAppStore } from "@/store/useAppStore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, BookOpen, AlertCircle, CheckCircle2, Clock, Wrench } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDistanceToNow } from "date-fns"
+import { getDashboardData } from "@/lib/data/dashboard"
+import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 
 const IssueCategoryChart = dynamic(
   () => import("@/components/dashboard/charts").then(mod => mod.IssueCategoryChart),
@@ -29,7 +30,13 @@ function ChartPlaceholder() {
 }
 
 export default function DashboardPage() {
-  const { students, issues, courses, aiTools } = useAppStore()
+  const { data, loading, error, refresh } = useSupabaseQuery(
+    getDashboardData,
+    { students: [], issues: [], courses: [], aiTools: [] },
+    ["students", "student_courses", "courses", "issues", "comments", "ai_tools"]
+  )
+
+  const { students, issues, courses, aiTools } = data
 
   // Stats calculations
   const totalStudents = students.length
@@ -88,6 +95,9 @@ export default function DashboardPage() {
         <p className="text-zinc-500 dark:text-zinc-400">Welcome to the Academic Services platform.</p>
       </div>
 
+      {loading && <LoadingState label="Loading dashboard metrics..." />}
+      {error && <ErrorState message={error} onRetry={refresh} />}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {stats.map((stat, i) => (
           <Card key={i}>
@@ -105,22 +115,22 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+        <Card className="md:col-span-2 lg:col-span-4">
           <CardHeader>
             <CardTitle>Issues by Category</CardTitle>
             <CardDescription>Breakdown of all reported student issues</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[260px] sm:h-[300px]">
             <IssueCategoryChart data={pieData} />
           </CardContent>
         </Card>
         
-        <Card className="col-span-3">
+        <Card className="md:col-span-2 lg:col-span-3">
           <CardHeader>
             <CardTitle>Resolution Progress</CardTitle>
             <CardDescription>Current status of all tracked issues</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[260px] sm:h-[300px]">
             <ResolutionProgressChart data={resolutionProgress} />
           </CardContent>
         </Card>
@@ -131,7 +141,7 @@ export default function DashboardPage() {
           <CardTitle>Recent Students Overview</CardTitle>
           <CardDescription>Monitor student progress and active issues.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-6">
           <Table>
             <TableHeader>
               <TableRow>
@@ -182,6 +192,13 @@ export default function DashboardPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {!loading && students.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-zinc-500">
+                    No students found. Add students to start seeing dashboard activity.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

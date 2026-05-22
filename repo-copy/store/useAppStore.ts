@@ -70,51 +70,11 @@ interface AppState {
   addStudent: (student: Omit<Student, 'id' | 'issues' | 'lastUpdate' | 'progress'>) => void;
 }
 
-// Initial Hardcoded Data
-const initialStudents: Student[] = [
-  { id: '1', name: 'Tayab Abbas', assignedCourses: ['CS101', 'ENG201'], issues: ['Prompt Issues', 'Stealth Writer Issues'], overallStatus: 'In Progress', priority: 'High', lastUpdate: new Date(Date.now() - 3600000 * 2).toISOString(), assignedTrainer: 'Sarah Jenkins', progress: 45 },
-  { id: '2', name: 'Shehzad Ali', assignedCourses: ['PHY101'], issues: ['Instructions Issues', 'Stealth Writer Issues'], overallStatus: 'Pending', priority: 'Medium', lastUpdate: new Date(Date.now() - 3600000 * 5).toISOString(), assignedTrainer: 'Mark Ruffalo', progress: 20 },
-  { id: '3', name: 'Atiq', assignedCourses: ['MTH101', 'CS101'], issues: ['Instructions Issues'], overallStatus: 'Resolved', priority: 'Low', lastUpdate: new Date(Date.now() - 3600000 * 24).toISOString(), assignedTrainer: 'Sarah Jenkins', progress: 95 },
-  { id: '4', name: 'Ahmad Shehzad', assignedCourses: ['CS201'], issues: ['Instructions Issues', 'Stealth Writer Issues'], overallStatus: 'Pending', priority: 'Medium', lastUpdate: new Date(Date.now() - 3600000 * 48).toISOString(), assignedTrainer: 'John Doe', progress: 30 },
-  { id: '5', name: 'Sakhi Abbas', assignedCourses: ['ENG101'], issues: ['Prompt Issues'], overallStatus: 'In Progress', priority: 'Low', lastUpdate: new Date(Date.now() - 3600000 * 12).toISOString(), assignedTrainer: 'Sarah Jenkins', progress: 60 },
-  { id: '6', name: 'Fayaz', assignedCourses: ['BIO101', 'CHM101'], issues: ['Prompt Issues', 'Stealth Writer Issues', 'Data Extraction Issues'], overallStatus: 'Escalated', priority: 'Critical', lastUpdate: new Date(Date.now() - 3600000 * 1).toISOString(), assignedTrainer: 'John Doe', progress: 10 },
-  { id: '7', name: 'Makhdom Raza', assignedCourses: ['HIS101'], issues: ['Reference Memory Issues', 'Thesis Issues', 'Remake Required'], overallStatus: 'Escalated', priority: 'Critical', lastUpdate: new Date(Date.now() - 3600000 * 0.5).toISOString(), assignedTrainer: 'Mark Ruffalo', progress: 5 },
-];
-
-const initialCourses: Course[] = [
-  { id: 'c1', code: 'CS101', title: 'Introduction to Computer Science' },
-  { id: 'c2', code: 'ENG201', title: 'Advanced Literature and Thesis Writing' },
-  { id: 'c3', code: 'PHY101', title: 'Physics Fundamentals' },
-  { id: 'c4', code: 'MTH101', title: 'Calculus I' },
-  { id: 'c5', code: 'CS201', title: 'Data Structures via AI' },
-];
-
-const initialIssues: Issue[] = initialStudents.flatMap((student) => 
-  student.issues.map((cat, i) => ({
-    id: `iss_${student.id}_${i}`,
-    studentId: student.id,
-    category: cat,
-    description: `Student is struggling with ${cat}. Needs guidance.`,
-    status: student.overallStatus,
-    priority: student.priority,
-    createdAt: new Date(Date.now() - 3600000 * (10 + i * 2)).toISOString()
-  }))
-);
-
-const initialAiTools: AiToolUsage[] = [
-  { id: 't1', toolName: 'ChatGPT', usageCount: 450, activeStudents: 120, relatedProblems: 15, successRate: 85 },
-  { id: 't2', toolName: 'Claude', usageCount: 320, activeStudents: 85, relatedProblems: 8, successRate: 92 },
-  { id: 't3', toolName: 'Stealth Writer', usageCount: 200, activeStudents: 60, relatedProblems: 45, successRate: 40 },
-  { id: 't4', toolName: 'WriteHuman', usageCount: 150, activeStudents: 40, relatedProblems: 25, successRate: 55 },
-  { id: 't5', toolName: 'Gemini', usageCount: 280, activeStudents: 90, relatedProblems: 12, successRate: 88 },
-  { id: 't6', toolName: 'QuillBot', usageCount: 500, activeStudents: 150, relatedProblems: 10, successRate: 95 },
-  { id: 't7', toolName: 'Grammarly', usageCount: 800, activeStudents: 200, relatedProblems: 5, successRate: 98 },
-];
-
-const initialComments: Comment[] = [
-  { id: 'c1', studentId: '1', issueId: 'iss_1_1', authorName: 'Tayab Abbas', role: 'Student', text: 'I am not sure how to bypass the AI detectors with the new formatting.', createdAt: new Date(Date.now() - 3600000 * 5).toISOString() },
-  { id: 'c2', studentId: '1', issueId: 'iss_1_1', authorName: 'Sarah Jenkins', role: 'Admin', text: 'You should avoid relying purely on stealth writers. Focus on original drafting.', createdAt: new Date(Date.now() - 3600000 * 2).toISOString() },
-];
+const initialStudents: Student[] = [];
+const initialCourses: Course[] = [];
+const initialIssues: Issue[] = [];
+const initialAiTools: AiToolUsage[] = [];
+const initialComments: Comment[] = [];
 
 export const useAppStore = create<AppState>((set) => ({
   students: initialStudents,

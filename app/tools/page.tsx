@@ -1,10 +1,11 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useAppStore } from "@/store/useAppStore"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { listAiTools } from "@/lib/data/ai-tools"
+import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 
 const AIToolsUsageChart = dynamic(
   () => import("@/components/dashboard/charts").then(mod => mod.AIToolsUsageChart),
@@ -19,7 +20,7 @@ function ChartPlaceholder() {
 }
 
 export default function AIToolsPage() {
-  const { aiTools } = useAppStore()
+  const { data: aiTools, loading, error, refresh } = useSupabaseQuery(listAiTools, [], ["ai_tools"])
 
   // Sort by usage count
   const sortedTools = [...aiTools].sort((a,b) => b.usageCount - a.usageCount)
@@ -42,7 +43,9 @@ export default function AIToolsPage() {
           <CardTitle>Usage vs Issues Correlation</CardTitle>
           <CardDescription>Visual mapping of total usage versus reported student problems</CardDescription>
         </CardHeader>
-        <CardContent className="h-[400px]">
+        <CardContent className="h-[320px] sm:h-[400px]">
+          {loading && <LoadingState label="Loading AI tool metrics..." />}
+          {error && <ErrorState message={error} onRetry={refresh} />}
           <AIToolsUsageChart data={chartData} />
         </CardContent>
       </Card>
@@ -53,6 +56,8 @@ export default function AIToolsPage() {
           <CardDescription>Comprehensive metrics for all monitored AI writing tools</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
+          {loading && <div className="p-6"><LoadingState label="Loading AI tools..." /></div>}
+          {error && <div className="p-6"><ErrorState message={error} onRetry={refresh} /></div>}
           <Table>
             <TableHeader>
               <TableRow>
@@ -93,6 +98,13 @@ export default function AIToolsPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {!loading && !error && sortedTools.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-zinc-500">
+                    No AI tool metrics found.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

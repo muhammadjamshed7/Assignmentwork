@@ -14,6 +14,7 @@ import {
   Bell,
   Search,
   Menu,
+  X,
   FileText,
   ClipboardList
 } from "lucide-react"
@@ -21,9 +22,11 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useAppStore } from "@/store/useAppStore"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { PwaInstallButton } from "@/components/pwa-install-button"
+import { listIssues } from "@/lib/data/issues"
+import { useSupabaseQuery } from "@/lib/data/hooks"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -41,17 +44,17 @@ const navigation = [
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
-  const issues = useAppStore(state => state.issues)
+  const { data: issues } = useSupabaseQuery(listIssues, [], ["issues", "comments"])
   const openIssuesCount = issues.filter(i => i.status !== 'Resolved').length
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
-      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-zinc-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 dark:border-zinc-800 dark:bg-zinc-950">
-        <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(!sidebarOpen)}>
+      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-3 border-b border-zinc-200 bg-white px-3 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8 dark:border-zinc-800 dark:bg-zinc-950">
+        <Button variant="ghost" size="icon" className="shrink-0 lg:hidden" onClick={() => setSidebarOpen(!sidebarOpen)}>
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-          <div className="relative flex flex-1">
+        <div className="flex min-w-0 flex-1 gap-x-3 self-stretch lg:gap-x-6">
+          <div className="relative hidden min-w-0 flex-1 sm:flex">
             <label htmlFor="search-field" className="sr-only">Search</label>
             <Search className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-zinc-400" aria-hidden="true" />
             <input
@@ -62,7 +65,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               name="search"
             />
           </div>
-          <div className="flex items-center gap-x-4 lg:gap-x-6">
+          <div className="ml-auto flex items-center gap-x-2 sm:gap-x-4 lg:gap-x-6">
+            <PwaInstallButton />
             <ThemeToggle />
             <button type="button" className="-m-2.5 p-2.5 text-zinc-400 hover:text-zinc-500 relative">
               <span className="sr-only">View notifications</span>
@@ -73,7 +77,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </button>
             <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-zinc-200 dark:lg:bg-zinc-800" aria-hidden="true" />
             <div className="flex items-center gap-x-4">
-              <Avatar>
+              <Avatar className="h-9 w-9">
                 <AvatarImage src="https://ui.shadcn.com/avatars/01.png" alt="@shadcn" />
                 <AvatarFallback>AD</AvatarFallback>
               </Avatar>
@@ -86,19 +90,28 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex min-w-0 flex-1 overflow-hidden">
+        {sidebarOpen && (
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         {/* Sidebar */}
         <div className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 transform bg-white border-r border-zinc-200 transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 dark:bg-zinc-950 dark:border-zinc-800",
+          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] transform flex-col bg-white border-r border-zinc-200 transition-transform duration-200 ease-in-out lg:static lg:w-64 lg:max-w-none lg:translate-x-0 dark:bg-zinc-950 dark:border-zinc-800",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}>
           <div className="flex h-16 shrink-0 items-center px-6 border-b border-zinc-200 dark:border-zinc-800 lg:hidden">
             <span className="text-lg font-semibold dark:text-zinc-50">Academic Dashboard</span>
             <Button variant="ghost" size="icon" className="ml-auto" onClick={() => setSidebarOpen(false)}>
-              <Menu className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </Button>
           </div>
-          <nav className="flex flex-1 flex-col px-4 py-8">
+          <nav className="flex flex-1 flex-col overflow-y-auto px-4 py-6 lg:py-8">
             <ul role="list" className="flex flex-1 flex-col gap-y-2">
               <li className="mb-4 hidden lg:block px-2 list-none">
                 <span className="text-lg font-bold tracking-tight dark:text-white">EduMetrics</span>
@@ -107,6 +120,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <li key={item.name}>
                   <Link
                     href={item.href}
+                    onClick={() => setSidebarOpen(false)}
                     className={cn(
                       pathname === item.href
                         ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
@@ -135,8 +149,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
+        <main className="min-w-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
             {children}
           </div>
         </main>

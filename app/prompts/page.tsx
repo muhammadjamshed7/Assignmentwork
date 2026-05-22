@@ -21,9 +21,16 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { useToastStore } from "@/store/useToastStore"
-import { Prompt, useAppStore } from "@/store/useAppStore"
+import { Prompt } from "@/lib/data/types"
+import { createPrompt, deletePrompt, updatePrompt } from "@/lib/data/prompts"
+import { getPromptsData } from "@/lib/data/dashboard"
+import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
+import { getErrorMessage } from "@/lib/data/client"
 
 const PROMPT_CATEGORIES = [
+  "Presentation",
+  "Assignment",
+  "Research",
   "Instructions",
   "Thesis",
   "Data Extraction",
@@ -64,7 +71,12 @@ function parseTags(value: string) {
 }
 
 export default function PromptsPage() {
-  const { courses, prompts, addPrompt, updatePrompt, removePrompt } = useAppStore()
+  const { data, loading, error, refresh } = useSupabaseQuery(
+    getPromptsData,
+    { courses: [], prompts: [] },
+    ["courses", "prompts"]
+  )
+  const { courses, prompts } = data
   const { addToast } = useToastStore()
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("All")
@@ -73,6 +85,7 @@ export default function PromptsPage() {
   const [deletingPromptId, setDeletingPromptId] = useState<string | null>(null)
   const [form, setForm] = useState<PromptFormState>(EMPTY_PROMPT_FORM)
   const [formError, setFormError] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
 
   const filteredPrompts = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -124,15 +137,17 @@ export default function PromptsPage() {
     }
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setFormError("")
+    setIsSaving(true)
 
     const title = form.title.trim()
     const content = form.content.trim()
 
     if (!title || !content) {
       setFormError("Title and prompt content are required.")
+      setIsSaving(false)
       return
     }
 
@@ -144,24 +159,31 @@ export default function PromptsPage() {
       tags: parseTags(form.tags),
     }
 
-    if (editingPromptId) {
-      updatePrompt(editingPromptId, promptData)
-      addToast({
-        title: "Prompt Updated",
-        description: `${title} was saved.`,
-        type: "success",
-      })
-    } else {
-      addPrompt(promptData)
-      addToast({
-        title: "Prompt Created",
-        description: `${title} was added to the prompt library.`,
-        type: "success",
-      })
-    }
+    try {
+      if (editingPromptId) {
+        await updatePrompt(editingPromptId, promptData)
+        addToast({
+          title: "Prompt Updated",
+          description: `${title} was saved.`,
+          type: "success",
+        })
+      } else {
+        await createPrompt(promptData)
+        addToast({
+          title: "Prompt Created",
+          description: `${title} was added to the prompt library.`,
+          type: "success",
+        })
+      }
 
-    setIsDialogOpen(false)
-    resetForm()
+      await refresh()
+      setIsDialogOpen(false)
+      resetForm()
+    } catch (err) {
+      setFormError(getErrorMessage(err))
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   async function handleCopy(prompt: Prompt) {
@@ -181,16 +203,25 @@ export default function PromptsPage() {
     }
   }
 
-  function handleDeletePrompt() {
+  async function handleDeletePrompt() {
     if (!deletingPromptId) return
 
-    removePrompt(deletingPromptId)
-    setDeletingPromptId(null)
-    addToast({
-      title: "Prompt Deleted",
-      description: "The prompt was removed from the library.",
-      type: "success",
-    })
+    try {
+      await deletePrompt(deletingPromptId)
+      await refresh()
+      setDeletingPromptId(null)
+      addToast({
+        title: "Prompt Deleted",
+        description: "The prompt was removed from the library.",
+        type: "success",
+      })
+    } catch (err) {
+      addToast({
+        title: "Delete Failed",
+        description: getErrorMessage(err),
+        type: "error",
+      })
+    }
   }
 
   function getCourseLabel(courseId?: string) {
@@ -204,8 +235,8 @@ export default function PromptsPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Prompts</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Create and manage reusable academic support prompts.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Prompt Library</h1>
+          <p className="text-zinc-500 dark:text-zinc-400">Save simple prompts for presentations, assignments, research, and feedback.</p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
@@ -219,7 +250,7 @@ export default function PromptsPage() {
             <form onSubmit={handleSubmit} className="grid gap-5">
               <DialogHeader>
                 <DialogTitle>{editingPromptId ? "Edit Prompt" : "Create Prompt"}</DialogTitle>
-                <DialogDescription>Save reusable prompt text for admin workflows.</DialogDescription>
+                <DialogDescription>Save reusable prompt text for common academic work.</DialogDescription>
               </DialogHeader>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -229,7 +260,7 @@ export default function PromptsPage() {
                     id="prompt-title"
                     value={form.title}
                     onChange={(event) => updateFormField("title", event.target.value)}
-                    placeholder="e.g. Source Summary Prompt"
+                    placeholder="e.g. Presentation Outline Builder"
                     required
                   />
                 </div>
@@ -274,7 +305,7 @@ export default function PromptsPage() {
                   id="prompt-tags"
                   value={form.tags}
                   onChange={(event) => updateFormField("tags", event.target.value)}
-                  placeholder="brief, sources, citation"
+                  placeholder="presentation, assignment, sources"
                 />
               </div>
 
@@ -296,7 +327,7 @@ export default function PromptsPage() {
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">{editingPromptId ? "Save" : "Create"}</Button>
+                <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : editingPromptId ? "Save" : "Create"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -330,6 +361,8 @@ export default function PromptsPage() {
             </select>
           </CardHeader>
           <CardContent className="p-0">
+            {loading && <div className="p-6"><LoadingState label="Loading prompts..." /></div>}
+            {error && <div className="p-6"><ErrorState message={error} onRetry={refresh} /></div>}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -381,7 +414,7 @@ export default function PromptsPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredPrompts.length === 0 && (
+                {!loading && !error && filteredPrompts.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-zinc-500">
                       No prompts found.

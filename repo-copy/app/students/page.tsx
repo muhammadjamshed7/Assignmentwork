@@ -140,7 +140,7 @@ export default function StudentsPage() {
                   <Label htmlFor="name">Student Name <span className="text-red-500">*</span></Label>
                   <Input 
                     id="name" 
-                    placeholder="e.g. John Doe" 
+                    placeholder="e.g. Student name" 
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                   />
@@ -182,7 +182,7 @@ export default function StudentsPage() {
                     <Label htmlFor="trainer">Assigned Trainer</Label>
                     <Input 
                       id="trainer" 
-                      placeholder="e.g. Sarah Jenkins" 
+                      placeholder="e.g. Trainer name" 
                       value={newTrainer}
                       onChange={(e) => setNewTrainer(e.target.value)}
                     />
