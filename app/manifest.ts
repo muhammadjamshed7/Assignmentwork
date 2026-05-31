@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'EduMetrics Admin Dashboard',
-    short_name: 'EduMetrics',
+    name: 'TDS Management Admin Dashboard',
+    short_name: 'TDS Management',
     description: 'Academic services dashboard for students, issues, courses, prompts, and reports.',
     start_url: '/',
     scope: '/',

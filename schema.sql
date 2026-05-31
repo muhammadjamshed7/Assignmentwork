@@ -1,8 +1,12 @@
 -- =========================================================
--- EduMetrics current app schema
--- Tables covered by the current UI only:
+-- TDS Management current app schema
+-- Tables covered by the current UI:
 -- students, courses, student_courses, issues, comments,
--- prompts, ai_tools
+-- prompts, ai_tools, user_roles
+--
+-- Default Supabase Auth admin login seeded by this schema:
+-- email: tds@gmail.com
+-- password: admin123ahmed
 -- =========================================================
 
 -- 1. Extensions
@@ -122,6 +126,7 @@ create table if not exists public.prompts (
 create table if not exists public.ai_tools (
   id uuid primary key default gen_random_uuid(),
   tool_name text not null unique,
+  description text not null default '',
   usage_count integer not null default 0 check (usage_count >= 0),
   active_students integer not null default 0 check (active_students >= 0),
   related_problems integer not null default 0 check (related_problems >= 0),
@@ -129,6 +134,25 @@ create table if not exists public.ai_tools (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.ai_tools add column if not exists description text not null default '';
+
+create table if not exists public.user_roles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null check (role in ('admin', 'viewer')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create or replace function public.current_user_role()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select role from public.user_roles where user_id = auth.uid() limit 1
+$$;
 
 -- 5. Student rollup helper
 create or replace function public.sync_student_issue_summary(target_student_id uuid)
@@ -171,8 +195,17 @@ returns trigger
 language plpgsql
 as $$
 begin
-  perform public.sync_student_issue_summary(coalesce(new.student_id, old.student_id));
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    perform public.sync_student_issue_summary(old.student_id);
+    return old;
+  end if;
+
+  if tg_op = 'UPDATE' and old.student_id is distinct from new.student_id then
+    perform public.sync_student_issue_summary(old.student_id);
+  end if;
+
+  perform public.sync_student_issue_summary(new.student_id);
+  return new;
 end;
 $$;
 
@@ -226,6 +259,11 @@ create trigger ai_tools_set_updated_at
 before update on public.ai_tools
 for each row execute function public.set_updated_at();
 
+drop trigger if exists user_roles_set_updated_at on public.user_roles;
+create trigger user_roles_set_updated_at
+before update on public.user_roles
+for each row execute function public.set_updated_at();
+
 drop trigger if exists issues_sync_student_insert on public.issues;
 create trigger issues_sync_student_insert
 after insert on public.issues
@@ -233,7 +271,7 @@ for each row execute function public.sync_student_after_issue_change();
 
 drop trigger if exists issues_sync_student_update on public.issues;
 create trigger issues_sync_student_update
-after update of status, priority, category on public.issues
+after update on public.issues
 for each row execute function public.sync_student_after_issue_change();
 
 drop trigger if exists issues_sync_student_delete on public.issues;
@@ -269,27 +307,63 @@ alter table public.issues enable row level security;
 alter table public.comments enable row level security;
 alter table public.prompts enable row level security;
 alter table public.ai_tools enable row level security;
+alter table public.user_roles enable row level security;
 
 drop policy if exists "Allow public app access" on public.courses;
-create policy "Allow public app access" on public.courses for all using (true) with check (true);
-
 drop policy if exists "Allow public app access" on public.students;
-create policy "Allow public app access" on public.students for all using (true) with check (true);
-
 drop policy if exists "Allow public app access" on public.student_courses;
-create policy "Allow public app access" on public.student_courses for all using (true) with check (true);
-
 drop policy if exists "Allow public app access" on public.issues;
-create policy "Allow public app access" on public.issues for all using (true) with check (true);
-
 drop policy if exists "Allow public app access" on public.comments;
-create policy "Allow public app access" on public.comments for all using (true) with check (true);
-
 drop policy if exists "Allow public app access" on public.prompts;
-create policy "Allow public app access" on public.prompts for all using (true) with check (true);
-
 drop policy if exists "Allow public app access" on public.ai_tools;
-create policy "Allow public app access" on public.ai_tools for all using (true) with check (true);
+
+do $$
+declare
+  table_name text;
+begin
+  foreach table_name in array array['courses', 'students', 'student_courses', 'issues', 'comments', 'prompts', 'ai_tools']
+  loop
+    execute format('drop policy if exists "Authenticated read" on public.%I', table_name);
+    execute format('drop policy if exists "Admin insert" on public.%I', table_name);
+    execute format('drop policy if exists "Admin update" on public.%I', table_name);
+    execute format('drop policy if exists "Admin delete" on public.%I', table_name);
+
+    execute format('create policy "Authenticated read" on public.%I for select to authenticated using (true)', table_name);
+    execute format('create policy "Admin insert" on public.%I for insert to authenticated with check (public.current_user_role() = ''admin'')', table_name);
+    execute format('create policy "Admin update" on public.%I for update to authenticated using (public.current_user_role() = ''admin'') with check (public.current_user_role() = ''admin'')', table_name);
+    execute format('create policy "Admin delete" on public.%I for delete to authenticated using (public.current_user_role() = ''admin'')', table_name);
+  end loop;
+end $$;
+
+drop policy if exists "Authenticated read own role or admin" on public.user_roles;
+drop policy if exists "Admin insert roles" on public.user_roles;
+drop policy if exists "Admin update roles" on public.user_roles;
+drop policy if exists "Admin delete roles" on public.user_roles;
+
+create policy "Authenticated read own role or admin"
+on public.user_roles
+for select
+to authenticated
+using (user_id = auth.uid() or public.current_user_role() = 'admin');
+
+create policy "Admin insert roles"
+on public.user_roles
+for insert
+to authenticated
+with check (public.current_user_role() = 'admin');
+
+create policy "Admin update roles"
+on public.user_roles
+for update
+to authenticated
+using (public.current_user_role() = 'admin')
+with check (public.current_user_role() = 'admin');
+
+create policy "Admin delete roles"
+on public.user_roles
+for delete
+to authenticated
+using (public.current_user_role() = 'admin');
 
 -- 9. Realtime
 do $$
@@ -306,6 +380,114 @@ alter publication supabase_realtime set table
   public.issues,
   public.comments,
   public.prompts,
-  public.ai_tools;
+  public.ai_tools,
+  public.user_roles;
 
--- 10. Seed data intentionally omitted.
+-- 10. Default Supabase Auth admin user
+do $$
+declare
+  admin_email text := 'tds@gmail.com';
+  admin_password text := 'admin123ahmed';
+  admin_user_id uuid;
+  admin_identity_id uuid := '80000000-0000-0000-0000-000000000001';
+  admin_identity_data jsonb;
+begin
+  select id
+  into admin_user_id
+  from auth.users
+  where email = admin_email
+  limit 1;
+
+  if admin_user_id is null then
+    admin_user_id := '80000000-0000-0000-0000-000000000000';
+
+    insert into auth.users (
+      instance_id,
+      id,
+      aud,
+      role,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      created_at,
+      updated_at,
+      confirmation_token,
+      email_change,
+      email_change_token_new,
+      recovery_token
+    )
+    values (
+      '00000000-0000-0000-0000-000000000000',
+      admin_user_id,
+      'authenticated',
+      'authenticated',
+      admin_email,
+      crypt(admin_password, gen_salt('bf')),
+      now(),
+      jsonb_build_object('provider', 'email', 'providers', array['email']),
+      jsonb_build_object('role', 'admin', 'name', 'TDS Admin'),
+      now(),
+      now(),
+      '',
+      '',
+      '',
+      ''
+    );
+  else
+    update auth.users
+    set
+      encrypted_password = crypt(admin_password, gen_salt('bf')),
+      email_confirmed_at = coalesce(email_confirmed_at, now()),
+      raw_app_meta_data = jsonb_build_object('provider', 'email', 'providers', array['email']),
+      raw_user_meta_data = jsonb_build_object('role', 'admin', 'name', 'TDS Admin'),
+      updated_at = now()
+    where id = admin_user_id;
+  end if;
+
+  admin_identity_data := jsonb_build_object(
+    'sub', admin_user_id::text,
+    'email', admin_email,
+    'email_verified', true,
+    'phone_verified', false
+  );
+
+  delete from auth.identities
+  where user_id = admin_user_id
+    and provider = 'email';
+
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'auth'
+      and table_name = 'identities'
+      and column_name = 'provider_id'
+  ) then
+    execute format(
+      'insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) values (%L, %L, %L, %L::jsonb, %L, now(), now(), now())',
+      admin_identity_id,
+      admin_user_id,
+      admin_email,
+      admin_identity_data::text,
+      'email'
+    );
+  else
+    execute format(
+      'insert into auth.identities (id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at) values (%L, %L, %L::jsonb, %L, now(), now(), now())',
+      admin_user_id::text,
+      admin_user_id,
+      admin_identity_data::text,
+      'email'
+    );
+  end if;
+
+  insert into public.user_roles (user_id, role)
+  values (admin_user_id, 'admin')
+  on conflict (user_id) do update
+  set
+    role = excluded.role,
+    updated_at = now();
+end $$;
+
+-- 11. App seed data intentionally omitted.

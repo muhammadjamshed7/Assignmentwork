@@ -19,21 +19,4 @@ export async function getReportsIndexData() {
   return { students, issues };
 }
 
-export async function getCommentsData() {
-  const [students, issues, comments] = await Promise.all([
-    listStudents(),
-    listIssues(),
-    import("@/lib/data/comments").then(mod => mod.listComments()),
-  ]);
 
-  return { students, issues, comments };
-}
-
-export async function getPromptsData() {
-  const [courses, prompts] = await Promise.all([
-    listCourses(),
-    import("@/lib/data/prompts").then(mod => mod.listPrompts()),
-  ]);
-
-  return { courses, prompts };
-}

@@ -16,13 +16,15 @@ type QueryState<T> = {
 export function useSupabaseQuery<T>(
   load: () => Promise<T>,
   initialData: T,
-  realtimeTables: string[] = []
+  realtimeTables: string[] = [],
+  reloadKey = ""
 ): QueryState<T> {
   const [data, setData] = React.useState<T>(initialData);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const loadRef = React.useRef(load);
-  const realtimeKey = realtimeTables.join("|");
+  const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const realtimeKey = Array.from(new Set(realtimeTables.filter(Boolean))).join("|");
 
   loadRef.current = load;
 
@@ -41,7 +43,15 @@ export function useSupabaseQuery<T>(
 
   React.useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, reloadKey]);
+
+  React.useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   React.useEffect(() => {
     const tables = realtimeKey ? realtimeKey.split("|") : [];
@@ -58,7 +68,14 @@ export function useSupabaseQuery<T>(
 
     tables.forEach(table => {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, () => {
-        void refresh();
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+
+        debounceTimerRef.current = setTimeout(() => {
+          debounceTimerRef.current = null;
+          void refresh();
+        }, 500);
       });
     });
 

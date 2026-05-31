@@ -106,6 +106,7 @@ export function mapAiTool(row: Row): AiToolUsage {
   return {
     id: asString(row.id),
     toolName: asString(row.tool_name),
+    description: row.description ? asString(row.description) : undefined,
     usageCount: asNumber(row.usage_count),
     activeStudents: asNumber(row.active_students),
     relatedProblems: asNumber(row.related_problems),

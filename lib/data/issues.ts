@@ -1,6 +1,8 @@
 import { requireSupabase } from "@/lib/data/client";
 import { mapIssue } from "@/lib/data/mappers";
-import { Issue, IssueCategory, IssueStatus, PriorityLevel } from "@/lib/data/types";
+import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
+import { Issue, IssueCategory, IssueStatus, PaginatedResult, PaginationOptions, PriorityLevel } from "@/lib/data/types";
+import { assertAdmin } from "@/lib/auth/roles";
 
 export async function listIssues(): Promise<Issue[]> {
   const supabase = requireSupabase();
@@ -13,6 +15,19 @@ export async function listIssues(): Promise<Issue[]> {
   return (data ?? []).map(mapIssue);
 }
 
+export async function listIssuesPage(options: PaginationOptions = {}): Promise<PaginatedResult<Issue>> {
+  const supabase = requireSupabase();
+  const pagination = getPaginationRange(options);
+  const { data, error, count } = await supabase
+    .from("issues")
+    .select("id, student_id, category, description, status, priority, created_at, updated_at, student:students(id, name)", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(pagination.from, pagination.to);
+
+  if (error) throw error;
+  return toPaginatedResult((data ?? []).map(mapIssue), count, pagination);
+}
+
 export async function createIssue(input: {
   studentId: string;
   category: IssueCategory;
@@ -20,6 +35,8 @@ export async function createIssue(input: {
   status: IssueStatus;
   priority: PriorityLevel;
 }) {
+  await assertAdmin();
+
   const supabase = requireSupabase();
   const description = input.description.trim();
 
@@ -45,6 +62,8 @@ export async function createIssue(input: {
 }
 
 export async function updateIssueStatus(issueId: string, status: IssueStatus) {
+  await assertAdmin();
+
   const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("issues")

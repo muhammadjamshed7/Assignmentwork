@@ -8,28 +8,55 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PlusCircle } from "lucide-react"
-import { createCourse, listCoursesWithEnrollment } from "@/lib/data/courses"
+import { Pencil, PlusCircle, Trash2 } from "lucide-react"
+import { createCourse, deleteCourse, listCoursesWithEnrollmentPage, updateCourse } from "@/lib/data/courses"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 import { getErrorMessage } from "@/lib/data/client"
+import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
+import { PaginationControls } from "@/components/ui/pagination-controls"
+import { CourseWithEnrollment } from "@/lib/data/types"
+
+const PAGE_SIZE = 10
 
 export default function CoursesPage() {
-  const { data: courses, loading, error, refresh } = useSupabaseQuery(
-    listCoursesWithEnrollment,
-    [],
-    ["courses", "student_courses"]
+  const [page, setPage] = useState(1)
+  const { data: coursesPage, loading, error, refresh } = useSupabaseQuery(
+    () => listCoursesWithEnrollmentPage({ page, pageSize: PAGE_SIZE }),
+    { items: [], total: 0, page: 1, pageSize: PAGE_SIZE },
+    ["courses", "student_courses"],
+    String(page)
   )
+  const courses = coursesPage.items
   const { addToast } = useToastStore()
+  const { isAdmin } = useCurrentUserRole()
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null)
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null)
   const [newCode, setNewCode] = useState("")
   const [newTitle, setNewTitle] = useState("")
   const [formError, setFormError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const deletingCourse = courses.find(course => course.id === deletingCourseId)
 
   const resetCourseForm = () => {
+    setEditingCourseId(null)
     setNewCode("")
     setNewTitle("")
     setFormError("")
+  }
+
+  const openCreateDialog = () => {
+    resetCourseForm()
+    setIsDialogOpen(true)
+  }
+
+  const openEditDialog = (course: CourseWithEnrollment) => {
+    setEditingCourseId(course.id)
+    setNewCode(course.code)
+    setNewTitle(course.title)
+    setFormError("")
+    setIsDialogOpen(true)
   }
 
   const handleDialogOpenChange = (open: boolean) => {
@@ -40,7 +67,7 @@ export default function CoursesPage() {
     }
   }
 
-  const handleAddCourse = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmitCourse = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setFormError("")
     setIsSaving(true)
@@ -54,7 +81,7 @@ export default function CoursesPage() {
       return
     }
 
-    const isDuplicate = courses.some(course => course.code.toLowerCase() === code.toLowerCase())
+    const isDuplicate = courses.some(course => course.id !== editingCourseId && course.code.toLowerCase() === code.toLowerCase())
 
     if (isDuplicate) {
       setFormError("A course with this code already exists.")
@@ -63,12 +90,14 @@ export default function CoursesPage() {
     }
 
     try {
-      const course = await createCourse({ code, title })
+      const course = editingCourseId
+        ? await updateCourse(editingCourseId, { code, title })
+        : await createCourse({ code, title })
       await refresh()
 
       addToast({
-        title: "Course Created",
-        description: `${course.code} has been added successfully.`,
+        title: editingCourseId ? "Course Updated" : "Course Created",
+        description: editingCourseId ? `${course.code} was saved.` : `${course.code} has been added successfully.`,
         type: "success",
       })
 
@@ -81,6 +110,30 @@ export default function CoursesPage() {
     }
   }
 
+  const handleDeleteCourse = async () => {
+    if (!deletingCourseId) return
+    setIsDeleting(true)
+
+    try {
+      await deleteCourse(deletingCourseId)
+      await refresh()
+      setDeletingCourseId(null)
+      addToast({
+        title: "Course Deleted",
+        description: "The course was removed.",
+        type: "success",
+      })
+    } catch (err) {
+      addToast({
+        title: "Delete Failed",
+        description: getErrorMessage(err),
+        type: "error",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -89,17 +142,18 @@ export default function CoursesPage() {
           <p className="text-zinc-500 dark:text-zinc-400">View and manage all academic courses.</p>
         </div>
 
+        {isAdmin && (
         <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button type="button" className="gap-2" onClick={openCreateDialog}>
               <PlusCircle className="h-4 w-4" />
               Add Course
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[460px]">
-            <form onSubmit={handleAddCourse}>
+            <form onSubmit={handleSubmitCourse}>
               <DialogHeader>
-                <DialogTitle>Add Course</DialogTitle>
+                <DialogTitle>{editingCourseId ? "Edit Course" : "Add Course"}</DialogTitle>
                 <DialogDescription>
                   Create a course code and title for student assignments.
                 </DialogDescription>
@@ -139,11 +193,12 @@ export default function CoursesPage() {
                 <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : "Save Course"}</Button>
+                <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : editingCourseId ? "Save" : "Save Course"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <Card>
@@ -160,6 +215,7 @@ export default function CoursesPage() {
                 <TableHead>Course Code</TableHead>
                 <TableHead>Course Title</TableHead>
                 <TableHead className="text-right">Enrolled Students</TableHead>
+                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -169,20 +225,61 @@ export default function CoursesPage() {
                     <TableCell className="font-semibold">{course.code}</TableCell>
                     <TableCell>{course.title}</TableCell>
                     <TableCell className="text-right text-zinc-600 dark:text-zinc-400">{course.enrolledStudents}</TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          <Button type="button" variant="ghost" size="icon" title="Edit course" onClick={() => openEditDialog(course)}>
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                            <span className="sr-only">Edit course</span>
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" title="Delete course" onClick={() => setDeletingCourseId(course.id)}>
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            <span className="sr-only">Delete course</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 )
               })}
               {!loading && !error && courses.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center text-zinc-500">
+                  <TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center text-zinc-500">
                     No courses found.
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          <PaginationControls
+            page={coursesPage.page}
+            pageSize={coursesPage.pageSize}
+            total={coursesPage.total}
+            onPageChange={setPage}
+          />
         </CardContent>
       </Card>
+
+      {isAdmin && (
+      <Dialog open={!!deletingCourseId} onOpenChange={(open) => !open && setDeletingCourseId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Course</DialogTitle>
+            <DialogDescription>
+              {deletingCourse ? `Remove "${deletingCourse.code}"? Student assignments will be removed and related prompts will become course-agnostic.` : "Remove this course?"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDeletingCourseId(null)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleDeleteCourse} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      )}
     </div>
   )
 }

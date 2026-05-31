@@ -1,19 +1,42 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDistanceToNow } from "date-fns"
 import { NewIssueDialog } from "@/components/issues/new-issue-dialog"
-import { listIssues } from "@/lib/data/issues"
+import { listIssuesPage } from "@/lib/data/issues"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
+import { useSearchStore } from "@/store/useSearchStore"
+import { PaginationControls } from "@/components/ui/pagination-controls"
+
+const PAGE_SIZE = 10
 
 export default function IssuesPage() {
-  const { data: issues, loading, error, refresh } = useSupabaseQuery(
-    listIssues,
-    [],
-    ["issues", "students", "comments"]
+  const [page, setPage] = useState(1)
+  const { data: issuesPage, loading, error, refresh } = useSupabaseQuery(
+    () => listIssuesPage({ page, pageSize: PAGE_SIZE }),
+    { items: [], total: 0, page: 1, pageSize: PAGE_SIZE },
+    ["issues", "students", "comments"],
+    String(page)
   )
+  const issues = issuesPage.items
+  const searchQuery = useSearchStore(state => state.searchQuery)
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase()
+  const filteredIssues = [...issues]
+    .filter(issue => {
+      if (!normalizedSearchQuery) return true
+
+      return [
+        issue.studentName ?? "",
+        issue.category,
+        issue.description,
+        issue.status,
+        issue.priority,
+      ].join(" ").toLowerCase().includes(normalizedSearchQuery)
+    })
+    .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const getStatusVariant = (status: string) => {
     switch(status) {
@@ -59,7 +82,7 @@ export default function IssuesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...issues].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((issue) => {
+              {filteredIssues.map((issue) => {
                 return (
                   <TableRow key={issue.id}>
                     <TableCell className="font-medium whitespace-nowrap">{issue.studentName ?? "Unknown student"}</TableCell>
@@ -87,7 +110,7 @@ export default function IssuesPage() {
                   </TableRow>
                 )
               })}
-              {!loading && !error && issues.length === 0 && (
+              {!loading && !error && filteredIssues.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-zinc-500">
                     No issues found.
@@ -96,6 +119,12 @@ export default function IssuesPage() {
               )}
             </TableBody>
           </Table>
+          <PaginationControls
+            page={issuesPage.page}
+            pageSize={issuesPage.pageSize}
+            total={issuesPage.total}
+            onPageChange={setPage}
+          />
         </CardContent>
       </Card>
     </div>

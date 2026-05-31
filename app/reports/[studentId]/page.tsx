@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useRef } from "react"
+import * as React from "react"
 import { Issue, Comment } from "@/lib/data/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,29 +10,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Download, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { formatDistanceToNow, format } from "date-fns"
-import html2canvas from "html2canvas"
-import jsPDF from "jspdf"
-import { useToastStore } from "@/store/useToastStore"
 import { listStudents } from "@/lib/data/students"
 import { listIssues } from "@/lib/data/issues"
 import { listComments } from "@/lib/data/comments"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 
 export default function StudentReportPage({ params }: { params: Promise<{ studentId: string }> }) {
-  const { studentId } = use(params)
+  const { studentId } = React.use(params)
   const { data, loading, error, refresh } = useSupabaseQuery(
     async () => {
       const [students, issues, comments] = await Promise.all([listStudents(), listIssues(), listComments()])
       return { students, issues, comments }
     },
     { students: [], issues: [], comments: [] },
-    ["students", "student_courses", "issues", "comments"]
+    ["students", "student_courses", "courses", "issues", "comments"]
   )
   const { students, issues, comments } = data
-  const { addToast } = useToastStore()
   
   const student = students.find(s => s.id === studentId)
-  const reportRef = useRef<HTMLDivElement>(null)
 
   if (loading) {
     return <LoadingState label="Loading student report..." />
@@ -83,45 +78,8 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
     }
   }
   
-  const handleExportPDF = async () => {
-    if (!reportRef.current) return
-    
-    addToast({
-      title: "Generating PDF",
-      description: "Please wait while the report is being generated...",
-      type: "info"
-    })
-
-    try {
-      const canvas = await html2canvas(reportRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false
-      })
-      
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
-      })
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height)
-      pdf.save(`Report-${student.name.replace(/\s+/g, '-')}.pdf`)
-
-      addToast({
-        title: "Export Successful",
-        description: "The PDF report has been downloaded.",
-        type: "success"
-      })
-    } catch (error) {
-      console.error(error)
-      addToast({
-        title: "Export Failed",
-        description: "There was an error generating the PDF.",
-        type: "error"
-      })
-    }
+  const handleExportPDF = () => {
+    window.open(`/api/report/${studentId}/pdf`, "_blank", "noopener,noreferrer")
   }
 
   return (
@@ -144,7 +102,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
         </Button>
       </div>
 
-      <div ref={reportRef} className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="print-header mb-8 pb-8 border-b border-zinc-200 dark:border-zinc-800">
            <h2 className="text-2xl font-bold">{student.name}</h2>
            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -367,8 +325,8 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
                        [...studentIssues.map(i => ({ type: 'issue', data: i, time: i.createdAt })), 
                         ...studentComments.map(c => ({ type: 'comment', data: c, time: c.createdAt }))]
                        .sort((a,b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-                       .map((activity, idx) => (
-                         <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                       .map((activity) => (
+                          <div key={`${activity.type}-${activity.data.id}`} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                            <div className="flex items-center justify-center w-5 h-5 rounded-full border border-white dark:border-zinc-950 bg-zinc-200 dark:bg-zinc-800 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2" />
                            <div className="w-[calc(100%-2rem)] md:w-[calc(50%-2rem)] p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
                              <div className="flex items-center justify-between mb-1">

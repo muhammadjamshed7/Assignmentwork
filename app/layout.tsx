@@ -5,14 +5,14 @@ import { PwaRegister } from '@/components/pwa-register';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'EduMetrics - Admin Dashboard',
+  title: 'TDS Management - Admin Dashboard',
   description: 'Academic Services Admin Dashboard',
   manifest: '/manifest.webmanifest',
-  applicationName: 'EduMetrics',
+  applicationName: 'TDS Management',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'EduMetrics',
+    title: 'TDS Management',
   },
   icons: {
     icon: [
@@ -39,7 +39,7 @@ export const viewport: Viewport = {
 const themeScript = `
 (() => {
   try {
-    const storedTheme = localStorage.getItem('edumetrics-theme');
+    const storedTheme = localStorage.getItem('tds-management-theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const theme = storedTheme === 'dark' || (!storedTheme && prefersDark) ? 'dark' : 'light';
 

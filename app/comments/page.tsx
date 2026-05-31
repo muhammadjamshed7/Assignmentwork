@@ -11,21 +11,42 @@ import { formatDistanceToNow } from "date-fns"
 import { Pencil, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { NewIssueDialog } from "@/components/issues/new-issue-dialog"
-import { createComment, deleteComment, updateComment } from "@/lib/data/comments"
-import { getCommentsData } from "@/lib/data/dashboard"
-import { updateIssueStatus } from "@/lib/data/issues"
+import { createComment, deleteComment, listCommentsPage, updateComment } from "@/lib/data/comments"
+import { listStudents } from "@/lib/data/students"
+import { listIssues, updateIssueStatus } from "@/lib/data/issues"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 import { getErrorMessage } from "@/lib/data/client"
+import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
+import { PaginationControls } from "@/components/ui/pagination-controls"
+
+const PAGE_SIZE = 10
 
 export default function CommentsPage() {
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null)
+  const [commentsPageNumber, setCommentsPageNumber] = useState(1)
   const { data, loading, error, refresh } = useSupabaseQuery(
-    getCommentsData,
-    { students: [], issues: [], comments: [] },
-    ["students", "issues", "comments"]
+    async () => {
+      const [students, issues] = await Promise.all([
+        listStudents(),
+        listIssues(),
+      ])
+      const activeIssueId = selectedIssueId ?? issues[0]?.id
+      const commentsPage = await listCommentsPage({
+        page: commentsPageNumber,
+        pageSize: PAGE_SIZE,
+        issueId: activeIssueId,
+      })
+
+      return { students, issues, commentsPage }
+    },
+    { students: [], issues: [], commentsPage: { items: [], total: 0, page: 1, pageSize: PAGE_SIZE } },
+    ["students", "issues", "comments"],
+    `${selectedIssueId ?? "all"}:${commentsPageNumber}`
   )
-  const { comments, issues, students } = data
+  const { commentsPage, issues, students } = data
+  const comments = commentsPage.items
   const { addToast } = useToastStore()
-  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(issues[0]?.id || null)
+  const { isAdmin } = useCurrentUserRole()
   
   // New reply state
   const [replyText, setReplyText] = useState("")
@@ -44,7 +65,12 @@ export default function CommentsPage() {
   const activeIssueId = selectedIssueId ?? issues[0]?.id ?? null
   const selectedIssue = issues.find(i => i.id === activeIssueId)
   const relatedStudent = students.find(s => s.id === selectedIssue?.studentId)
-  const issueComments = comments.filter(c => c.issueId === activeIssueId).sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  const issueComments = [...comments].sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+
+  const selectIssue = (issueId: string) => {
+    setSelectedIssueId(issueId)
+    setCommentsPageNumber(1)
+  }
 
   const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -121,7 +147,7 @@ export default function CommentsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Comments & Tickets</h1>
           <p className="text-zinc-500 dark:text-zinc-400">Manage issue threads and respond to students.</p>
         </div>
-        <NewIssueDialog onIssueCreated={setSelectedIssueId} onSaved={refresh} />
+        <NewIssueDialog onIssueCreated={selectIssue} onSaved={refresh} />
       </div>
 
       {loading && <LoadingState label="Loading tickets..." />}
@@ -141,7 +167,7 @@ export default function CommentsPage() {
               return (
                 <button
                   key={issue.id}
-                  onClick={() => setSelectedIssueId(issue.id)}
+                  onClick={() => selectIssue(issue.id)}
                   className={`w-full text-left p-3 rounded-lg border transition-all ${isSelected ? 'bg-zinc-100 border-zinc-300 dark:bg-zinc-800 dark:border-zinc-700' : 'bg-white border-zinc-100 hover:border-zinc-300 dark:bg-zinc-950 dark:border-zinc-800 dark:hover:border-zinc-700'}`}
                 >
                   <div className="flex justify-between items-start mb-1">
@@ -213,7 +239,7 @@ export default function CommentsPage() {
                          <span className="text-xs text-zinc-400">{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</span>
                        </div>
                        
-                       {editingCommentId === comment.id ? (
+                       {isAdmin && editingCommentId === comment.id ? (
                          <div className={`p-3 rounded-lg border text-sm shadow-sm ${comment.role === 'Admin' ? 'bg-zinc-100/50 border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800' : 'bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800'}`}>
                            <textarea
                              value={editingText}
@@ -227,6 +253,7 @@ export default function CommentsPage() {
                          </div>
                        ) : (
                          <div className={`p-3 rounded-lg border text-sm shadow-sm group relative pr-12 ${comment.role === 'Admin' ? 'bg-zinc-100/50 border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200' : 'bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300'}`}>
+                           {isAdmin && (
                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex bg-white dark:bg-zinc-950 shadow-sm rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-800">
                              <button
                                onClick={() => { setEditingCommentId(comment.id); setEditingText(comment.text); }}
@@ -241,15 +268,23 @@ export default function CommentsPage() {
                                <Trash2 className="h-3.5 w-3.5" />
                              </button>
                            </div>
+                           )}
                            <p className="whitespace-pre-wrap">{comment.text}</p>
                          </div>
                        )}
                      </div>
                    </div>
                  ))}
+                 <PaginationControls
+                   page={commentsPage.page}
+                   pageSize={commentsPage.pageSize}
+                   total={commentsPage.total}
+                   onPageChange={setCommentsPageNumber}
+                 />
               </div>
 
               {/* Reply Box */}
+              {isAdmin && (
               <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0">
                 <form onSubmit={handleSubmitReply} className="flex flex-col gap-3">
                   <div className="flex flex-col gap-2 rounded-t-md border border-b-0 border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:justify-between">
@@ -292,6 +327,7 @@ export default function CommentsPage() {
                   </div>
                 </form>
               </div>
+              )}
             </>
           ) : (
             <div className="flex items-center justify-center h-full text-zinc-500">
@@ -301,6 +337,7 @@ export default function CommentsPage() {
         </Card>
       </div>
 
+      {isAdmin && (
       <Dialog open={!!deletingCommentId} onOpenChange={(open) => !open && setDeletingCommentId(null)}>
         <DialogContent>
           <DialogHeader>
@@ -319,6 +356,7 @@ export default function CommentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   )
 }

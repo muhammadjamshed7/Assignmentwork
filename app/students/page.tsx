@@ -6,31 +6,44 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Search, SlidersHorizontal, Eye } from "lucide-react"
+import { Search, SlidersHorizontal, Eye, Pencil, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { createStudent, listStudents } from "@/lib/data/students"
+import { createStudent, deleteStudent, listStudentsPage, updateStudent } from "@/lib/data/students"
 import { listCourses } from "@/lib/data/courses"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 import { getErrorMessage } from "@/lib/data/client"
+import { useSearchStore } from "@/store/useSearchStore"
+import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
+import { PaginationControls } from "@/components/ui/pagination-controls"
+import { Student } from "@/lib/data/types"
+
+const PAGE_SIZE = 10
 
 export default function StudentsPage() {
+  const [page, setPage] = useState(1)
   const { data, loading, error, refresh } = useSupabaseQuery(
     async () => {
-      const [students, courses] = await Promise.all([listStudents(), listCourses()])
-      return { students, courses }
+      const [studentsPage, courses] = await Promise.all([listStudentsPage({ page, pageSize: PAGE_SIZE }), listCourses()])
+      return { studentsPage, courses }
     },
-    { students: [], courses: [] },
-    ["students", "student_courses", "courses", "issues"]
+    { studentsPage: { items: [], total: 0, page: 1, pageSize: PAGE_SIZE }, courses: [] },
+    ["students", "student_courses", "courses", "issues"],
+    String(page)
   )
-  const { students, courses } = data
+  const { studentsPage, courses } = data
+  const students = studentsPage.items
   const { addToast } = useToastStore()
+  const searchQuery = useSearchStore(state => state.searchQuery)
+  const { isAdmin } = useCurrentUserRole()
   const [searchTerm, setSearchTerm] = useState("")
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null)
+  const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null)
   const [newName, setNewName] = useState("")
   const [newEmail, setNewEmail] = useState("")
   const [selectedCourses, setSelectedCourses] = useState<string[]>([])
@@ -39,11 +52,25 @@ export default function StudentsPage() {
   const [newNotes, setNewNotes] = useState("")
   const [formError, setFormError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const deletingStudent = students.find(student => student.id === deletingStudentId)
 
-  const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.assignedCourses.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+  const filteredStudents = students.filter(student => {
+    const localQuery = searchTerm.trim().toLowerCase()
+    const globalQuery = searchQuery.trim().toLowerCase()
+    const searchableText = [
+      student.name,
+      student.email ?? "",
+      student.assignedTrainer,
+      student.overallStatus,
+      student.priority,
+      ...student.assignedCourses,
+      ...student.issues,
+    ].join(" ").toLowerCase()
+
+    return (!localQuery || searchableText.includes(localQuery)) &&
+      (!globalQuery || searchableText.includes(globalQuery))
+  })
 
   const getStatusVariant = (status: string) => {
     switch(status) {
@@ -71,7 +98,43 @@ export default function StudentsPage() {
     )
   }
 
-  const handleAddStudent = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setEditingStudentId(null)
+    setNewName("")
+    setNewEmail("")
+    setSelectedCourses([])
+    setNewTrainer("")
+    setNewStatus("Active")
+    setNewNotes("")
+    setFormError("")
+  }
+
+  const openCreateDialog = () => {
+    resetForm()
+    setIsModalOpen(true)
+  }
+
+  const openEditDialog = (student: Student) => {
+    setEditingStudentId(student.id)
+    setNewName(student.name)
+    setNewEmail(student.email ?? "")
+    setSelectedCourses(student.assignedCourseIds)
+    setNewTrainer(student.assignedTrainer)
+    setNewStatus(student.overallStatus === "Pending" ? "Inactive" : "Active")
+    setNewNotes(student.notes ?? "")
+    setFormError("")
+    setIsModalOpen(true)
+  }
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setIsModalOpen(open)
+
+    if (!open) {
+      resetForm()
+    }
+  }
+
+  const handleSubmitStudent = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError("")
     setIsSaving(true)
@@ -85,7 +148,9 @@ export default function StudentsPage() {
       return
     }
 
-    const isDuplicate = emailTrimmed && students.some(s => (s.email ?? "").toLowerCase() === emailTrimmed.toLowerCase())
+    const isDuplicate = emailTrimmed && students.some(s =>
+      s.id !== editingStudentId && (s.email ?? "").toLowerCase() === emailTrimmed.toLowerCase()
+    )
 
     if (isDuplicate) {
       setFormError("A student with this email already exists.")
@@ -94,7 +159,7 @@ export default function StudentsPage() {
     }
 
     try {
-      await createStudent({
+      const studentData: Parameters<typeof createStudent>[0] = {
         name: nameTrimmed,
         email: emailTrimmed,
         assignedCourseIds: selectedCourses,
@@ -102,26 +167,51 @@ export default function StudentsPage() {
         notes: newNotes.trim(),
         overallStatus: newStatus === "Active" ? "In Progress" : "Pending",
         priority: "Medium",
-      })
+      }
+
+      if (editingStudentId) {
+        await updateStudent(editingStudentId, studentData)
+      } else {
+        await createStudent(studentData)
+      }
       await refresh()
 
       addToast({
-        title: "Student Created",
-        description: `${nameTrimmed} has been added successfully.`,
+        title: editingStudentId ? "Student Updated" : "Student Created",
+        description: editingStudentId ? `${nameTrimmed} was saved.` : `${nameTrimmed} has been added successfully.`,
         type: "success"
       })
 
       setIsModalOpen(false)
-      setNewName("")
-      setNewEmail("")
-      setSelectedCourses([])
-      setNewTrainer("")
-      setNewStatus("Active")
-      setNewNotes("")
+      resetForm()
     } catch (err) {
       setFormError(getErrorMessage(err))
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleDeleteStudent = async () => {
+    if (!deletingStudentId) return
+    setIsDeleting(true)
+
+    try {
+      await deleteStudent(deletingStudentId)
+      await refresh()
+      setDeletingStudentId(null)
+      addToast({
+        title: "Student Deleted",
+        description: "The student record was removed.",
+        type: "success",
+      })
+    } catch (err) {
+      addToast({
+        title: "Delete Failed",
+        description: getErrorMessage(err),
+        type: "error",
+      })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -133,14 +223,15 @@ export default function StudentsPage() {
           <p className="text-zinc-500 dark:text-zinc-400">Manage and track student progress and issues.</p>
         </div>
         
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        {isAdmin && (
+        <Dialog open={isModalOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button>Add New Student</Button>
+            <Button type="button" onClick={openCreateDialog}>Add New Student</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
-            <form onSubmit={handleAddStudent}>
+            <form onSubmit={handleSubmitStudent}>
               <DialogHeader>
-                <DialogTitle>Add New Student</DialogTitle>
+                <DialogTitle>{editingStudentId ? "Edit Student" : "Add New Student"}</DialogTitle>
                 <DialogDescription>
                   Enter the details of the new student. This will be saved to the database.
                 </DialogDescription>
@@ -230,14 +321,15 @@ export default function StudentsPage() {
               </div>
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : "Save Student"}</Button>
+                <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : editingStudentId ? "Save" : "Save Student"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <Card>
@@ -279,15 +371,15 @@ export default function StudentsPage() {
                   <TableCell className="text-zinc-500">{student.assignedTrainer}</TableCell>
                   <TableCell>
                     <div className="flex gap-1 flex-wrap">
-                      {student.assignedCourses.map((c, i) => (
-                         <Badge key={i} variant="outline" className="text-[10px]">{c}</Badge>
+                      {student.assignedCourses.map(c => (
+                         <Badge key={c} variant="outline" className="text-[10px]">{c}</Badge>
                       ))}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1 max-w-[200px]">
-                      {student.issues.slice(0, 2).map((issue, i) => (
-                        <span key={i} className="text-xs truncate text-zinc-600 dark:text-zinc-400">• {issue}</span>
+                      {student.issues.slice(0, 2).map(issue => (
+                         <span key={issue} className="text-xs truncate text-zinc-600 dark:text-zinc-400">• {issue}</span>
                       ))}
                       {student.issues.length > 2 && (
                         <span className="text-[10px] text-zinc-400">+{student.issues.length - 2} more</span>
@@ -305,9 +397,24 @@ export default function StudentsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon">
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" title="View student">
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">View student</span>
+                      </Button>
+                      {isAdmin && (
+                        <>
+                          <Button type="button" variant="ghost" size="icon" title="Edit student" onClick={() => openEditDialog(student)}>
+                            <Pencil className="h-4 w-4" aria-hidden="true" />
+                            <span className="sr-only">Edit student</span>
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" title="Delete student" onClick={() => setDeletingStudentId(student.id)}>
+                            <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            <span className="sr-only">Delete student</span>
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -320,8 +427,35 @@ export default function StudentsPage() {
               )}
             </TableBody>
           </Table>
+          <PaginationControls
+            page={studentsPage.page}
+            pageSize={studentsPage.pageSize}
+            total={studentsPage.total}
+            onPageChange={setPage}
+          />
         </CardContent>
       </Card>
+
+      {isAdmin && (
+      <Dialog open={!!deletingStudentId} onOpenChange={(open) => !open && setDeletingStudentId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Student</DialogTitle>
+            <DialogDescription>
+              {deletingStudent ? `Remove "${deletingStudent.name}" and all related issues/comments?` : "Remove this student record?"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDeletingStudentId(null)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleDeleteStudent} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      )}
     </div>
   )
 }

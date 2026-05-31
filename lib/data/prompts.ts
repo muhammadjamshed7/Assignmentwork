@@ -1,6 +1,8 @@
 import { normalizeOptionalText, requireSupabase } from "@/lib/data/client";
 import { mapPrompt } from "@/lib/data/mappers";
-import { Prompt } from "@/lib/data/types";
+import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
+import { PaginatedResult, PaginationOptions, Prompt } from "@/lib/data/types";
+import { assertAdmin } from "@/lib/auth/roles";
 
 export async function listPrompts(): Promise<Prompt[]> {
   const supabase = requireSupabase();
@@ -13,6 +15,19 @@ export async function listPrompts(): Promise<Prompt[]> {
   return (data ?? []).map(mapPrompt);
 }
 
+export async function listPromptsPage(options: PaginationOptions = {}): Promise<PaginatedResult<Prompt>> {
+  const supabase = requireSupabase();
+  const pagination = getPaginationRange(options);
+  const { data, error, count } = await supabase
+    .from("prompts")
+    .select("id, title, category, content, related_course_id, tags, created_at, updated_at", { count: "exact" })
+    .order("updated_at", { ascending: false })
+    .range(pagination.from, pagination.to);
+
+  if (error) throw error;
+  return toPaginatedResult((data ?? []).map(mapPrompt), count, pagination);
+}
+
 export async function createPrompt(input: {
   title: string;
   category: string;
@@ -20,6 +35,8 @@ export async function createPrompt(input: {
   relatedCourseId?: string;
   tags: string[];
 }) {
+  await assertAdmin();
+
   const supabase = requireSupabase();
   const title = input.title.trim();
   const content = input.content.trim();
@@ -51,6 +68,8 @@ export async function updatePrompt(promptId: string, input: {
   relatedCourseId?: string;
   tags: string[];
 }) {
+  await assertAdmin();
+
   const supabase = requireSupabase();
   const title = input.title.trim();
   const content = input.content.trim();
@@ -77,6 +96,8 @@ export async function updatePrompt(promptId: string, input: {
 }
 
 export async function deletePrompt(promptId: string) {
+  await assertAdmin();
+
   const supabase = requireSupabase();
   const { error } = await supabase.from("prompts").delete().eq("id", promptId);
   if (error) throw error;

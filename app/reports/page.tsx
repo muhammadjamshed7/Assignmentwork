@@ -14,7 +14,7 @@ export default function ReportsIndexPage() {
   const { data, loading, error, refresh } = useSupabaseQuery(
     getReportsIndexData,
     { students: [], issues: [] },
-    ["students", "student_courses", "issues"]
+    ["students", "student_courses", "courses", "issues"]
   )
   const { students, issues } = data
   const [searchTerm, setSearchTerm] = useState("")

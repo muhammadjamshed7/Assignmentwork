@@ -26,6 +26,7 @@ import { createIssue } from "@/lib/data/issues"
 import { listStudents } from "@/lib/data/students"
 import { useSupabaseQuery } from "@/lib/data/hooks"
 import { getErrorMessage } from "@/lib/data/client"
+import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
 
 const ISSUE_CATEGORIES: IssueCategory[] = [
   "Prompt Issues",
@@ -50,6 +51,16 @@ const selectClassName =
   "flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300"
 
 export function NewIssueDialog({ onIssueCreated, onSaved }: NewIssueDialogProps) {
+  const { isAdmin } = useCurrentUserRole()
+
+  if (!isAdmin) {
+    return null
+  }
+
+  return <NewIssueDialogContent onIssueCreated={onIssueCreated} onSaved={onSaved} />
+}
+
+function NewIssueDialogContent({ onIssueCreated, onSaved }: NewIssueDialogProps) {
   const { data: students, refresh } = useSupabaseQuery(listStudents, [], ["students", "student_courses"])
   const { addToast } = useToastStore()
   const [open, setOpen] = React.useState(false)

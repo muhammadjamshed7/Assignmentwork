@@ -22,10 +22,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useToastStore } from "@/store/useToastStore"
 import { Prompt } from "@/lib/data/types"
-import { createPrompt, deletePrompt, updatePrompt } from "@/lib/data/prompts"
-import { getPromptsData } from "@/lib/data/dashboard"
+import { createPrompt, deletePrompt, listPromptsPage, updatePrompt } from "@/lib/data/prompts"
+import { listCourses } from "@/lib/data/courses"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 import { getErrorMessage } from "@/lib/data/client"
+import { useSearchStore } from "@/store/useSearchStore"
+import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
+import { PaginationControls } from "@/components/ui/pagination-controls"
 
 const PROMPT_CATEGORIES = [
   "Presentation",
@@ -47,6 +50,8 @@ const EMPTY_PROMPT_FORM = {
   tags: "",
   content: "",
 }
+
+const PAGE_SIZE = 10
 
 const selectClassName =
   "flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300"
@@ -71,40 +76,61 @@ function parseTags(value: string) {
 }
 
 export default function PromptsPage() {
+  const [page, setPage] = useState(1)
   const { data, loading, error, refresh } = useSupabaseQuery(
-    getPromptsData,
-    { courses: [], prompts: [] },
-    ["courses", "prompts"]
+    async () => {
+      const [courses, promptsPage] = await Promise.all([
+        listCourses(),
+        listPromptsPage({ page, pageSize: PAGE_SIZE }),
+      ])
+
+      return { courses, promptsPage }
+    },
+    { courses: [], promptsPage: { items: [], total: 0, page: 1, pageSize: PAGE_SIZE } },
+    ["courses", "prompts"],
+    String(page)
   )
-  const { courses, prompts } = data
+  const { courses, promptsPage } = data
+  const prompts = promptsPage.items
   const { addToast } = useToastStore()
+  const globalSearchQuery = useSearchStore(state => state.searchQuery)
+  const { isAdmin } = useCurrentUserRole()
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("All")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
+  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null)
   const [deletingPromptId, setDeletingPromptId] = useState<string | null>(null)
   const [form, setForm] = useState<PromptFormState>(EMPTY_PROMPT_FORM)
   const [formError, setFormError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
   const filteredPrompts = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase()
+    const localQuery = searchTerm.trim().toLowerCase()
+    const globalQuery = globalSearchQuery.trim().toLowerCase()
 
     return prompts
       .filter(prompt => categoryFilter === "All" || prompt.category === categoryFilter)
       .filter(prompt => {
-        if (!query) return true
+        const relatedCourse = prompt.relatedCourseId
+          ? courses.find(item => item.id === prompt.relatedCourseId)
+          : undefined
+        const courseLabel = relatedCourse ? `${relatedCourse.code} - ${relatedCourse.title}` : "Any course"
+        const searchableText = [
+          prompt.title,
+          prompt.content,
+          prompt.category,
+          courseLabel,
+          ...prompt.tags,
+        ].join(" ").toLowerCase()
 
-        return (
-          prompt.title.toLowerCase().includes(query) ||
-          prompt.content.toLowerCase().includes(query) ||
-          prompt.tags.some(tag => tag.toLowerCase().includes(query))
-        )
+        return (!localQuery || searchableText.includes(localQuery)) &&
+          (!globalQuery || searchableText.includes(globalQuery))
       })
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-  }, [categoryFilter, prompts, searchTerm])
+  }, [categoryFilter, courses, globalSearchQuery, prompts, searchTerm])
 
-  const selectedPrompt = filteredPrompts[0] ?? prompts[0]
+  const selectedPrompt = filteredPrompts.find(p => p.id === selectedPromptId) ?? filteredPrompts[0]
   const deletingPrompt = prompts.find(prompt => prompt.id === deletingPromptId)
 
   function updateFormField(field: keyof PromptFormState, value: string) {
@@ -239,6 +265,7 @@ export default function PromptsPage() {
           <p className="text-zinc-500 dark:text-zinc-400">Save simple prompts for presentations, assignments, research, and feedback.</p>
         </div>
 
+        {isAdmin && (
         <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
             <Button type="button" className="gap-2" onClick={openCreateDialog}>
@@ -332,6 +359,7 @@ export default function PromptsPage() {
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -375,7 +403,11 @@ export default function PromptsPage() {
               </TableHeader>
               <TableBody>
                 {filteredPrompts.map(prompt => (
-                  <TableRow key={prompt.id}>
+                  <TableRow
+                    key={prompt.id}
+                    className={`cursor-pointer ${selectedPromptId === prompt.id || (!selectedPromptId && prompt === selectedPrompt) ? 'bg-zinc-100 dark:bg-zinc-800/50' : ''}`}
+                    onClick={() => setSelectedPromptId(prompt.id)}
+                  >
                     <TableCell className="max-w-sm">
                       <div className="font-medium text-zinc-950 dark:text-zinc-50">{prompt.title}</div>
                       <div className="mt-1 line-clamp-2 text-xs text-zinc-500">{prompt.content}</div>
@@ -402,14 +434,18 @@ export default function PromptsPage() {
                           <Copy className="h-4 w-4" aria-hidden="true" />
                           <span className="sr-only">Copy prompt</span>
                         </Button>
-                        <Button type="button" variant="ghost" size="icon" title="Edit prompt" onClick={() => openEditDialog(prompt)}>
-                          <Pencil className="h-4 w-4" aria-hidden="true" />
-                          <span className="sr-only">Edit prompt</span>
-                        </Button>
-                        <Button type="button" variant="ghost" size="icon" title="Delete prompt" onClick={() => setDeletingPromptId(prompt.id)}>
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                          <span className="sr-only">Delete prompt</span>
-                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button type="button" variant="ghost" size="icon" title="Edit prompt" onClick={() => openEditDialog(prompt)}>
+                              <Pencil className="h-4 w-4" aria-hidden="true" />
+                              <span className="sr-only">Edit prompt</span>
+                            </Button>
+                            <Button type="button" variant="ghost" size="icon" title="Delete prompt" onClick={() => setDeletingPromptId(prompt.id)}>
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                              <span className="sr-only">Delete prompt</span>
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -423,6 +459,12 @@ export default function PromptsPage() {
                 )}
               </TableBody>
             </Table>
+            <PaginationControls
+              page={promptsPage.page}
+              pageSize={promptsPage.pageSize}
+              total={promptsPage.total}
+              onPageChange={setPage}
+            />
           </CardContent>
         </Card>
 
@@ -455,6 +497,7 @@ export default function PromptsPage() {
         </Card>
       </div>
 
+      {isAdmin && (
       <Dialog open={!!deletingPromptId} onOpenChange={(open) => !open && setDeletingPromptId(null)}>
         <DialogContent>
           <DialogHeader>
@@ -473,6 +516,7 @@ export default function PromptsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   )
 }

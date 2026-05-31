@@ -97,7 +97,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <nav className="flex flex-1 flex-col px-4 py-8">
             <ul role="list" className="flex flex-1 flex-col gap-y-2">
               <div className="mb-4 hidden lg:block px-2">
-                <span className="text-lg font-bold tracking-tight dark:text-white">EduMetrics</span>
+                <span className="text-lg font-bold tracking-tight dark:text-white">TDS Management</span>
               </div>
               {navigation.map((item) => (
                 <li key={item.name}>

@@ -4,7 +4,7 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'EduMetrics - Admin Dashboard',
+  title: 'TDS Management - Admin Dashboard',
   description: 'Academic Services Admin Dashboard',
 };
 

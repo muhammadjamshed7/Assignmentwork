@@ -1,27 +1,46 @@
 import { requireSupabase } from "@/lib/data/client";
 import { mapAiTool } from "@/lib/data/mappers";
-import { AiToolUsage } from "@/lib/data/types";
+import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
+import { AiToolUsage, PaginatedResult, PaginationOptions } from "@/lib/data/types";
+import { assertAdmin } from "@/lib/auth/roles";
 
 export async function listAiTools(): Promise<AiToolUsage[]> {
   const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("ai_tools")
-    .select("id, tool_name, usage_count, active_students, related_problems, success_rate")
+    .select("id, tool_name, description, usage_count, active_students, related_problems, success_rate")
     .order("usage_count", { ascending: false });
 
   if (error) throw error;
   return (data ?? []).map(mapAiTool);
 }
 
+export async function listAiToolsPage(options: PaginationOptions = {}): Promise<PaginatedResult<AiToolUsage>> {
+  const supabase = requireSupabase();
+  const pagination = getPaginationRange(options);
+  const { data, error, count } = await supabase
+    .from("ai_tools")
+    .select("id, tool_name, description, usage_count, active_students, related_problems, success_rate", { count: "exact" })
+    .order("usage_count", { ascending: false })
+    .range(pagination.from, pagination.to);
+
+  if (error) throw error;
+  return toPaginatedResult((data ?? []).map(mapAiTool), count, pagination);
+}
+
 export async function createAiTool(input: {
   toolName: string;
+  description?: string;
   usageCount?: number;
   activeStudents?: number;
   relatedProblems?: number;
   successRate?: number;
 }) {
+  await assertAdmin();
+
   const supabase = requireSupabase();
   const toolName = input.toolName.trim();
+  const description = input.description?.trim() ?? "";
 
   if (!toolName) {
     throw new Error("Tool name is required.");
@@ -31,12 +50,13 @@ export async function createAiTool(input: {
     .from("ai_tools")
     .insert({
       tool_name: toolName,
+      description,
       usage_count: input.usageCount ?? 0,
       active_students: input.activeStudents ?? 0,
       related_problems: input.relatedProblems ?? 0,
       success_rate: input.successRate ?? 100,
     })
-    .select("id, tool_name, usage_count, active_students, related_problems, success_rate")
+    .select("id, tool_name, description, usage_count, active_students, related_problems, success_rate")
     .single();
 
   if (error) throw error;
@@ -45,13 +65,17 @@ export async function createAiTool(input: {
 
 export async function updateAiTool(toolId: string, input: {
   toolName: string;
+  description?: string;
   usageCount: number;
   activeStudents: number;
   relatedProblems: number;
   successRate: number;
 }) {
+  await assertAdmin();
+
   const supabase = requireSupabase();
   const toolName = input.toolName.trim();
+  const description = input.description?.trim() ?? "";
 
   if (!toolName) {
     throw new Error("Tool name is required.");
@@ -61,13 +85,14 @@ export async function updateAiTool(toolId: string, input: {
     .from("ai_tools")
     .update({
       tool_name: toolName,
+      description,
       usage_count: input.usageCount,
       active_students: input.activeStudents,
       related_problems: input.relatedProblems,
       success_rate: input.successRate,
     })
     .eq("id", toolId)
-    .select("id, tool_name, usage_count, active_students, related_problems, success_rate")
+    .select("id, tool_name, description, usage_count, active_students, related_problems, success_rate")
     .single();
 
   if (error) throw error;
@@ -75,6 +100,8 @@ export async function updateAiTool(toolId: string, input: {
 }
 
 export async function deleteAiTool(toolId: string) {
+  await assertAdmin();
+
   const supabase = requireSupabase();
   const { error } = await supabase.from("ai_tools").delete().eq("id", toolId);
   if (error) throw error;

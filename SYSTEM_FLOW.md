@@ -1,50 +1,106 @@
 # System Flow
 
-This document explains the main features in the academic services dashboard and how they connect to each other.
+This document explains the current TDS Management academic services dashboard flow, including how pages, Supabase data modules, realtime refreshes, database triggers, and shared UI state connect.
 
 ## System Overview
 
-The application is a Next.js App Router dashboard for tracking students, courses, issues, comments, prompts, reports, AI tool metrics, and platform settings.
+TDS Management is a Next.js App Router dashboard for tracking students, courses, issues, comments, prompts, reports, AI tool metrics, analytics shells, platform settings, and authenticated admin access.
 
-At runtime, the UI currently uses the shared Zustand store in `store/useAppStore.ts` as the active data layer. The Supabase schema in `schema.sql` and `supabase/schema.sql` defines the matching database structure for persistence, realtime subscriptions, row level security, and automatic student-status syncing.
+The active data layer is Supabase, accessed from client components through the modules in `lib/data/`. Pages use `useSupabaseQuery` from `lib/data/hooks.tsx` to load records, show loading and error states, and subscribe to Supabase Realtime table changes. Supabase Auth protects the app: unauthenticated users are redirected to `/login`, authenticated users can read app data, and only users with the `admin` role can create, update, or delete records. Zustand is still present, but it is no longer the primary app data store. The active Zustand usage is `store/useToastStore.ts` for notifications and `store/useSearchStore.ts` for the shared search input.
 
 ```mermaid
 flowchart TD
-  Layout[Dashboard Layout] --> Dashboard[Dashboard]
-  Layout --> Students[Students]
-  Layout --> Courses[Courses]
-  Layout --> Prompts[Prompts]
-  Layout --> Issues[Issues]
-  Layout --> Comments[Comments / Tickets]
-  Layout --> Reports[Reports]
-  Layout --> Tools[AI Tools Usage]
-  Layout --> Analytics[Analytics]
-  Layout --> Settings[Settings]
+  Root[app/layout.tsx] --> Shell[DashboardLayout]
+  Root --> Login[Route /login]
+  Middleware[middleware.ts] --> Auth[Supabase Auth session]
+  Auth --> Root
+  Shell --> Dashboard[Route /]
+  Shell --> Students[Route /students]
+  Shell --> Reports[Routes /reports and /reports/:studentId]
+  Shell --> Courses[Route /courses]
+  Shell --> Prompts[Route /prompts]
+  Shell --> Issues[Route /issues]
+  Shell --> Comments[Route /comments]
+  Shell --> Tools[Route /tools]
+  Shell --> Settings[Route /settings]
 
-  Dashboard --> Store[Zustand App Store]
-  Students --> Store
-  Courses --> Store
-  Prompts --> Store
-  Issues --> Store
-  Comments --> Store
-  Reports --> Store
-  Tools --> Store
+  Dashboard --> Hook[useSupabaseQuery]
+  Students --> Hook
+  Reports --> Hook
+  Courses --> Hook
+  Prompts --> Hook
+  Issues --> Hook
+  Comments --> Hook
+  Tools --> Hook
+  Shell --> Hook
 
-  Store -. schema alignment .-> Supabase[(Supabase Tables)]
+  Hook --> DataModules[lib/data modules]
+  DataModules --> Supabase[(Supabase)]
+  Supabase --> Realtime[Realtime postgres_changes]
+  Realtime --> Hook
+  Hook --> Pages[Refresh visible UI]
 ```
 
-## Core Data Model
+## Runtime Data Flow
 
-The system revolves around these entities:
+Most pages follow the same pattern:
+
+1. A client page calls `useSupabaseQuery(load, initialData, realtimeTables)`.
+2. The hook calls a loader from `lib/data/`.
+3. The loader uses `requireSupabase()` from `lib/data/client.ts`.
+4. Supabase rows are converted to UI-friendly camelCase objects by `lib/data/mappers.ts`.
+5. The hook subscribes to each listed realtime table and debounces `refresh()` by 500ms when matching table changes arrive in quick succession.
+6. Mutations call `create*`, `update*`, or `delete*` helpers, then call `refresh()` and show a toast when appropriate.
+
+```mermaid
+flowchart LR
+  Page[Client page/component] --> QueryHook[useSupabaseQuery]
+  QueryHook --> Loader[list/create/update helpers]
+  Loader --> SupabaseClient[requireSupabase]
+  SupabaseClient --> DB[(Supabase tables)]
+  DB --> Mapper[map rows to UI types]
+  Mapper --> Page
+  DB -. realtime event .-> QueryHook
+```
+
+If Supabase is not configured with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `requireSupabase()` throws a configuration error and pages render `ErrorState`.
+
+## Core Data Model
 
 | Entity | Purpose | Connected To |
 | --- | --- | --- |
 | Student | Person being tracked for academic progress and support needs. | Courses, Issues, Comments, Reports |
 | Course | Academic course or curriculum item. | Students, Prompts |
 | Issue | Problem, ticket, or support item tied to a student. | Student, Comments, Dashboard, Reports |
-| Comment | Thread message on an issue. | Student, Issue |
-| Prompt | Saved prompt/template for work such as assignments, research, presentations, and feedback. | Course optionally |
-| AI Tool Usage | Metrics for monitored AI tools. | Dashboard, AI Tools Usage |
+| Comment | Thread message on an issue or student record. | Student, Issue |
+| Prompt | Saved prompt/template for academic workflows. | Course optionally |
+| AI Tool Usage | Metrics and descriptions for monitored AI tools. | Dashboard, AI Tools Usage |
+| User Role | Authenticated app role for access control. | Supabase Auth user |
+
+## Authentication and Authorization
+
+Supabase Auth is the app identity provider. Email auth is enabled in the Supabase dashboard, and the first admin user is created manually in the Supabase Auth UI.
+
+Runtime auth flow:
+
+```mermaid
+flowchart TD
+  Visitor[Visitor requests app route] --> Middleware[middleware.ts]
+  Middleware --> SessionCheck[Read Supabase session with @supabase/ssr]
+  SessionCheck -- no session --> Login[Redirect /login]
+  SessionCheck -- session --> App[Render dashboard route]
+  Login --> SignIn[signInWithPassword]
+  SignIn --> App
+```
+
+Authorization uses `public.user_roles`:
+
+| Role | Access |
+| --- | --- |
+| `admin` | Read data, use mutation buttons, manage users, and perform writes. |
+| `viewer` | Read data only. Mutation controls are hidden and database writes are denied. |
+
+The UI reads the current user and role through `lib/auth/client.ts`, `lib/auth/roles.ts`, and `lib/auth/use-current-user-role.ts`. Data mutation helpers call `assertAdmin()` before Supabase writes, and Supabase RLS enforces the same rule in the database.
 
 ## Feature Map
 
@@ -52,27 +108,33 @@ The system revolves around these entities:
 
 Route: `/`
 
-The dashboard summarizes the whole system:
+The dashboard loads `getDashboardData()` from `lib/data/dashboard.ts`, which fetches students, courses, issues, and AI tool metrics in parallel.
 
 | Dashboard Block | Source |
 | --- | --- |
 | Total students | `students.length` |
-| Total courses | `courses.length` |
+| Active courses | `courses.length` |
 | Open issues | Issues where status is not `Resolved` |
-| Pending reviews | Issues with `Pending` status |
+| Resolved issues | Issues where status is `Resolved` |
+| Pending reviews | Issues where status is `Pending` |
 | AI tools usage | Sum of `aiTools.usageCount` |
 | Issue category chart | Issues grouped by category |
 | Resolution progress chart | Issues grouped by status |
-| Recent students table | First five students from the store |
+| Recent students table | First five students from the loaded student list |
 
-Flow:
+Dashboard charts are dynamically imported with SSR disabled because they depend on Recharts browser rendering.
 
 ```mermaid
-flowchart LR
-  Students[Students] --> Dashboard
-  Courses[Courses] --> Dashboard
-  Issues[Issues] --> Dashboard
-  AITools[AI Tool Metrics] --> Dashboard
+flowchart TD
+  Dashboard --> GetDashboardData[getDashboardData]
+  GetDashboardData --> ListStudents[listStudents]
+  GetDashboardData --> ListCourses[listCourses]
+  GetDashboardData --> ListIssues[listIssues]
+  GetDashboardData --> ListAiTools[listAiTools]
+  ListStudents --> Metrics[Dashboard metrics and tables]
+  ListCourses --> Metrics
+  ListIssues --> Metrics
+  ListAiTools --> Metrics
 ```
 
 ### 2. Students
@@ -82,23 +144,37 @@ Route: `/students`
 The students page lets an admin:
 
 - View students.
-- Search students by name or course.
+- Search students by name or assigned course code.
 - Add a new student.
-- Assign courses to a student.
-- Store trainer, status, email, and notes.
-- See each student's issue categories, priority, progress, and latest update.
+- Edit an existing student.
+- Delete a student after confirmation.
+- Page through student records with limit/offset loading.
+- Assign courses by course ID.
+- Store email, assigned trainer, initial status, and notes.
+- See derived issue categories, priority, status, and trainer.
 
 Create flow:
 
 ```mermaid
 flowchart TD
-  Admin[Admin enters student details] --> Validate[Validate required fields and duplicate email]
-  Validate --> AddStudent[addStudent]
-  AddStudent --> StoreStudents[students array]
-  StoreStudents --> StudentsPage[Students page refreshes from store]
+  Admin[Admin enters student details] --> ClientValidate[Validate name and duplicate email in current list]
+  ClientValidate --> CreateStudent[createStudent]
+  CreateStudent --> InsertStudent[Insert students row]
+  InsertStudent --> InsertCourses{Assigned courses?}
+  InsertCourses -- yes --> StudentCourses[Insert student_courses rows]
+  InsertCourses -- no --> Refresh
+  StudentCourses --> Refresh[refresh students and courses]
+  Refresh --> StudentsPage[Students table updates]
 ```
 
-Student issue fields are not entered manually when the student is created. They are recalculated when issues are added or updated.
+Student creation maps the UI's initial status to issue-status values:
+
+| UI status | Stored `overall_status` |
+| --- | --- |
+| Active | `In Progress` |
+| Inactive | `Pending` |
+
+After issues are created or changed, database triggers keep the student's derived status, priority, and last update in sync.
 
 ### 3. Courses
 
@@ -108,30 +184,31 @@ The courses page lets an admin:
 
 - View registered courses.
 - Add a course code and title.
+- Edit an existing course.
+- Delete a course after confirmation.
+- Page through course records with limit/offset loading.
 - Prevent duplicate course codes.
-- See enrollment count by checking student course assignments.
+- See enrollment count from `student_courses`.
 
 Create flow:
 
 ```mermaid
 flowchart TD
   Admin[Admin enters course code and title] --> Validate[Validate required fields and duplicate code]
-  Validate --> AddCourse[addCourse]
-  AddCourse --> StoreCourses[courses array]
-  StoreCourses --> CourseSelectors[Student and Prompt course selectors]
+  Validate --> CreateCourse[createCourse]
+  CreateCourse --> CoursesTable[(courses)]
+  CoursesTable --> Refresh[refresh courses with enrollment]
+  Refresh --> CourseSelectors[Student and Prompt course selectors update]
 ```
 
-Courses connect to:
-
-- Students through `assignedCourses`.
-- Prompts through optional `relatedCourseId`.
-- Reports through each student's assigned course list.
+Courses connect to students through `student_courses` and to prompts through `prompts.related_course_id`.
 
 ### 4. Issues
 
 Route: `/issues`
 
-The issues page displays all tracked student issues and includes the shared new-issue dialog.
+The issues page displays all tracked student issues and includes the shared `NewIssueDialog`.
+The issues table is loaded with limit/offset pagination.
 
 An issue has:
 
@@ -141,6 +218,7 @@ An issue has:
 - Status
 - Priority
 - Created date
+- Updated date
 
 Create flow:
 
@@ -148,18 +226,18 @@ Create flow:
 flowchart TD
   Admin[Admin opens New Issue dialog] --> SelectStudent[Select student]
   SelectStudent --> EnterIssue[Enter category, priority, status, description]
-  EnterIssue --> AddIssue[addIssue]
-  AddIssue --> IssuesArray[issues array]
-  AddIssue --> SyncStudent[syncStudentWithIssues]
-  SyncStudent --> StudentStatus[Student issues, priority, status, last update]
+  EnterIssue --> OptionalComment{Admin comment provided?}
+  OptionalComment --> CreateIssue[createIssue]
+  CreateIssue --> IssuesTable[(issues)]
+  IssuesTable --> IssueTrigger[issues_sync_student_insert trigger]
+  IssueTrigger --> StudentSummary[Student status, priority, last_update synced]
+  OptionalComment -- yes --> CreateComment[createComment as Admin]
+  CreateComment --> CommentsTable[(comments)]
+  StudentSummary --> Refresh[refresh page data]
+  CommentsTable --> Refresh
 ```
 
-When an issue changes, the related student is recalculated:
-
-- `issues`: unique issue categories for that student.
-- `overallStatus`: highest severity issue status.
-- `priority`: highest severity priority.
-- `lastUpdate`: current timestamp.
+Issue status changes are handled by `updateIssueStatus()`. The database trigger recalculates the related student's summary after issue inserts, updates, and deletes.
 
 ### 5. Comments / Tickets
 
@@ -167,29 +245,34 @@ Route: `/comments`
 
 The comments page is the ticket-thread workspace. It lets an admin:
 
-- Select an issue.
-- View threaded comments for that issue.
-- Reply as `Admin` or `Student`.
-- Update an issue status while replying.
+- Select an issue from the active issue list.
+- View the initial issue description and all related comments.
+- Reply as `Admin` or `Student Simulator`.
+- Optionally update issue status when replying as Admin.
 - Edit comments.
 - Delete comments.
-- Create a new issue through the same shared new-issue dialog.
+- Create a new issue through the shared `NewIssueDialog`.
+- Page through comments for the selected issue with limit/offset loading.
 
 Reply flow:
 
 ```mermaid
 flowchart TD
   SelectIssue[Select issue] --> WriteReply[Write reply]
-  WriteReply --> AddComment[addComment]
-  AddComment --> CommentsArray[comments array]
-  AddComment --> RoleCheck{Role is Student?}
-  RoleCheck -- yes --> Pending[Set issue status to Pending]
-  RoleCheck -- no --> KeepStatus[Keep current issue status]
-  Pending --> SyncStudent[sync related student]
-  KeepStatus --> SyncStudent
+  WriteReply --> CreateComment[createComment]
+  CreateComment --> CommentsTable[(comments)]
+  CreateComment --> RoleCheck{Role is Student?}
+  RoleCheck -- yes --> Trigger[comments_student_pending trigger]
+  Trigger --> Pending[Set related issue to Pending]
+  Pending --> IssueTrigger[Issue update trigger syncs student]
+  RoleCheck -- no --> AdminStatus{Admin selected next status?}
+  AdminStatus -- yes --> UpdateStatus[updateIssueStatus]
+  AdminStatus -- no --> Refresh
+  UpdateStatus --> IssueTrigger
+  IssueTrigger --> Refresh[refresh tickets]
 ```
 
-The important connection is that comments are not isolated notes. A student-role comment can reopen or mark an issue as needing attention by setting the issue to `Pending`.
+The key rule is database-enforced: a student-role comment on an issue marks that issue `Pending` and updates the related student timestamp.
 
 ### 6. Prompts
 
@@ -200,9 +283,12 @@ The prompts page manages reusable prompt templates. It supports:
 - Create prompt.
 - Edit prompt.
 - Delete prompt.
-- Search by title, content, category, or tags.
+- Copy prompt content to the clipboard.
+- Search by title, content, or tags.
 - Filter by category.
-- Link a prompt to a course.
+- Page through prompts with limit/offset loading.
+- Link a prompt to a course or mark it as usable for any course.
+- Preview the selected prompt.
 
 Prompt flow:
 
@@ -210,13 +296,16 @@ Prompt flow:
 flowchart TD
   PromptForm[Prompt form] --> Save{Editing existing?}
   Save -- yes --> UpdatePrompt[updatePrompt]
-  Save -- no --> AddPrompt[addPrompt]
-  UpdatePrompt --> PromptsArray[prompts array]
-  AddPrompt --> PromptsArray
-  PromptsArray --> SearchFilter[Search and category filter]
-  Courses[Courses array] --> RelatedCourse[Optional related course]
-  RelatedCourse --> PromptCard[Prompt detail display]
+  Save -- no --> CreatePrompt[createPrompt]
+  UpdatePrompt --> PromptsTable[(prompts)]
+  CreatePrompt --> PromptsTable
+  PromptsTable --> Refresh[refresh prompts and courses]
+  Refresh --> SearchFilter[Search, filter, preview]
+  Courses[(courses)] --> RelatedCourse[Course label]
+  RelatedCourse --> Preview[Prompt preview]
 ```
+
+Tags are entered as comma-separated text in the UI and stored as a `text[]` array in Supabase.
 
 ### 7. Reports
 
@@ -225,80 +314,110 @@ Routes:
 - `/reports`
 - `/reports/[studentId]`
 
-The reports index lists students and summarizes their open issues. Each student links to a detailed report page.
+The reports index loads students and issues, then lists each student with trainer, open issue count, status, and a link to the detailed report.
 
-The individual student report aggregates:
+The individual student report loads students, issues, and comments, then aggregates:
 
 - Student profile.
 - Assigned courses.
-- Issue status summary.
+- Overall issue counts.
+- Open and resolved issue counts.
 - Issue category summary.
 - Full issue table.
 - Comment history.
 - Timeline-style activity composed from issues and comments.
-- AI tools section.
+- AI tools placeholder.
 
 Report flow:
 
 ```mermaid
 flowchart TD
-  ReportsIndex[Reports index] --> SelectStudent[Select student]
+  ReportsIndex[Reports index] --> SelectStudent[View Report link]
   SelectStudent --> StudentReport[Student report page]
-  Students[students array] --> StudentReport
-  Issues[issues filtered by studentId] --> StudentReport
-  Comments[comments filtered by studentId] --> StudentReport
-  StudentReport --> Export[PDF/report-ready view]
+  StudentReport --> LoadData[listStudents + listIssues + listComments]
+  LoadData --> Aggregates[Issue and comment aggregates]
+  Aggregates --> Tabs[Overview, Issues, Comments, Progress, AI Tools]
+  Tabs --> ExportButton[Open /api/report/:studentId/pdf]
+  ExportButton --> PdfRoute[Server PDF route]
+  PdfRoute --> ReactPdf[@react-pdf/renderer]
+  ReactPdf --> Download[application/pdf attachment]
 ```
+
+The dynamic report route receives `params` as a Promise and reads it with React `use(params)`, matching the current Next.js App Router route-props model.
+
+PDF export is handled by `app/api/report/[studentId]/pdf/route.ts`. The route loads students, issues, and comments server-side, renders a clean PDF with `@react-pdf/renderer`, and returns it as an attachment.
 
 ### 8. AI Tools Usage
 
 Route: `/tools`
 
-This page reads AI tool metrics from the store and shows:
+This page loads AI tool metrics from Supabase and shows:
 
 - Usage vs related problems chart.
 - Tool detail table.
+- Tool name and description.
 - Usage count.
 - Active students.
 - Related problem count.
 - Success rate.
+- Add tool dialog.
+- Edit action per row.
+- Delete confirmation per row.
+- Limit/offset pagination for the metrics table.
 
 Flow:
 
 ```mermaid
 flowchart LR
-  AITools[aiTools array] --> Sort[Sort by usage count]
+  ListAiTools[listAiTools] --> Sort[Sort by usage count]
   Sort --> Chart[Usage vs Issues chart]
   Sort --> Table[Tool metrics table]
+  ToolForm[Add/Edit dialog] --> SaveTool{Editing existing?}
+  SaveTool -- yes --> UpdateTool[updateAiTool]
+  SaveTool -- no --> CreateTool[createAiTool]
+  UpdateTool --> Refresh[refresh ai_tools]
+  CreateTool --> Refresh
+  DeleteAction[Delete confirmation] --> DeleteTool[deleteAiTool]
+  DeleteTool --> Refresh
 ```
+
+Successful create, update, and delete actions refresh the table/chart and show toast notifications.
 
 ### 9. Analytics
 
 Route: `/analytics`
 
-The analytics page is a placeholder for expanded reporting modules. It does not currently perform calculations beyond displaying the provisioning state.
+The analytics route is still present as a provisioning placeholder for expanded reporting modules, but it is hidden from the sidebar until it loads real Supabase aggregates.
 
 ### 10. Settings
 
 Route: `/settings`
 
-The settings page currently displays platform configuration sections:
+The settings page currently displays read-only platform configuration sections:
 
 - Organization settings.
 - Supabase integration status.
+- User management for admins.
 
-The page is read-only in the current implementation.
+The Supabase integration status is checked on mount by calling `requireSupabase()` and querying `courses` with `.select("id").limit(1)`. The UI shows a loading state while the check is running, a green connected state on success, or a red disconnected state with the returned error message on failure.
 
-### 11. Layout, Navigation, Theme, and PWA
+Admins can list users, invite users, change roles between `admin` and `viewer`, and remove users. User management runs through API routes that use `SUPABASE_SERVICE_ROLE_KEY` server-side.
 
-Shared layout: `components/layout/dashboard-layout.tsx`
+### 11. Layout, Navigation, Theme, Toasts, and PWA
+
+Shared layout:
+
+- `app/layout.tsx`
+- `components/layout/dashboard-layout.tsx`
+
+The root layout provides metadata, viewport configuration, theme bootstrapping, service worker registration, the dashboard shell, and the toaster.
 
 The dashboard layout provides:
 
 - Desktop and mobile sidebar navigation.
 - Active-route highlighting.
-- Global search input UI.
-- Notification indicator based on open issue count.
+- Global search input backed by `store/useSearchStore.ts`.
+- Notification dot based on open issue count.
 - Open issue badge in the sidebar.
 - Theme toggle.
 - PWA install button.
@@ -308,64 +427,113 @@ Open issue notification flow:
 
 ```mermaid
 flowchart LR
-  Issues[issues array] --> Count[status != Resolved]
+  Layout[DashboardLayout] --> ListIssues[listIssues]
+  ListIssues --> Count[status != Resolved]
   Count --> HeaderDot[Notification dot]
   Count --> SidebarBadge[Issues sidebar badge]
 ```
 
-## Store Actions
+Toast flow:
 
-The active client-side state lives in `store/useAppStore.ts`.
+```mermaid
+flowchart LR
+  Mutation[Successful or failed mutation] --> AddToast[useToastStore.addToast]
+  AddToast --> Toaster[components/ui/toaster.tsx]
+  Toaster --> AutoDismiss[Auto-remove after 5 seconds]
+```
 
-| Action | Updates | Side Effects |
+PWA flow:
+
+```mermaid
+flowchart LR
+  Manifest[app/manifest.ts] --> BrowserManifest[/manifest.webmanifest]
+  PwaRegister[PwaRegister] --> ProductionCheck{Production build?}
+  ProductionCheck -- yes --> ServiceWorker[Register /sw.js]
+  DashboardLayout --> InstallButton[PWA install button]
+```
+
+## Data Access Modules
+
+The active data access functions live under `lib/data/`.
+
+| Module | Reads | Mutations |
 | --- | --- | --- |
-| `addStudent` | Adds a student. | Starts with no issues, zero progress, and current `lastUpdate`. |
-| `addCourse` | Adds a course. | Normalizes course code to uppercase. |
-| `addIssue` | Adds an issue. | Recalculates the related student's issue summary. |
-| `updateIssueStatus` | Updates one issue status. | Recalculates the related student's issue summary. |
-| `addComment` | Adds a comment. | If role is `Student`, sets the related issue to `Pending` and recalculates student summary. |
-| `updateComment` | Updates comment text. | No issue status change. |
-| `removeComment` | Removes a comment. | No issue status change. |
-| `addPrompt` | Adds a prompt. | Sets `createdAt` and `updatedAt`. |
-| `updatePrompt` | Updates a prompt. | Refreshes `updatedAt`. |
-| `removePrompt` | Deletes a prompt. | Removes it from the prompt list. |
+| `students.ts` | `listStudents`, `listStudentsPage` | `createStudent`, `updateStudent`, `deleteStudent` |
+| `courses.ts` | `listCourses`, `listCoursesWithEnrollment`, `listCoursesWithEnrollmentPage` | `createCourse`, `updateCourse`, `deleteCourse` |
+| `issues.ts` | `listIssues`, `listIssuesPage` | `createIssue`, `updateIssueStatus` |
+| `comments.ts` | `listComments`, `listCommentsPage` | `createComment`, `updateComment`, `deleteComment` |
+| `prompts.ts` | `listPrompts`, `listPromptsPage` | `createPrompt`, `updatePrompt`, `deletePrompt` |
+| `ai-tools.ts` | `listAiTools`, `listAiToolsPage` | `createAiTool`, `updateAiTool`, `deleteAiTool` |
+| `dashboard.ts` | Combined page loaders | None |
+
+Shared helpers:
+
+| Helper | Role |
+| --- | --- |
+| `requireSupabase` | Ensures Supabase is configured before reads or writes. |
+| `getErrorMessage` | Normalizes unknown errors for UI display. |
+| `normalizeOptionalText` | Converts blank optional inputs to `null`. |
+| `mapCourse`, `mapStudent`, `mapIssue`, `mapComment`, `mapPrompt`, `mapAiTool` | Convert Supabase rows into UI types. |
+| `useSupabaseQuery` | Loads data, exposes `loading`, `error`, and `refresh`, and subscribes to realtime table changes. |
+| `getSession`, `getUser`, `signOut` | Client auth helpers for the active Supabase session. |
+| `getUserRole`, `assertAdmin` | Role lookup and mutation authorization helpers. |
+
+## Realtime Subscriptions
+
+Each page subscribes only to the tables that can affect its visible data.
+
+| UI Surface | Realtime Tables |
+| --- | --- |
+| Dashboard | `students`, `student_courses`, `courses`, `issues`, `comments`, `ai_tools` |
+| Students | `students`, `student_courses`, `courses`, `issues` |
+| Courses | `courses`, `student_courses` |
+| Issues | `issues`, `students`, `comments` |
+| Comments / Tickets | `students`, `issues`, `comments` |
+| Prompts | `courses`, `prompts` |
+| Reports index | `students`, `student_courses`, `courses`, `issues` |
+| Student report | `students`, `student_courses`, `courses`, `issues`, `comments` |
+| AI Tools Usage | `ai_tools` |
+| Dashboard layout notifications | `issues`, `comments` |
 
 ## Student Status Sync Logic
 
-Student status is derived from issues. The system ranks status and priority values, then stores the highest severity values on the student record.
+Student issue status and priority are derived in the database by `sync_student_issue_summary(target_student_id)`.
 
-Status rank:
+Status precedence:
 
-| Rank | Status |
+| Precedence | Status |
 | --- | --- |
-| 0 | Resolved |
-| 1 | In Progress |
-| 2 | Pending |
-| 3 | Escalated |
+| Highest | `Escalated` |
+|  | `Pending` |
+|  | `In Progress` |
+| Lowest | `Resolved` |
 
-Priority rank:
+Priority precedence:
 
-| Rank | Priority |
+| Precedence | Priority |
 | --- | --- |
-| 0 | Low |
-| 1 | Medium |
-| 2 | High |
-| 3 | Critical |
+| Highest | `Critical` |
+|  | `High` |
+|  | `Medium` |
+| Lowest | `Low` |
 
 ```mermaid
 flowchart TD
-  IssueChange[Issue added or status changed] --> GetStudentIssues[Find all issues for student]
-  GetStudentIssues --> Categories[Collect unique categories]
-  GetStudentIssues --> HighestStatus[Choose highest ranked status]
-  GetStudentIssues --> HighestPriority[Choose highest ranked priority]
-  Categories --> UpdateStudent[Update student summary]
-  HighestStatus --> UpdateStudent
+  IssueMutation[Issue insert/update/delete] --> Trigger[issues_sync_student_* trigger]
+  Trigger --> SummaryFn[sync_student_issue_summary]
+  SummaryFn --> StudentIssues[Read all issues for student]
+  StudentIssues --> HighestStatus[Choose highest status precedence]
+  StudentIssues --> HighestPriority[Choose highest priority precedence]
+  HighestStatus --> UpdateStudent[Update students.overall_status]
   HighestPriority --> UpdateStudent
+  UpdateStudent --> LastUpdate[Set last_update and updated_at]
 ```
+
+When a student has no remaining issues, the summary function falls back to `Resolved` status and `Low` priority.
 
 ## Database Schema Alignment
 
-The SQL schema defines these Supabase tables:
+The SQL schema in `schema.sql` and `supabase/schema.sql` defines these Supabase tables:
 
 | Table | Role |
 | --- | --- |
@@ -375,15 +543,18 @@ The SQL schema defines these Supabase tables:
 | `issues` | Stores student issues. |
 | `comments` | Stores issue/student thread messages. |
 | `prompts` | Stores prompt templates. |
-| `ai_tools` | Stores AI tool usage metrics. |
+| `ai_tools` | Stores AI tool descriptions and usage metrics. |
+| `user_roles` | Stores each authenticated user's `admin` or `viewer` role. |
 
 Database-level automation:
 
 - `set_updated_at` keeps `updated_at` fresh on updates.
 - Issue insert/update/delete triggers sync the related student summary.
-- Student comments can mark an issue as `Pending`.
-- RLS is enabled with broad public app policies in the current schema.
+- Student-role comments can mark a related issue as `Pending`.
+- Student comments update the student's `last_update`.
+- RLS allows `SELECT` for authenticated users and allows `INSERT`, `UPDATE`, and `DELETE` only for users whose `user_roles.role` is `admin`.
 - Realtime publication includes the app tables.
+- Seed data lives in `supabase/seed.sql`.
 
 ## End-to-End User Flow
 
@@ -391,21 +562,29 @@ The normal operational flow looks like this:
 
 ```mermaid
 flowchart TD
-  AddCourses[Create courses] --> AddStudents[Create students and assign courses]
+  ConfigureSupabase[Configure Supabase env vars] --> AddCourses[Create courses]
+  AddCourses --> AddStudents[Create students and assign courses]
   AddStudents --> AddIssues[Create student issues]
   AddIssues --> Triage[Track status and priority]
   Triage --> Comments[Discuss in comments/tickets]
-  Comments --> StatusUpdates[Update issue status]
-  StatusUpdates --> Dashboard[Dashboard metrics update]
-  StatusUpdates --> Reports[Student reports update]
+  Comments --> StatusUpdates[Admin updates status or student replies]
+  StatusUpdates --> DbTriggers[Database triggers sync student summaries]
+  DbTriggers --> Realtime[Realtime refreshes subscribed pages]
+  Realtime --> Dashboard[Dashboard metrics update]
+  Realtime --> Reports[Reports update]
   AddCourses --> Prompts[Create course-related prompts]
   Prompts --> Support[Use prompts in academic support workflows]
 ```
 
 ## Current Implementation Notes
 
-- The active app state starts empty; no sample records are loaded by default.
-- The UI currently uses Zustand state directly.
-- Supabase client setup exists in `lib/supabase.ts`, and SQL schemas are present, but the pages do not yet load or mutate Supabase records directly.
-- Analytics and Settings are present as route shells, with advanced analytics and editable configuration still to be implemented.
-- AI tool metrics are modeled in the store and database schema, but there is currently no UI action for creating or editing tool metrics.
+- The active app data comes from Supabase through `lib/data` modules.
+- Most routes are client components because they use local UI state, event handlers, browser APIs, and `useSupabaseQuery`.
+- There is no sample data loaded by default; `supabase/schema.sql` explicitly omits seed data.
+- `store/useToastStore.ts` powers toast notifications.
+- `store/useAppStore.ts` has been removed; selected issue state lives locally in the comments page.
+- Analytics is present as a route shell but hidden from sidebar navigation until real aggregates are added; Settings is read-only apart from its live Supabase connection check.
+- AI tool metrics can be created, edited, and deleted from `/tools`.
+- The report PDF export is server-side through `app/api/report/[studentId]/pdf/route.ts` and `@react-pdf/renderer`.
+- The global search input filters Students, Issues, and Prompts client-side without navigation or reloads.
+- Supabase Auth protects dashboard routes, and viewer users have read-only access.

@@ -12,6 +12,18 @@ export type IssueStatus = "Pending" | "In Progress" | "Resolved" | "Escalated";
 export type PriorityLevel = "Low" | "Medium" | "High" | "Critical";
 export type Role = "Student" | "Admin";
 
+export interface PaginationOptions {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface Course {
   id: string;
   code: string;
@@ -61,6 +73,7 @@ export interface Comment {
 export interface AiToolUsage {
   id: string;
   toolName: string;
+  description?: string;
   usageCount: number;
   activeStudents: number;
   relatedProblems: number;
