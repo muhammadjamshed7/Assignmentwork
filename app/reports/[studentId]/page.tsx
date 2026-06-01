@@ -127,12 +127,11 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
 
         <Tabs defaultValue="overview" className="w-full">
           <div className="mb-6 overflow-x-auto">
-          <TabsList className="grid h-auto min-w-[680px] grid-cols-5 sm:min-w-0 sm:w-full">
+          <TabsList className="grid h-auto min-w-[560px] grid-cols-4 sm:min-w-0 sm:w-full">
             <TabsTrigger value="overview" className="py-2">Overview</TabsTrigger>
             <TabsTrigger value="issues" className="py-2">Issues</TabsTrigger>
             <TabsTrigger value="comments" className="py-2">Comments History</TabsTrigger>
             <TabsTrigger value="progress" className="py-2">Progress</TabsTrigger>
-            <TabsTrigger value="tools" className="py-2">AI Tools</TabsTrigger>
           </TabsList>
           </div>
           
@@ -211,7 +210,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
             <Card>
               <CardHeader>
                 <CardTitle>Issue Log</CardTitle>
-                <CardDescription>All tracked issues for this student.</CardDescription>
+                <CardDescription>All issues reported by this student.</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -301,7 +300,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
             <Card>
               <CardHeader>
                 <CardTitle>Progress & Activity</CardTitle>
-                <CardDescription>Course completion timeline and status.</CardDescription>
+                <CardDescription>Overall progress and recent activity.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mb-8">
@@ -345,21 +344,6 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
                        ))
                      }
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="tools">
-            <Card>
-              <CardHeader>
-                <CardTitle>AI Tools Summary</CardTitle>
-                <CardDescription>Tools most frequently associated with issues for this student.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* Note: In our current data schema we don't explicitly track tools per student. We will display a generic message or extrapolate based on issues. */}
-                <div className="p-12 text-center text-zinc-500 border border-dashed rounded-lg">
-                  <p>Individual AI Tool tracking data is not fully correlated yet. Please refer to global Analytics for overall tool performance.</p>
                 </div>
               </CardContent>
             </Card>

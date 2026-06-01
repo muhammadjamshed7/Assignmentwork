@@ -4,16 +4,13 @@ This document explains the current TDS Management academic services dashboard fl
 
 ## System Overview
 
-TDS Management is a Next.js App Router dashboard for tracking students, courses, issues, comments, prompts, reports, AI tool metrics, analytics shells, platform settings, and authenticated admin access.
+TDS Management is a Next.js App Router dashboard for tracking students, courses, issues, comments, prompts, reports, AI tool metrics, analytics shells, and platform settings in open-access mode.
 
-The active data layer is Supabase, accessed from client components through the modules in `lib/data/`. Pages use `useSupabaseQuery` from `lib/data/hooks.tsx` to load records, show loading and error states, and subscribe to Supabase Realtime table changes. Supabase Auth protects the app: unauthenticated users are redirected to `/login`, authenticated users can read app data, and only users with the `admin` role can create, update, or delete records. Zustand is still present, but it is no longer the primary app data store. The active Zustand usage is `store/useToastStore.ts` for notifications and `store/useSearchStore.ts` for the shared search input.
+The active data layer is Supabase, accessed from client components through the modules in `lib/data/`. Pages use `useSupabaseQuery` from `lib/data/hooks.tsx` to load records, show loading and error states, and subscribe to Supabase Realtime table changes. Login and route protection are intentionally removed: every app route renders directly, role helpers return open admin access, and database policies allow anon/authenticated access to app tables. Zustand is still present, but it is no longer the primary app data store. The active Zustand usage is `store/useToastStore.ts` for notifications and `store/useSearchStore.ts` for the shared search input.
 
 ```mermaid
 flowchart TD
   Root[app/layout.tsx] --> Shell[DashboardLayout]
-  Root --> Login[Route /login]
-  Middleware[middleware.ts] --> Auth[Supabase Auth session]
-  Auth --> Root
   Shell --> Dashboard[Route /]
   Shell --> Students[Route /students]
   Shell --> Reports[Routes /reports and /reports/:studentId]
@@ -74,33 +71,30 @@ If Supabase is not configured with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_S
 | Issue | Problem, ticket, or support item tied to a student. | Student, Comments, Dashboard, Reports |
 | Comment | Thread message on an issue or student record. | Student, Issue |
 | Prompt | Saved prompt/template for academic workflows. | Course optionally |
-| AI Tool Usage | Metrics and descriptions for monitored AI tools. | Dashboard, AI Tools Usage |
-| User Role | Authenticated app role for access control. | Supabase Auth user |
+| AI Tool | Optional directory entry for real AI resources. | AI Tools Directory |
+| User Role | Legacy compatibility role table. | Optional Supabase Auth user |
 
-## Authentication and Authorization
+## Open Access and Authorization
 
-Supabase Auth is the app identity provider. Email auth is enabled in the Supabase dashboard, and the first admin user is created manually in the Supabase Auth UI.
+There is no login page, no proxy route guard, and no Supabase Auth session requirement for the dashboard. The app opens directly at `/`.
 
-Runtime auth flow:
+Runtime route flow:
 
 ```mermaid
 flowchart TD
-  Visitor[Visitor requests app route] --> Middleware[middleware.ts]
-  Middleware --> SessionCheck[Read Supabase session with @supabase/ssr]
-  SessionCheck -- no session --> Login[Redirect /login]
-  SessionCheck -- session --> App[Render dashboard route]
-  Login --> SignIn[signInWithPassword]
-  SignIn --> App
+  Visitor[Visitor requests app route] --> App[Render dashboard route]
+  App --> Data[Load data through lib/data]
+  Data --> Supabase[(Supabase tables)]
 ```
 
-Authorization uses `public.user_roles`:
+Compatibility authorization helpers keep the UI in admin-capable mode:
 
 | Role | Access |
 | --- | --- |
-| `admin` | Read data, use mutation buttons, manage users, and perform writes. |
-| `viewer` | Read data only. Mutation controls are hidden and database writes are denied. |
+| `admin` | Open workspace mode: read data, use mutation buttons, manage users, and perform writes. |
+| `viewer` | Legacy role value kept for compatibility. |
 
-The UI reads the current user and role through `lib/auth/client.ts`, `lib/auth/roles.ts`, and `lib/auth/use-current-user-role.ts`. Data mutation helpers call `assertAdmin()` before Supabase writes, and Supabase RLS enforces the same rule in the database.
+The UI reads role state through `lib/auth/roles.ts` and `lib/auth/use-current-user-role.ts`; both resolve to admin/open access. Data mutation helpers still call `assertAdmin()` for compatibility, but it allows mutations. Supabase RLS policies are open for app tables in this no-login workspace.
 
 ## Feature Map
 
@@ -108,7 +102,7 @@ The UI reads the current user and role through `lib/auth/client.ts`, `lib/auth/r
 
 Route: `/`
 
-The dashboard loads `getDashboardData()` from `lib/data/dashboard.ts`, which fetches students, courses, issues, and AI tool metrics in parallel.
+The dashboard loads `getDashboardData()` from `lib/data/dashboard.ts`, which fetches students, courses, and issues in parallel.
 
 | Dashboard Block | Source |
 | --- | --- |
@@ -117,7 +111,6 @@ The dashboard loads `getDashboardData()` from `lib/data/dashboard.ts`, which fet
 | Open issues | Issues where status is not `Resolved` |
 | Resolved issues | Issues where status is `Resolved` |
 | Pending reviews | Issues where status is `Pending` |
-| AI tools usage | Sum of `aiTools.usageCount` |
 | Issue category chart | Issues grouped by category |
 | Resolution progress chart | Issues grouped by status |
 | Recent students table | First five students from the loaded student list |
@@ -247,7 +240,7 @@ The comments page is the ticket-thread workspace. It lets an admin:
 
 - Select an issue from the active issue list.
 - View the initial issue description and all related comments.
-- Reply as `Admin` or `Student Simulator`.
+- Reply as `Admin` or `Student`.
 - Optionally update issue status when replying as Admin.
 - Edit comments.
 - Delete comments.
@@ -326,7 +319,6 @@ The individual student report loads students, issues, and comments, then aggrega
 - Full issue table.
 - Comment history.
 - Timeline-style activity composed from issues and comments.
-- AI tools placeholder.
 
 Report flow:
 
@@ -336,7 +328,7 @@ flowchart TD
   SelectStudent --> StudentReport[Student report page]
   StudentReport --> LoadData[listStudents + listIssues + listComments]
   LoadData --> Aggregates[Issue and comment aggregates]
-  Aggregates --> Tabs[Overview, Issues, Comments, Progress, AI Tools]
+  Aggregates --> Tabs[Overview, Issues, Comments, Progress]
   Tabs --> ExportButton[Open /api/report/:studentId/pdf]
   ExportButton --> PdfRoute[Server PDF route]
   PdfRoute --> ReactPdf[@react-pdf/renderer]
@@ -347,31 +339,23 @@ The dynamic report route receives `params` as a Promise and reads it with React 
 
 PDF export is handled by `app/api/report/[studentId]/pdf/route.ts`. The route loads students, issues, and comments server-side, renders a clean PDF with `@react-pdf/renderer`, and returns it as an attachment.
 
-### 8. AI Tools Usage
+### 8. AI Tools Directory
 
 Route: `/tools`
 
-This page loads AI tool metrics from Supabase and shows:
+This page loads real AI tool records from Supabase and shows:
 
-- Usage vs related problems chart.
-- Tool detail table.
+- Tool directory cards.
 - Tool name and description.
-- Usage count.
-- Active students.
-- Related problem count.
-- Success rate.
 - Add tool dialog.
-- Edit action per row.
-- Delete confirmation per row.
-- Limit/offset pagination for the metrics table.
+- Edit action per card.
+- Delete confirmation per card.
 
 Flow:
 
 ```mermaid
 flowchart LR
-  ListAiTools[listAiTools] --> Sort[Sort by usage count]
-  Sort --> Chart[Usage vs Issues chart]
-  Sort --> Table[Tool metrics table]
+  ListAiTools[listAiTools] --> Cards[Tool directory cards]
   ToolForm[Add/Edit dialog] --> SaveTool{Editing existing?}
   SaveTool -- yes --> UpdateTool[updateAiTool]
   SaveTool -- no --> CreateTool[createAiTool]
@@ -381,13 +365,13 @@ flowchart LR
   DeleteTool --> Refresh
 ```
 
-Successful create, update, and delete actions refresh the table/chart and show toast notifications.
+Successful create, update, and delete actions refresh the directory and show toast notifications.
 
 ### 9. Analytics
 
 Route: `/analytics`
 
-The analytics route is still present as a provisioning placeholder for expanded reporting modules, but it is hidden from the sidebar until it loads real Supabase aggregates.
+The analytics route remains hidden from the sidebar until it loads real Supabase aggregates.
 
 ### 10. Settings
 
@@ -397,11 +381,11 @@ The settings page currently displays read-only platform configuration sections:
 
 - Organization settings.
 - Supabase integration status.
-- User management for admins.
+- Optional user management tools.
 
 The Supabase integration status is checked on mount by calling `requireSupabase()` and querying `courses` with `.select("id").limit(1)`. The UI shows a loading state while the check is running, a green connected state on success, or a red disconnected state with the returned error message on failure.
 
-Admins can list users, invite users, change roles between `admin` and `viewer`, and remove users. User management runs through API routes that use `SUPABASE_SERVICE_ROLE_KEY` server-side.
+User management runs through API routes that use `SUPABASE_SERVICE_ROLE_KEY` server-side. It is available as an operational tool, but the dashboard itself does not require a user login.
 
 ### 11. Layout, Navigation, Theme, Toasts, and PWA
 
@@ -421,7 +405,7 @@ The dashboard layout provides:
 - Open issue badge in the sidebar.
 - Theme toggle.
 - PWA install button.
-- Admin identity display.
+- Open workspace status.
 
 Open issue notification flow:
 
@@ -475,8 +459,8 @@ Shared helpers:
 | `normalizeOptionalText` | Converts blank optional inputs to `null`. |
 | `mapCourse`, `mapStudent`, `mapIssue`, `mapComment`, `mapPrompt`, `mapAiTool` | Convert Supabase rows into UI types. |
 | `useSupabaseQuery` | Loads data, exposes `loading`, `error`, and `refresh`, and subscribes to realtime table changes. |
-| `getSession`, `getUser`, `signOut` | Client auth helpers for the active Supabase session. |
-| `getUserRole`, `assertAdmin` | Role lookup and mutation authorization helpers. |
+| `getSession`, `getUser`, `signOut` | Open-access compatibility helpers; they do not call Supabase Auth. |
+| `getUserRole`, `assertAdmin` | Open admin role and mutation compatibility helpers. |
 
 ## Realtime Subscriptions
 
@@ -484,7 +468,7 @@ Each page subscribes only to the tables that can affect its visible data.
 
 | UI Surface | Realtime Tables |
 | --- | --- |
-| Dashboard | `students`, `student_courses`, `courses`, `issues`, `comments`, `ai_tools` |
+| Dashboard | `students`, `student_courses`, `courses`, `issues`, `comments` |
 | Students | `students`, `student_courses`, `courses`, `issues` |
 | Courses | `courses`, `student_courses` |
 | Issues | `issues`, `students`, `comments` |
@@ -492,7 +476,7 @@ Each page subscribes only to the tables that can affect its visible data.
 | Prompts | `courses`, `prompts` |
 | Reports index | `students`, `student_courses`, `courses`, `issues` |
 | Student report | `students`, `student_courses`, `courses`, `issues`, `comments` |
-| AI Tools Usage | `ai_tools` |
+| AI Tools Directory | `ai_tools` |
 | Dashboard layout notifications | `issues`, `comments` |
 
 ## Student Status Sync Logic
@@ -543,8 +527,8 @@ The SQL schema in `schema.sql` and `supabase/schema.sql` defines these Supabase 
 | `issues` | Stores student issues. |
 | `comments` | Stores issue/student thread messages. |
 | `prompts` | Stores prompt templates. |
-| `ai_tools` | Stores AI tool descriptions and usage metrics. |
-| `user_roles` | Stores each authenticated user's `admin` or `viewer` role. |
+| `ai_tools` | Stores AI tool directory records and reserved metric fields. |
+| `user_roles` | Legacy role table retained for optional user-management compatibility. |
 
 Database-level automation:
 
@@ -552,7 +536,7 @@ Database-level automation:
 - Issue insert/update/delete triggers sync the related student summary.
 - Student-role comments can mark a related issue as `Pending`.
 - Student comments update the student's `last_update`.
-- RLS allows `SELECT` for authenticated users and allows `INSERT`, `UPDATE`, and `DELETE` only for users whose `user_roles.role` is `admin`.
+- RLS allows anon/authenticated app access for `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on app tables.
 - Realtime publication includes the app tables.
 - Seed data lives in `supabase/seed.sql`.
 
@@ -587,4 +571,4 @@ flowchart TD
 - AI tool metrics can be created, edited, and deleted from `/tools`.
 - The report PDF export is server-side through `app/api/report/[studentId]/pdf/route.ts` and `@react-pdf/renderer`.
 - The global search input filters Students, Issues, and Prompts client-side without navigation or reloads.
-- Supabase Auth protects dashboard routes, and viewer users have read-only access.
+- Dashboard routes are open-access; no login or Supabase Auth session is required.

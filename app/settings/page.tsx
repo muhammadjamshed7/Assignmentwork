@@ -182,27 +182,14 @@ export default function SettingsPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Settings</h1>
-        <p className="text-zinc-500 dark:text-zinc-400">Manage platform preferences and system configurations.</p>
+        <p className="text-zinc-500 dark:text-zinc-400">Connection status and user access management.</p>
       </div>
       
       <div className="grid gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Organization Settings</CardTitle>
-            <CardDescription>Update your academic organization details and contact info.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-             <div className="grid gap-2">
-               <label className="text-sm font-medium">Organization Name</label>
-               <input disabled type="text" value="Academic Services" className="h-9 w-full max-w-md rounded-md border border-zinc-200 bg-zinc-50/50 px-3 text-sm shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50" />
-             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle>Supabase Integration</CardTitle>
-            <CardDescription>Manage database connections and API keys.</CardDescription>
+            <CardDescription>Database connection status.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="grid gap-2">
@@ -236,7 +223,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>User Management</CardTitle>
-              <CardDescription>Admin and viewer access.</CardDescription>
+              <CardDescription>Manage admin and viewer accounts.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <form onSubmit={inviteUser} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_160px_auto] lg:items-end">

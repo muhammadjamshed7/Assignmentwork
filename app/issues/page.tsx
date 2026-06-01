@@ -61,7 +61,7 @@ export default function IssuesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Global Issues</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Complete log of all tracked problems and their current statuses.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">Track and manage student-reported issues.</p>
         </div>
         <NewIssueDialog onSaved={refresh} />
       </div>

@@ -1,16 +1,28 @@
+﻿-- =========================================================
+-- FULL RESET â€” drops all app tables + data, recreates schema,
+-- and seeds approved baseline data.
+-- Run this ONCE in Supabase SQL Editor.
 -- =========================================================
--- TDS Management current app schema
--- Tables covered by the current UI:
--- students, courses, student_courses, issues, comments,
--- prompts, ai_tools, user_roles
---
--- Open-access mode: no login route, no default auth user seed.
--- =========================================================
+begin;
 
--- 1. Extensions
+-- Drop ALL app tables (FK-safe order with cascade)
+drop table if exists public.student_courses cascade;
+drop table if exists public.comments cascade;
+drop table if exists public.issues cascade;
+drop table if exists public.prompts cascade;
+drop table if exists public.ai_tools cascade;
+drop table if exists public.students cascade;
+drop table if exists public.courses cascade;
+drop table if exists public.user_roles cascade;
+
+commit;
+
+-- ==================== SCHEMA ====================
+
+-- Extensions
 create extension if not exists "pgcrypto";
 
--- 2. Enums
+-- Enums
 do $$ begin
   create type user_role as enum ('Student', 'Admin');
 exception
@@ -44,7 +56,7 @@ exception
   when duplicate_object then null;
 end $$;
 
--- 3. Updated timestamp helper
+-- Updated timestamp helper
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -55,7 +67,7 @@ begin
 end;
 $$;
 
--- 4. Core tables
+-- Core tables
 create table if not exists public.courses (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
@@ -148,7 +160,6 @@ as $$
   select role from public.user_roles where user_id = auth.uid() limit 1
 $$;
 
--- 5. Student rollup helper
 create or replace function public.sync_student_issue_summary(target_student_id uuid)
 returns void
 language plpgsql
@@ -222,7 +233,7 @@ begin
 end;
 $$;
 
--- 6. Triggers
+-- Triggers
 drop trigger if exists courses_set_updated_at on public.courses;
 create trigger courses_set_updated_at
 before update on public.courses
@@ -278,7 +289,7 @@ create trigger comments_student_pending
 after insert on public.comments
 for each row execute function public.mark_issue_pending_after_student_comment();
 
--- 7. Indexes
+-- Indexes
 create index if not exists idx_student_courses_student_id on public.student_courses(student_id);
 create index if not exists idx_student_courses_course_id on public.student_courses(course_id);
 create index if not exists idx_issues_student_id on public.issues(student_id);
@@ -288,7 +299,7 @@ create index if not exists idx_comments_issue_id on public.comments(issue_id);
 create index if not exists idx_prompts_category on public.prompts(category);
 create index if not exists idx_prompts_related_course_id on public.prompts(related_course_id);
 
--- 8. Row level security
+-- Row level security
 grant usage on schema public to postgres, anon, authenticated, service_role;
 grant all on all tables in schema public to postgres, anon, authenticated, service_role;
 grant all on all functions in schema public to postgres, anon, authenticated, service_role;
@@ -339,7 +350,7 @@ to anon, authenticated
 using (true)
 with check (true);
 
--- 9. Realtime
+-- Realtime
 do $$
 begin
   if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
@@ -357,4 +368,134 @@ alter publication supabase_realtime set table
   public.ai_tools,
   public.user_roles;
 
--- 10. App seed data intentionally omitted.
+-- ==================== SEED DATA ====================
+
+insert into public.ai_tools (
+  id,
+  tool_name,
+  description,
+  usage_count,
+  active_students,
+  related_problems,
+  success_rate
+)
+values
+  (
+    '70000000-0000-0000-0000-000000000001',
+    'ChatGPT',
+    $description$
+Official link: https://chatgpt.com
+
+Benefits:
+- Strong general-purpose assistant for planning, drafting, analysis, coding, and explanations.
+- Useful for turning rough requirements into structured tasks, checklists, and polished outputs.
+- Good first-pass tool for brainstorming, rewriting, summarizing, and step-by-step problem solving.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000002',
+    'Claude Opus',
+    $description$
+Official link: https://claude.ai
+
+Benefits:
+- Strong for careful long-form writing, deep reasoning, document review, and complex coding support.
+- Useful when quality, nuance, and structured analysis matter more than quick short answers.
+- Claude's free plan is available for general Claude use; Opus access may depend on the current Claude plan and availability.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000003',
+    'Google Gemini',
+    $description$
+Official link: https://gemini.google.com
+
+Benefits:
+- Useful for everyday research, writing, summaries, brainstorming, and productivity workflows.
+- Strong fit when Google ecosystem context is useful, such as Search, YouTube, Maps, Gmail, Docs, or Drive workflows.
+- Supports multimodal assistance depending on account, plan, region, and current Gemini app availability.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000004',
+    'Grok',
+    $description$
+Official link: https://grok.com
+
+Benefits:
+- Useful for fast conversational answers, reasoning, coding help, and current-context exploration.
+- Helpful for X/social-context research workflows when used through supported Grok/X surfaces.
+- Developer workflows can use xAI API access where available.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000005',
+    'Perplexity',
+    $description$
+Official link: https://www.perplexity.ai
+
+Benefits:
+- Strong for web research, source discovery, and citation-backed answers.
+- Useful for quickly checking current information before writing or making decisions.
+- Good fit for comparing sources, finding references, and moving from question to verified direction.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000006',
+    'Google AI Studio',
+    $description$
+Official link: https://aistudio.google.com/apps
+
+Benefits for end-to-end work:
+- Build AI-powered apps quickly from prompts using Gemini.
+- Prototype multimodal workflows across text, image, video, audio, and tool/search use cases.
+- Use starter apps, the app gallery, and a built-in code editor to remix, save, share, and integrate code.
+- Get Gemini API keys for moving from prototype toward real app integration.
+- Use logs and datasets to debug model calls, evaluate quality, refine prompts, and track behavior from prototype to production.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000007',
+    'LMArena',
+    $description$
+Official link: https://lmarena.ai
+
+Benefits:
+- Useful free/quick arena for comparing different frontier LLM outputs side by side where models are available.
+- Helps decide which model is better for a prompt before committing time or paid usage elsewhere.
+- Includes leaderboard and battle-style comparison workflows.
+- Privacy note: do not submit sensitive, private, or client data because arena conversations may be processed by third-party AI providers.
+$description$,
+    0,
+    0,
+    0,
+    100
+  )
+on conflict (tool_name) do update
+set
+  description = excluded.description,
+  updated_at = now();

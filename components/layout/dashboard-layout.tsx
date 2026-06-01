@@ -10,46 +10,40 @@ import {
   MessageSquare, 
   Settings, 
   Users, 
+  Workflow,
   Wrench,
   Bell,
   Search,
   Menu,
   X,
   FileText,
-  ClipboardList,
-  LogOut
+  ClipboardList
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { PwaInstallButton } from "@/components/pwa-install-button"
 import { listIssues } from "@/lib/data/issues"
 import { useSupabaseQuery } from "@/lib/data/hooks"
 import { useSearchStore } from "@/store/useSearchStore"
-import { getUser, signOut } from "@/lib/auth/client"
-import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Students", href: "/students", icon: Users },
+  { name: "Writers", href: "/students", icon: Users },
   { name: "Reports", href: "/reports", icon: FileText },
   { name: "Courses", href: "/courses", icon: BookOpen },
   { name: "Prompts", href: "/prompts", icon: ClipboardList },
+  { name: "Workflow", href: "/workflow", icon: Workflow },
   { name: "Issues", href: "/issues", icon: Wrench },
   { name: "Comments/Tickets", href: "/comments", icon: MessageSquare },
-  { name: "AI Tools Usage", href: "/tools", icon: BarChart3 },
+  { name: "AI Tools", href: "/tools", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-
-  if (pathname === "/login") {
-    return <>{children}</>
-  }
 
   return <DashboardShell pathname={pathname}>{children}</DashboardShell>
 }
@@ -58,34 +52,7 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const { data: issues } = useSupabaseQuery(listIssues, [], ["issues", "comments"])
   const { searchQuery, setSearchQuery } = useSearchStore()
-  const { role } = useCurrentUserRole()
-  const [userEmail, setUserEmail] = React.useState("")
   const openIssuesCount = issues.filter(i => i.status !== 'Resolved').length
-  const initials = (userEmail || "User")
-    .split("@")[0]
-    .split(/[.\s_-]+/)
-    .map(part => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase() || "U"
-
-  React.useEffect(() => {
-    let isMounted = true
-
-    async function loadUser() {
-      const user = await getUser()
-
-      if (isMounted) {
-        setUserEmail(user?.email ?? "")
-      }
-    }
-
-    void loadUser()
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
@@ -119,19 +86,12 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
             </button>
             <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-zinc-200 dark:lg:bg-zinc-800" aria-hidden="true" />
             <div className="flex items-center gap-x-4">
-              <Avatar className="h-9 w-9">
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
               <div className="hidden lg:flex lg:flex-col lg:items-start lg:justify-center">
                 <span className="max-w-52 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-                  {userEmail || "Signed in"}
+                  Open workspace
                 </span>
-                <span className="text-xs capitalize text-zinc-500">{role}</span>
+                <span className="text-xs text-zinc-500">No login required</span>
               </div>
-              <Button type="button" variant="ghost" size="icon" title="Sign out" onClick={() => void signOut()}>
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-                <span className="sr-only">Sign out</span>
-              </Button>
             </div>
           </div>
         </div>

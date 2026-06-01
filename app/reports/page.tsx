@@ -38,7 +38,7 @@ export default function ReportsIndexPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Reports Generator</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Generate comprehensive PDF reports for individual students.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">Generate detailed PDF reports per student.</p>
         </div>
       </div>
 
@@ -46,9 +46,9 @@ export default function ReportsIndexPage() {
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-6">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" />
-            <input 
-              type="text" 
-              placeholder="Search students to generate report..." 
+            <input
+              type="text"
+              placeholder="Search students..."
               className="h-9 w-full rounded-md border border-zinc-200 bg-transparent pl-9 pr-4 text-sm shadow-sm outline-none focus:ring-1 focus:ring-zinc-950 dark:border-zinc-800 dark:focus:ring-zinc-300"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}

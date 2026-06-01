@@ -34,7 +34,12 @@ const PROMPT_CATEGORIES = [
   "Presentation",
   "Assignment",
   "Research",
-  "Instructions",
+  "Literature Review",
+  "Case Study",
+  "Business Strategy",
+  "Expert Role",
+  "Methodology",
+  "Proposal",
   "Thesis",
   "Data Extraction",
   "Reference Memory",
@@ -262,7 +267,7 @@ export default function PromptsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Prompt Library</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Save simple prompts for presentations, assignments, research, and feedback.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">Reusable prompt templates for common academic tasks.</p>
         </div>
 
         {isAdmin && (

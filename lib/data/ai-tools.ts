@@ -54,7 +54,7 @@ export async function createAiTool(input: {
       usage_count: input.usageCount ?? 0,
       active_students: input.activeStudents ?? 0,
       related_problems: input.relatedProblems ?? 0,
-      success_rate: input.successRate ?? 100,
+      success_rate: input.successRate ?? 0,
     })
     .select("id, tool_name, description, usage_count, active_students, related_problems, success_rate")
     .single();
@@ -66,10 +66,10 @@ export async function createAiTool(input: {
 export async function updateAiTool(toolId: string, input: {
   toolName: string;
   description?: string;
-  usageCount: number;
-  activeStudents: number;
-  relatedProblems: number;
-  successRate: number;
+  usageCount?: number;
+  activeStudents?: number;
+  relatedProblems?: number;
+  successRate?: number;
 }) {
   await assertAdmin();
 
@@ -86,10 +86,10 @@ export async function updateAiTool(toolId: string, input: {
     .update({
       tool_name: toolName,
       description,
-      usage_count: input.usageCount,
-      active_students: input.activeStudents,
-      related_problems: input.relatedProblems,
-      success_rate: input.successRate,
+      usage_count: input.usageCount ?? 0,
+      active_students: input.activeStudents ?? 0,
+      related_problems: input.relatedProblems ?? 0,
+      success_rate: input.successRate ?? 0,
     })
     .eq("id", toolId)
     .select("id, tool_name, description, usage_count, active_students, related_problems, success_rate")

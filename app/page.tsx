@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, BookOpen, AlertCircle, CheckCircle2, Clock, Wrench } from "lucide-react"
+import { Users, BookOpen, AlertCircle, CheckCircle2, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDistanceToNow } from "date-fns"
@@ -32,11 +32,11 @@ function ChartPlaceholder() {
 export default function DashboardPage() {
   const { data, loading, error, refresh } = useSupabaseQuery(
     getDashboardData,
-    { students: [], issues: [], courses: [], aiTools: [] },
-    ["students", "student_courses", "courses", "issues", "comments", "ai_tools"]
+    { students: [], issues: [], courses: [] },
+    ["students", "student_courses", "courses", "issues", "comments"]
   )
 
-  const { students, issues, courses, aiTools } = data
+  const { students, issues, courses } = data
 
   // Stats calculations
   const totalStudents = students.length
@@ -44,15 +44,13 @@ export default function DashboardPage() {
   const resolvedIssues = issues.filter(i => i.status === 'Resolved').length
   const openIssues = issues.length - resolvedIssues
   const pendingReviews = issues.filter(i => i.status === 'Pending').length
-  const aiToolsUsage = aiTools.reduce((acc, tool) => acc + tool.usageCount, 0)
 
   const stats = [
-    { title: "Total Students", value: totalStudents, icon: Users, color: "text-blue-500" },
+    { title: "Total Writers", value: totalStudents, icon: Users, color: "text-blue-500" },
     { title: "Active Courses", value: totalCourses, icon: BookOpen, color: "text-emerald-500" },
     { title: "Open Issues", value: openIssues, icon: AlertCircle, color: "text-red-500" },
     { title: "Resolved Issues", value: resolvedIssues, icon: CheckCircle2, color: "text-green-500" },
     { title: "Pending Reviews", value: pendingReviews, icon: Clock, color: "text-yellow-500" },
-    { title: "AI Tools Usage", value: aiToolsUsage, icon: Wrench, color: "text-indigo-500" },
   ]
 
   // Chart data
@@ -92,13 +90,13 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Dashboard</h1>
-        <p className="text-zinc-500 dark:text-zinc-400">Welcome to the Academic Services platform.</p>
+        <p className="text-zinc-500 dark:text-zinc-400">Overview of students, issues, and platform metrics.</p>
       </div>
 
       {loading && <LoadingState label="Loading dashboard metrics..." />}
       {error && <ErrorState message={error} onRetry={refresh} />}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stats.map((stat, i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -118,9 +116,9 @@ export default function DashboardPage() {
         <Card className="md:col-span-2 lg:col-span-4">
           <CardHeader>
             <CardTitle>Issues by Category</CardTitle>
-            <CardDescription>Breakdown of all reported student issues</CardDescription>
+            <CardDescription>Issues grouped by category</CardDescription>
           </CardHeader>
-          <CardContent className="h-[260px] sm:h-[300px]">
+          <CardContent className="min-h-[260px] h-[260px] sm:h-[300px]">
             <IssueCategoryChart data={pieData} />
           </CardContent>
         </Card>
@@ -128,9 +126,9 @@ export default function DashboardPage() {
         <Card className="md:col-span-2 lg:col-span-3">
           <CardHeader>
             <CardTitle>Resolution Progress</CardTitle>
-            <CardDescription>Current status of all tracked issues</CardDescription>
+            <CardDescription>Issue status distribution</CardDescription>
           </CardHeader>
-          <CardContent className="h-[260px] sm:h-[300px]">
+          <CardContent className="min-h-[260px] h-[260px] sm:h-[300px]">
             <ResolutionProgressChart data={resolutionProgress} />
           </CardContent>
         </Card>
@@ -139,7 +137,7 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Students Overview</CardTitle>
-          <CardDescription>Monitor student progress and active issues.</CardDescription>
+          <CardDescription>Recently active students</CardDescription>
         </CardHeader>
         <CardContent className="p-0 sm:p-6">
           <Table>

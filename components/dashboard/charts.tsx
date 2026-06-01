@@ -27,6 +27,10 @@ type AIToolChartDatum = {
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#ffc658", "#ef4444"]
 
 export function IssueCategoryChart({ data }: { data: ChartDatum[] }) {
+  if (data.length === 0) {
+    return <div className="flex h-full items-center justify-center text-sm text-zinc-400">No data</div>
+  }
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data}>
@@ -44,6 +48,10 @@ export function IssueCategoryChart({ data }: { data: ChartDatum[] }) {
 }
 
 export function ResolutionProgressChart({ data }: { data: ChartDatum[] }) {
+  if (data.length === 0) {
+    return <div className="flex h-full items-center justify-center text-sm text-zinc-400">No data</div>
+  }
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
@@ -59,6 +67,10 @@ export function ResolutionProgressChart({ data }: { data: ChartDatum[] }) {
 }
 
 export function AIToolsUsageChart({ data }: { data: AIToolChartDatum[] }) {
+  if (data.length === 0) {
+    return <div className="flex h-full items-center justify-center text-sm text-zinc-400">No data</div>
+  }
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 50 }}>

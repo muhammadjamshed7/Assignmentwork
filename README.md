@@ -1,8 +1,8 @@
 # TDS Management - System Flow
 
-TDS Management ek Next.js App Router based academic services dashboard hai. Is app ka kaam students, courses, issues/tickets, comments, prompts, reports, AI tools usage, settings, users aur roles ko manage karna hai.
+TDS Management ek Next.js App Router based academic services dashboard hai. Is app ka kaam students, courses, issues/tickets, comments, prompts, reports, AI tool records, settings, users aur roles ko manage karna hai.
 
-Active data source Supabase hai. UI mostly client components mein bani hui hai, data `lib/data/` modules se aata hai, auth Supabase Auth se hoti hai, aur realtime updates Supabase Realtime subscriptions se page refresh karte hain.
+Active data source Supabase hai. UI mostly client components mein bani hui hai, data `lib/data/` modules se aata hai, app open-access mode mein chalti hai, aur realtime updates Supabase Realtime subscriptions se page refresh karte hain. Login page aur route guard intentionally removed hain.
 
 ## Tech Stack
 
@@ -10,7 +10,7 @@ Active data source Supabase hai. UI mostly client components mein bani hui hai, 
 | --- | --- |
 | Framework | Next.js 16 App Router |
 | UI | React 19, Tailwind CSS, shadcn-style components, lucide icons |
-| Database/Auth | Supabase Postgres, Supabase Auth, RLS |
+| Database/Auth | Supabase Postgres, open app access, RLS |
 | Realtime | Supabase `postgres_changes` subscriptions |
 | Local State | Zustand for global search and toasts |
 | Charts | Recharts |
@@ -54,28 +54,13 @@ App open:
 http://localhost:3000
 ```
 
-First admin bootstrap:
-
-1. Supabase dashboard mein Email auth provider enable karo.
-2. Supabase Auth UI se first user create karo.
-3. Us user ko app admin role do:
-
-```sql
-insert into public.user_roles (user_id, role)
-select id, 'admin'
-from auth.users
-where email = 'admin@example.com'
-on conflict (user_id) do update set role = excluded.role;
-```
+No login bootstrap is required. The app shell and data pages are available directly at `/`.
 
 ## High-Level Flow
 
 ```mermaid
 flowchart TD
-  Browser[User Browser] --> Middleware[middleware.ts]
-  Middleware --> Auth[Supabase Auth Session]
-  Auth -- no session --> Login[/login]
-  Auth -- session --> Layout[DashboardLayout]
+  Browser[User Browser] --> Layout[DashboardLayout]
   Layout --> Pages[App Routes]
   Pages --> QueryHook[useSupabaseQuery]
   QueryHook --> DataModules[lib/data modules]
@@ -87,14 +72,12 @@ flowchart TD
 Normal page behavior:
 
 1. User route open karta hai, jaise `/students` ya `/issues`.
-2. `middleware.ts` Supabase session check karta hai.
-3. Agar login nahi hai to user `/login` par redirect hota hai.
-4. Authenticated user dashboard shell mein route dekhta hai.
-5. Page `useSupabaseQuery()` call karta hai.
-6. Hook `lib/data/*` loader se data fetch karta hai.
-7. Data mapper Supabase snake_case rows ko UI-friendly camelCase objects mein convert karta hai.
-8. Page table, cards, forms, charts render karta hai.
-9. Supabase table mein change aaye to realtime event hook ko refresh karwa deta hai.
+2. Dashboard shell route ko directly render karta hai; koi login redirect nahi hota.
+3. Page `useSupabaseQuery()` call karta hai.
+4. Hook `lib/data/*` loader se data fetch karta hai.
+5. Data mapper Supabase snake_case rows ko UI-friendly camelCase objects mein convert karta hai.
+6. Page table, cards, forms, charts render karta hai.
+7. Supabase table mein change aaye to realtime event hook ko refresh karwa deta hai.
 
 ## Folder Structure
 
@@ -108,13 +91,12 @@ app/
   comments/page.tsx                    Ticket/comment workspace
   courses/page.tsx                     Course CRUD
   issues/page.tsx                      Issue tracking
-  login/page.tsx                       Supabase email login
   prompts/page.tsx                     Prompt template CRUD
   reports/page.tsx                     Reports index
   reports/[studentId]/page.tsx         Student detail report
   settings/page.tsx                    Supabase status + user management
   students/page.tsx                    Student CRUD
-  tools/page.tsx                       AI tools metrics CRUD
+  tools/page.tsx                       AI tools directory CRUD
   layout.tsx                           Root layout, theme boot, PWA, toaster
   manifest.ts                          PWA manifest
   page.tsx                             Dashboard home
@@ -150,7 +132,6 @@ supabase/
   seed.sql                             Optional seed data
   reset-current-app.sql                Reset helper
 
-middleware.ts                          Route protection and auth redirects
 schema.sql                             Root copy of DB schema
 SYSTEM_FLOW.md                         Detailed system-flow reference
 ```
@@ -159,7 +140,7 @@ SYSTEM_FLOW.md                         Detailed system-flow reference
 
 | Route | Kya karta hai | Main data |
 | --- | --- | --- |
-| `/` | Dashboard metrics, charts, recent students | Students, courses, issues, AI tools |
+| `/` | Dashboard metrics, charts, recent students | Students, courses, issues |
 | `/students` | Students list, add/edit/delete, course assignment | `students`, `student_courses`, `courses`, `issues` |
 | `/courses` | Courses list, add/edit/delete, enrollment count | `courses`, `student_courses` |
 | `/issues` | Student issues list and new issue dialog | `issues`, `students`, `comments` |
@@ -167,9 +148,8 @@ SYSTEM_FLOW.md                         Detailed system-flow reference
 | `/prompts` | Prompt templates CRUD, search/filter/copy | `prompts`, `courses` |
 | `/reports` | Student report listing | `students`, `issues`, `courses` |
 | `/reports/[studentId]` | Full student report with tabs and PDF export | `students`, `issues`, `comments`, `courses` |
-| `/tools` | AI tools usage chart/table and CRUD | `ai_tools` |
+| `/tools` | AI tools directory CRUD | `ai_tools` |
 | `/settings` | Supabase connection status and user management | `user_roles`, Supabase Auth users |
-| `/login` | Email/password login | Supabase Auth |
 | `/analytics` | Placeholder for future analytics | Currently hidden from sidebar |
 
 ## Data Layer
@@ -188,7 +168,7 @@ Data ka main kaam `lib/data/` karta hai. Pages direct Supabase queries normally 
 | `lib/data/issues.ts` | Issue list/page/create/status update |
 | `lib/data/comments.ts` | Comments list/page/create/update/delete |
 | `lib/data/prompts.ts` | Prompt list/page/create/update/delete |
-| `lib/data/ai-tools.ts` | AI tools metrics list/page/create/update/delete |
+| `lib/data/ai-tools.ts` | AI tools list/create/update/delete |
 | `lib/data/dashboard.ts` | Combined dashboard/report/comment/prompt loaders |
 
 Mutation pattern:
@@ -211,7 +191,7 @@ Mutation pattern:
 | `issues` | Student issue category, description, status, priority, timestamps |
 | `comments` | Issue/student thread comments, author name, role, text |
 | `prompts` | Prompt title, category, content, tags, optional related course |
-| `ai_tools` | AI tool name, description, usage count, active students, related problems, success rate |
+| `ai_tools` | AI tool name, description, and reserved metric fields |
 | `user_roles` | Auth user ka app role: `admin` ya `viewer` |
 
 Important database behavior:
@@ -220,34 +200,26 @@ Important database behavior:
 - Issue create/update/delete par student ka summary sync hota hai.
 - Student-role comment related issue ko `Pending` kar sakta hai.
 - Student comments student ka `last_update` update karte hain.
-- RLS authenticated users ko read allow karta hai.
-- RLS writes sirf `admin` role ko allow karta hai.
+- RLS app tables ko anon/authenticated public access allow karta hai for this no-login workspace.
 - Realtime publication app tables par enabled hai.
 
-## Auth and Roles
+## Open Access and Roles
 
-Authentication Supabase Auth se hoti hai.
-
-`middleware.ts` behavior:
-
-- Static assets, icons, `sw.js`, `_next` files ko pass-through karta hai.
-- Env vars missing hon to protected routes `/login` par redirect hoti hain.
-- Session missing ho to protected route `/login?next=...` par redirect hoti hai.
-- Logged-in user `/login` open kare to `/` par redirect hota hai.
+Authentication route protection removed hai. `app/login/page.tsx` aur `proxy.ts` intentionally deleted hain, is liye app direct `/` se open hoti hai.
 
 Roles:
 
 | Role | Access |
 | --- | --- |
-| `admin` | Read, create, update, delete, user management |
-| `viewer` | Read-only access |
+| `admin` | Open workspace mode: read, create, update, delete, user management UI |
+| `viewer` | Kept only as a legacy type for compatibility |
 
 Role helpers:
 
-- `lib/auth/client.ts`: client session/user/signout helpers.
-- `lib/auth/roles.ts`: `getUserRole()` and `assertAdmin()`.
-- `lib/auth/server.ts`: API routes ke liye cookie client, service-role client, admin request guard.
-- `lib/auth/use-current-user-role.ts`: UI ko current role deta hai.
+- `lib/auth/client.ts`: compatibility helpers that do not call Supabase Auth in open-access mode.
+- `lib/auth/roles.ts`: `getUserRole()` always returns `admin`; `assertAdmin()` allows mutations.
+- `lib/auth/server.ts`: API routes ke liye service-role client and open admin request helper.
+- `lib/auth/use-current-user-role.ts`: UI ko open admin role deta hai.
 - `lib/auth/role-utils.ts`: allowed roles and unauthorized message.
 
 ## Global Stores
@@ -280,7 +252,7 @@ Realtime tables by surface:
 
 | UI Surface | Realtime Tables |
 | --- | --- |
-| Dashboard | `students`, `student_courses`, `courses`, `issues`, `comments`, `ai_tools` |
+| Dashboard | `students`, `student_courses`, `courses`, `issues`, `comments` |
 | Students | `students`, `student_courses`, `courses`, `issues` |
 | Courses | `courses`, `student_courses` |
 | Issues | `issues`, `students`, `comments` |
@@ -288,14 +260,14 @@ Realtime tables by surface:
 | Prompts | `courses`, `prompts` |
 | Reports index | `students`, `student_courses`, `courses`, `issues` |
 | Student report | `students`, `student_courses`, `courses`, `issues`, `comments` |
-| AI Tools Usage | `ai_tools` |
+| AI Tools Directory | `ai_tools` |
 | Dashboard layout notifications | `issues`, `comments` |
 
 ## Feature Flows
 
 ### Dashboard
 
-Dashboard `getDashboardData()` call karta hai. Ye students, courses, issues aur AI tools parallel load karta hai.
+Dashboard `getDashboardData()` call karta hai. Ye students, courses aur issues parallel load karta hai.
 
 Dashboard show karta hai:
 
@@ -304,7 +276,6 @@ Dashboard show karta hai:
 - Open issues
 - Resolved issues
 - Pending reviews
-- AI tools usage total
 - Issues by category chart
 - Resolution progress chart
 - Recent students table
@@ -431,7 +402,6 @@ Reports index har student ka summary show karta hai. Student detail report:
 - Full issue table
 - Comment history
 - Timeline activity
-- AI tools placeholder
 
 PDF export:
 
@@ -441,20 +411,16 @@ PDF export:
 
 Ye server route students, issues aur comments load karke `@react-pdf/renderer` se PDF attachment return karta hai.
 
-### AI Tools Usage
+### AI Tools Directory
 
-Tools page AI tools metrics manage karta hai.
+Tools page real AI tool records manage karta hai.
 
 AI tool store hota hai:
 
 - Tool name
 - Description
-- Usage count
-- Active students
-- Related problem count
-- Success rate
 
-Chart usage count vs related problems show karta hai.
+Metrics are not shown on the dashboard until real tracking data exists.
 
 ### Settings
 
@@ -479,8 +445,7 @@ User management API routes service-role key use karti hain, is liye ye kaam brow
 - Issues sidebar badge
 - Theme toggle
 - PWA install button
-- Current user email and role
-- Sign out button
+- Open workspace status
 
 `app/layout.tsx`:
 

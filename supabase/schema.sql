@@ -4,9 +4,7 @@
 -- students, courses, student_courses, issues, comments,
 -- prompts, ai_tools, user_roles
 --
--- Default Supabase Auth admin login seeded by this schema:
--- email: tds@gmail.com
--- password: admin123ahmed
+-- Open-access mode: no login route, no default auth user seed.
 -- =========================================================
 
 -- 1. Extensions
@@ -45,8 +43,6 @@ do $$ begin
 exception
   when duplicate_object then null;
 end $$;
-
-alter type issue_category add value if not exists 'Other';
 
 -- 3. Updated timestamp helper
 create or replace function public.set_updated_at()
@@ -134,8 +130,6 @@ create table if not exists public.ai_tools (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-
-alter table public.ai_tools add column if not exists description text not null default '';
 
 create table if not exists public.user_roles (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -316,6 +310,7 @@ drop policy if exists "Allow public app access" on public.issues;
 drop policy if exists "Allow public app access" on public.comments;
 drop policy if exists "Allow public app access" on public.prompts;
 drop policy if exists "Allow public app access" on public.ai_tools;
+drop policy if exists "Allow public role access" on public.user_roles;
 
 do $$
 declare
@@ -328,10 +323,7 @@ begin
     execute format('drop policy if exists "Admin update" on public.%I', table_name);
     execute format('drop policy if exists "Admin delete" on public.%I', table_name);
 
-    execute format('create policy "Authenticated read" on public.%I for select to authenticated using (true)', table_name);
-    execute format('create policy "Admin insert" on public.%I for insert to authenticated with check (public.current_user_role() = ''admin'')', table_name);
-    execute format('create policy "Admin update" on public.%I for update to authenticated using (public.current_user_role() = ''admin'') with check (public.current_user_role() = ''admin'')', table_name);
-    execute format('create policy "Admin delete" on public.%I for delete to authenticated using (public.current_user_role() = ''admin'')', table_name);
+    execute format('create policy "Allow public app access" on public.%I for all to anon, authenticated using (true) with check (true)', table_name);
   end loop;
 end $$;
 
@@ -340,30 +332,12 @@ drop policy if exists "Admin insert roles" on public.user_roles;
 drop policy if exists "Admin update roles" on public.user_roles;
 drop policy if exists "Admin delete roles" on public.user_roles;
 
-create policy "Authenticated read own role or admin"
+create policy "Allow public role access"
 on public.user_roles
-for select
-to authenticated
-using (user_id = auth.uid() or public.current_user_role() = 'admin');
-
-create policy "Admin insert roles"
-on public.user_roles
-for insert
-to authenticated
-with check (public.current_user_role() = 'admin');
-
-create policy "Admin update roles"
-on public.user_roles
-for update
-to authenticated
-using (public.current_user_role() = 'admin')
-with check (public.current_user_role() = 'admin');
-
-create policy "Admin delete roles"
-on public.user_roles
-for delete
-to authenticated
-using (public.current_user_role() = 'admin');
+for all
+to anon, authenticated
+using (true)
+with check (true);
 
 -- 9. Realtime
 do $$
@@ -383,111 +357,4 @@ alter publication supabase_realtime set table
   public.ai_tools,
   public.user_roles;
 
--- 10. Default Supabase Auth admin user
-do $$
-declare
-  admin_email text := 'tds@gmail.com';
-  admin_password text := 'admin123ahmed';
-  admin_user_id uuid;
-  admin_identity_id uuid := '80000000-0000-0000-0000-000000000001';
-  admin_identity_data jsonb;
-begin
-  select id
-  into admin_user_id
-  from auth.users
-  where email = admin_email
-  limit 1;
-
-  if admin_user_id is null then
-    admin_user_id := '80000000-0000-0000-0000-000000000000';
-
-    insert into auth.users (
-      instance_id,
-      id,
-      aud,
-      role,
-      email,
-      encrypted_password,
-      email_confirmed_at,
-      raw_app_meta_data,
-      raw_user_meta_data,
-      created_at,
-      updated_at,
-      confirmation_token,
-      email_change,
-      email_change_token_new,
-      recovery_token
-    )
-    values (
-      '00000000-0000-0000-0000-000000000000',
-      admin_user_id,
-      'authenticated',
-      'authenticated',
-      admin_email,
-      crypt(admin_password, gen_salt('bf')),
-      now(),
-      jsonb_build_object('provider', 'email', 'providers', array['email']),
-      jsonb_build_object('role', 'admin', 'name', 'TDS Admin'),
-      now(),
-      now(),
-      '',
-      '',
-      '',
-      ''
-    );
-  else
-    update auth.users
-    set
-      encrypted_password = crypt(admin_password, gen_salt('bf')),
-      email_confirmed_at = coalesce(email_confirmed_at, now()),
-      raw_app_meta_data = jsonb_build_object('provider', 'email', 'providers', array['email']),
-      raw_user_meta_data = jsonb_build_object('role', 'admin', 'name', 'TDS Admin'),
-      updated_at = now()
-    where id = admin_user_id;
-  end if;
-
-  admin_identity_data := jsonb_build_object(
-    'sub', admin_user_id::text,
-    'email', admin_email,
-    'email_verified', true,
-    'phone_verified', false
-  );
-
-  delete from auth.identities
-  where user_id = admin_user_id
-    and provider = 'email';
-
-  if exists (
-    select 1
-    from information_schema.columns
-    where table_schema = 'auth'
-      and table_name = 'identities'
-      and column_name = 'provider_id'
-  ) then
-    execute format(
-      'insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at) values (%L, %L, %L, %L::jsonb, %L, now(), now(), now())',
-      admin_identity_id,
-      admin_user_id,
-      admin_email,
-      admin_identity_data::text,
-      'email'
-    );
-  else
-    execute format(
-      'insert into auth.identities (id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at) values (%L, %L, %L::jsonb, %L, now(), now(), now())',
-      admin_user_id::text,
-      admin_user_id,
-      admin_identity_data::text,
-      'email'
-    );
-  end if;
-
-  insert into public.user_roles (user_id, role)
-  values (admin_user_id, 'admin')
-  on conflict (user_id) do update
-  set
-    role = excluded.role,
-    updated_at = now();
-end $$;
-
--- 11. App seed data intentionally omitted.
+-- 10. App seed data intentionally omitted.

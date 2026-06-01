@@ -145,7 +145,7 @@ export default function CommentsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Comments & Tickets</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Manage issue threads and respond to students.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">Issue threads with admin reply and status controls.</p>
         </div>
         <NewIssueDialog onIssueCreated={selectIssue} onSaved={refresh} />
       </div>
@@ -296,7 +296,7 @@ export default function CommentsPage() {
                          className="text-xs bg-transparent border-0 font-medium text-zinc-900 dark:text-zinc-50 focus:ring-0 cursor-pointer"
                        >
                          <option value="Admin">Admin</option>
-                         <option value="Student">Student Simulator</option>
+                         <option value="Student">Student</option>
                        </select>
                     </div>
                     {selectedRole === 'Admin' && (

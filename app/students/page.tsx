@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Search, SlidersHorizontal, Eye, Pencil, Trash2 } from "lucide-react"
+import { Search, Pencil, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -220,7 +220,7 @@ export default function StudentsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Students</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Manage and track student progress and issues.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">Manage student records and track progress.</p>
         </div>
         
         {isAdmin && (
@@ -344,10 +344,7 @@ export default function StudentsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="sm" className="gap-2">
-            <SlidersHorizontal className="h-4 w-4" />
-            Filters
-          </Button>
+
         </CardHeader>
         <CardContent className="p-0">
           {loading && <div className="p-6"><LoadingState label="Loading students..." /></div>}
@@ -398,10 +395,6 @@ export default function StudentsPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" title="View student">
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">View student</span>
-                      </Button>
                       {isAdmin && (
                         <>
                           <Button type="button" variant="ghost" size="icon" title="Edit student" onClick={() => openEditDialog(student)}>

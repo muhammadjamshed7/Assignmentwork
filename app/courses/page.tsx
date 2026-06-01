@@ -139,7 +139,7 @@ export default function CoursesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Courses</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">View and manage all academic courses.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">Manage the academic course catalog.</p>
         </div>
 
         {isAdmin && (
@@ -203,8 +203,8 @@ export default function CoursesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Active Courses</CardTitle>
-          <CardDescription>All currently registered curriculum courses.</CardDescription>
+          <CardTitle>Courses</CardTitle>
+          <CardDescription>All registered courses with enrollment counts.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {loading && <div className="p-6"><LoadingState label="Loading courses..." /></div>}

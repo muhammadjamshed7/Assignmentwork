@@ -9,7 +9,7 @@ import {
 } from "@react-pdf/renderer"
 import { format } from "date-fns"
 
-import { createCookieSupabaseClient } from "@/lib/auth/server"
+import { requireSupabase } from "@/lib/data/client"
 import { mapComment, mapIssue, mapStudent } from "@/lib/data/mappers"
 import { Comment, Issue, Student } from "@/lib/data/types"
 
@@ -331,12 +331,7 @@ function reportFileName(studentName: string) {
 }
 
 async function getReportData() {
-  const supabase = await createCookieSupabaseClient()
-  const { data: authData, error: authError } = await supabase.auth.getUser()
-
-  if (authError || !authData.user) {
-    throw new Error("Unauthorized")
-  }
+  const supabase = requireSupabase()
 
   const [studentsResult, issuesResult, commentsResult] = await Promise.all([
     supabase
