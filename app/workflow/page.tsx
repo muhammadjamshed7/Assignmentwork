@@ -34,6 +34,54 @@ const placeholderGuide = [
   },
 ]
 
+const unknownAssignmentPrompt = `Unknown Assignment Workflow
+
+Use this workflow when a student or user submits an assignment that is unfamiliar, unclear, incomplete, or being handled for the first time. Do not start writing, solving, coding, or preparing the final answer immediately. First analyze the assignment, break it down, identify required tools, and create a proper step-by-step workflow.
+
+Follow this process:
+
+1. Identify the Subject
+Determine the subject or academic domain of the assignment, such as Cybersecurity, Networking, Programming, Database Systems, Artificial Intelligence, Web Development, Operating Systems, Cloud Computing, Research Writing, Business, or Management.
+
+2. Ask for or Read the Assignment Brief
+Require the complete assignment brief before starting. Check for the assignment title, full question or problem statement, marking rubric, required format, submission guidelines, required tools or software, deadline, attached files, screenshots, datasets, and instructor notes.
+
+3. Break Down the Assignment
+Divide the assignment into clear, manageable sections. Explain what the assignment is asking, the main tasks, theoretical parts, practical or technical parts, required screenshots or evidence, required files or outputs, and final submission deliverables.
+
+4. Identify Required Tools
+List all required tools after understanding the assignment. Consider writing tools, presentation tools, coding tools, technical tools, and research tools such as Microsoft Word, Google Docs, PowerPoint, Canva, VS Code, Python, Java, C++, GitHub, Kali Linux, Wireshark, Cisco Packet Tracer, MySQL, Docker, VirtualBox, VMware, Linux Terminal, Google Scholar, IEEE Xplore, official documentation, and academic databases.
+
+5. Map Tools to Assignment Tasks
+Explain which tool will be used for each part of the assignment. Include the tool name, purpose of the tool, assignment section where it is needed, and expected output from that tool.
+
+6. Create a Step-by-Step Technical Workflow
+If any technical tool is required, generate a beginner-friendly practical workflow. For example, if Kali Linux is required, explain how to open Kali Linux, select the required tool or terminal, run the required command, upload or import the required file, configure settings, execute the task, capture screenshots, save or export output, and add the result to the final assignment document.
+
+7. Prepare the Final Assignment Structure
+Before creating the assignment, suggest the final structure. Example: Title Page, Introduction, Objectives, Assignment Breakdown, Tools Used, Methodology, Step-by-Step Implementation, Screenshots or Evidence, Results, Discussion, Conclusion, References, and Appendix if required.
+
+8. Confirm Final Deliverables
+Clearly list what needs to be submitted, such as Word document, PDF file, PowerPoint presentation, source code, screenshots, lab report, dataset, configuration files, GitHub link, or video demonstration.
+
+9. Start Assignment Creation Only After Planning
+Begin final assignment creation only after the subject is identified, the assignment is broken down, tools are selected, a technical workflow is prepared, the final structure is confirmed, and deliverables are listed.
+
+Mandatory output format:
+
+1. Assignment Understanding
+2. Subject / Domain
+3. Complete Task Breakdown
+4. Required Tools
+5. Tool-to-Task Mapping
+6. Step-by-Step Technical Workflow
+7. Final Assignment Structure
+8. Deliverables Checklist
+9. Next Action Plan
+
+Rule:
+Never directly start an unknown assignment. Every unfamiliar assignment must first pass through the Unknown Assignment Workflow so the output is accurate, structured, tool-specific, and aligned with academic requirements.`
+
 const workflowSteps = [
   {
     number: 1,
@@ -122,7 +170,7 @@ Follow this workflow:
 
 The final assignment must be clear, structured, evidence-based, properly referenced, academically rigorous, and suitable for submission.`
 
-function getCopyKey(value: number | "master") {
+function getCopyKey(value: number | "master" | "unknown") {
   return typeof value === "number" ? `step-${value}` : value
 }
 
@@ -130,7 +178,7 @@ export default function WorkflowPage() {
   const { addToast } = useToastStore()
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
-  async function handleCopy(key: number | "master", text: string, label: string) {
+  async function handleCopy(key: number | "master" | "unknown", text: string, label: string) {
     const copyKey = getCopyKey(key)
 
     try {
@@ -162,6 +210,35 @@ export default function WorkflowPage() {
           replace the placeholders with their assignment details, and use the prompts for structured academic support.
         </p>
       </div>
+
+      <Card className="border-zinc-300 dark:border-zinc-700">
+        <CardHeader className="gap-4 border-b border-zinc-200 pb-5 sm:flex-row sm:items-start sm:justify-between dark:border-zinc-800">
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">Sub-workflow</Badge>
+              <span className="text-xs font-medium uppercase text-zinc-400">Planning First</span>
+            </div>
+            <CardTitle>Unknown Assignment Workflow</CardTitle>
+            <CardDescription className="mt-2 max-w-3xl leading-6">
+              Use this when an assignment is unfamiliar, unclear, incomplete, or being handled for the first time.
+            </CardDescription>
+          </div>
+          <Button
+            type="button"
+            variant={copiedKey === "unknown" ? "secondary" : "outline"}
+            className="shrink-0 gap-2"
+            onClick={() => handleCopy("unknown", unknownAssignmentPrompt, "Unknown Assignment Workflow")}
+          >
+            {copiedKey === "unknown" ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
+            {copiedKey === "unknown" ? "Copied" : "Copy"}
+          </Button>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <pre className="max-h-[560px] overflow-auto whitespace-pre-wrap rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-200">
+            {unknownAssignmentPrompt}
+          </pre>
+        </CardContent>
+      </Card>
 
       <Card className="border-zinc-300 dark:border-zinc-700">
         <CardHeader>
