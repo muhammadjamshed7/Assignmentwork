@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, use, useMemo } from "react"
+import { use, useMemo } from "react"
 import { Issue, Comment, Student } from "@/lib/data/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,22 +32,6 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
   )
   const { student, studentIssues, studentComments } = data
 
-  if (loading) {
-    return <LoadingState label="Loading student report..." />
-  }
-
-  if (error) {
-    return <ErrorState message={error} onRetry={refresh} />
-  }
-
-  if (!student) {
-    return (
-      <div className="rounded-lg border border-dashed border-zinc-200 p-8 text-center text-sm text-zinc-500 dark:border-zinc-800">
-        Student report not found.
-      </div>
-    )
-  }
-
   const totalIssues = studentIssues.length
   const issuesByCategory = useMemo(() =>
     studentIssues.reduce((acc, issue) => {
@@ -65,6 +49,22 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
     [studentIssues]
   )
 
+  if (loading) {
+    return <LoadingState label="Loading student report..." />
+  }
+
+  if (error) {
+    return <ErrorState message={error} onRetry={refresh} />
+  }
+
+  if (!student) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 dark:border-slate-700 p-8 text-center text-sm text-gray-400 dark:text-slate-500">
+        Student report not found.
+      </div>
+    )
+  }
+
   const handleExportPDF = () => {
     window.open(`/api/report/${studentId}/pdf`, "_blank", "noopener,noreferrer")
   }
@@ -79,8 +79,8 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
             </Button>
           </Link>
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">Student Report</h1>
-            <p className="text-zinc-500 dark:text-zinc-400">Detailed overview for {student.name}</p>
+            <h1 className="text-gray-900 dark:text-white font-display text-2xl font-bold tracking-tight sm:text-3xl">Student Report</h1>
+            <p className="text-slate-400">Detailed overview for {student.name}</p>
           </div>
         </div>
         <Button onClick={handleExportPDF} className="w-full gap-2 sm:w-auto">
@@ -89,24 +89,24 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
         </Button>
       </div>
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="print-header mb-8 pb-8 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/40 p-4 sm:p-6">
+        <div className="print-header mb-8 pb-8 border-b border-gray-200 dark:border-white/5">
            <h2 className="text-2xl font-bold">{student.name}</h2>
            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
              <div>
-               <p className="text-sm text-zinc-500 font-medium">Student ID</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">Student ID</p>
                <p className="text-sm font-semibold">{student.id}</p>
              </div>
              <div>
-               <p className="text-sm text-zinc-500 font-medium">Assigned Trainer</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">Assigned Trainer</p>
                <p className="text-sm font-semibold">{student.assignedTrainer}</p>
              </div>
              <div>
-               <p className="text-sm text-zinc-500 font-medium">Overall Status</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">Overall Status</p>
                <Badge variant={getStatusVariant(student.overallStatus)} className="mt-1">{student.overallStatus}</Badge>
              </div>
              <div>
-               <p className="text-sm text-zinc-500 font-medium">Last Update</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">Last Update</p>
                <p className="text-sm font-semibold">{format(new Date(student.lastUpdate), 'MMM d, yyyy')}</p>
              </div>
            </div>
@@ -125,32 +125,32 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                <Card>
-                 <CardHeader className="pb-2 text-zinc-500">
-                   <CardTitle className="text-sm font-medium">Total Issues</CardTitle>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-500 dark:text-slate-400">Total Issues</CardTitle>
                  </CardHeader>
                  <CardContent>
                    <div className="text-3xl font-bold">{totalIssues}</div>
                  </CardContent>
                </Card>
                <Card>
-                 <CardHeader className="pb-2 text-zinc-500">
-                   <CardTitle className="text-sm font-medium">Open Issues</CardTitle>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-500 dark:text-slate-400">Open Issues</CardTitle>
                  </CardHeader>
                  <CardContent>
                    <div className="text-3xl font-bold">{(issuesByStatus['Pending'] || 0) + (issuesByStatus['In Progress'] || 0) + (issuesByStatus['Escalated'] || 0)}</div>
                  </CardContent>
                </Card>
                <Card>
-                 <CardHeader className="pb-2 text-zinc-500">
-                   <CardTitle className="text-sm font-medium">Resolved Issues</CardTitle>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-500 dark:text-slate-400">Resolved Issues</CardTitle>
                  </CardHeader>
                  <CardContent>
                    <div className="text-3xl font-bold text-emerald-500">{issuesByStatus['Resolved'] || 0}</div>
                  </CardContent>
                </Card>
                <Card>
-                 <CardHeader className="pb-2 text-zinc-500">
-                   <CardTitle className="text-sm font-medium">Course Progress</CardTitle>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-500 dark:text-slate-400">Course Progress</CardTitle>
                  </CardHeader>
                  <CardContent>
                    <div className="text-3xl font-bold">{student.progress}%</div>
@@ -168,11 +168,11 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
                      {Object.entries(issuesByCategory).map(([category, count]) => (
                        <div key={category} className="flex items-center justify-between">
                          <span className="text-sm font-medium">{category}</span>
-                         <span className="text-sm text-zinc-500">{count}</span>
+                          <span className="text-sm text-gray-400 dark:text-slate-500">{count}</span>
                        </div>
                      ))}
                      {Object.keys(issuesByCategory).length === 0 && (
-                       <div className="text-sm text-zinc-500">No issues reported.</div>
+                        <div className="text-sm text-gray-400 dark:text-slate-500">No issues reported.</div>
                      )}
                    </div>
                  </CardContent>
@@ -215,7 +215,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
                       <TableRow key={issue.id}>
                         <TableCell className="font-medium whitespace-nowrap text-xs">{issue.category}</TableCell>
                         <TableCell>
-                          <span className="text-xs text-zinc-700 dark:text-zinc-300 block max-w-sm truncate" title={issue.description}>
+                          <span className="text-xs text-gray-700 dark:text-slate-300 block max-w-sm truncate" title={issue.description}>
                             {issue.description}
                           </span>
                         </TableCell>
@@ -225,14 +225,14 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
                         <TableCell>
                           <Badge variant={getStatusVariant(issue.status)} className="text-[10px]">{issue.status}</Badge>
                         </TableCell>
-                        <TableCell className="text-right text-xs text-zinc-500">
+                        <TableCell className="text-right text-xs text-gray-400 dark:text-slate-500">
                           {formatDistanceToNow(new Date(issue.createdAt), { addSuffix: true })}
                         </TableCell>
                       </TableRow>
                     ))}
                     {studentIssues.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center h-24 text-zinc-500">No issues reported.</TableCell>
+                        <TableCell colSpan={5} className="text-center h-24 text-gray-400 dark:text-slate-500">No issues reported.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>
@@ -252,29 +252,29 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
                     {studentComments.map(comment => {
                       const relatedIssue = studentIssues.find(i => i.id === comment.issueId)
                       return (
-                        <div key={comment.id} className="border-b border-zinc-100 dark:border-zinc-800 pb-4 last:border-0 last:pb-0">
+                        <div key={comment.id} className="border-b border-gray-200 dark:border-white/5 pb-4 last:border-0 last:pb-0">
                           <div className="flex items-center gap-2 mb-2">
                             <span className="font-semibold text-sm">{comment.authorName}</span>
                             <Badge variant={comment.role === 'Admin' ? 'success' : 'info'} className="text-[10px] uppercase px-1 py-0">{comment.role}</Badge>
-                            <span className="text-xs text-zinc-400 ml-auto">
+                            <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">
                               {format(new Date(comment.createdAt), 'MMM d, yyyy h:mm a')}
                             </span>
                           </div>
                           {relatedIssue && (
                             <div className="mb-2">
-                              <span className="inline-block bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs px-2 py-1 rounded-md text-zinc-600 dark:text-zinc-400">
-                                Related Issue: <span className="font-medium text-zinc-900 dark:text-zinc-100">{relatedIssue.category}</span>
+                              <span className="inline-block bg-gray-100 dark:bg-slate-800 border border-gray-300 dark:border-slate-700 text-xs px-2 py-1 rounded-md text-gray-500 dark:text-slate-400">
+                                Related Issue: <span className="font-medium text-slate-200">{relatedIssue.category}</span>
                               </span>
                             </div>
                           )}
-                          <div className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap bg-zinc-50/50 dark:bg-zinc-900/50 p-3 rounded-md border border-zinc-100 dark:border-zinc-800">
+                          <div className="text-sm text-gray-700 dark:text-slate-300 whitespace-pre-wrap bg-gray-50 dark:bg-slate-900/50 p-3 rounded-md border border-gray-200 dark:border-white/5">
                             {comment.text}
                           </div>
                         </div>
                       )
                     })}
                     {studentComments.length === 0 && (
-                      <div className="text-center text-sm text-zinc-500 py-8">
+                      <div className="text-center text-sm text-gray-400 dark:text-slate-500 py-8">
                          No comments have been recorded.
                       </div>
                     )}
@@ -295,35 +295,36 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
                     <span>Overall Course Completion</span>
                     <span>{student.progress}%</span>
                   </div>
-                  <div className="h-3 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                  <div className="h-3 w-full bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden border border-gray-300 dark:border-slate-700">
                     <div 
-                      className="h-full bg-zinc-900 dark:bg-zinc-100 rounded-full"
+                      className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full"
                       style={{ width: `${student.progress}%` }}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-50">Recent Activity</h3>
-                  <div className="space-y-4 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-zinc-200 dark:before:via-zinc-800 before:to-transparent">
-                     {/* Currently we don't have a distinct activity log array, so we will weave issues and comments together by timestamp */}
+                  <h3 className="font-semibold text-sm text-slate-100">Recent Activity</h3>
+                  <div className="space-y-4">
                       {
                         [...studentIssues.map(i => ({ type: 'issue' as const, data: i, time: i.createdAt })), 
                          ...studentComments.map(c => ({ type: 'comment' as const, data: c, time: c.createdAt }))]
                         .sort((a,b) => new Date(b.time).getTime() - new Date(a.time).getTime())
                         .map((activity) => (
-                          <div key={`${activity.type}-${activity.data.id}`} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                           <div className="flex items-center justify-center w-5 h-5 rounded-full border border-white dark:border-zinc-950 bg-zinc-200 dark:bg-zinc-800 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2" />
-                           <div className="w-[calc(100%-2rem)] md:w-[calc(50%-2rem)] p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
+                          <div key={`${activity.type}-${activity.data.id}`} className="flex gap-4">
+                           <div className="flex flex-col items-center shrink-0">
+                             <div className="w-3 h-3 rounded-full bg-indigo-500 mt-1.5" />
+                           </div>
+                           <div className="flex-1 p-4 rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                              <div className="flex items-center justify-between mb-1">
-                               <div className="font-medium text-sm text-zinc-900 dark:text-zinc-50">
+                                <div className="font-medium text-sm text-slate-100">
                                  {activity.type === 'issue' ? `Issue Created: ${(activity.data as Issue).category}` : `Comment by ${(activity.data as Comment).authorName}`}
                                </div>
-                               <time className="text-xs text-zinc-500">
+                                <time className="text-xs text-gray-400 dark:text-slate-500">
                                  {format(new Date(activity.time), 'MMM d, p')}
                                </time>
                              </div>
-                             <div className="text-xs text-zinc-500 line-clamp-2">
+                              <div className="text-xs text-gray-400 dark:text-slate-500 line-clamp-2">
                                {activity.type === 'issue' ? (activity.data as Issue).description : (activity.data as Comment).text}
                              </div>
                            </div>

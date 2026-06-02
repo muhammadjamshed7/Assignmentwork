@@ -1,6 +1,4 @@
-const ROLES = ["admin", "viewer"] as const;
-
-export type UserRole = (typeof ROLES)[number];
+export type UserRole = "admin" | "viewer";
 
 export const UNAUTHORIZED_MESSAGE = "Unauthorized — admin access required";
 

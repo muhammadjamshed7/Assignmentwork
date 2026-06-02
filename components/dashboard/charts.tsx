@@ -18,24 +18,34 @@ type ChartDatum = {
   value: number
 }
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#ffc658", "#ef4444"]
+const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#f97316", "#8b5cf6", "#ec4899", "#ef4444"]
 
 export function IssueCategoryChart({ data }: { data: ChartDatum[] }) {
   if (data.length === 0) {
-    return <div className="flex h-full items-center justify-center text-sm text-zinc-400">No data</div>
+    return <div className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-slate-400">No data</div>
   }
 
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#525252" opacity={0.2} />
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-        <YAxis axisLine={false} tickLine={false} />
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e2d4a" />
+        <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
         <Tooltip
           cursor={{ fill: "transparent" }}
-          contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
+          contentStyle={{
+            borderRadius: "8px",
+            border: "1px solid rgba(99,102,241,0.2)",
+            backgroundColor: "rgba(30,41,59,0.95)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            color: "#f1f5f9",
+          }}
         />
-        <Bar dataKey="value" fill="#18181b" radius={[4, 4, 0, 0]} className="dark:fill-zinc-50" />
+        <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+          {data.map((entry, index) => (
+            <Cell key={`cell-${entry.name}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   )
@@ -43,18 +53,26 @@ export function IssueCategoryChart({ data }: { data: ChartDatum[] }) {
 
 export function ResolutionProgressChart({ data }: { data: ChartDatum[] }) {
   if (data.length === 0) {
-    return <div className="flex h-full items-center justify-center text-sm text-zinc-400">No data</div>
+    return <div className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-slate-400">No data</div>
   }
 
   return (
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
-        <Pie data={data} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+        <Pie data={data} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value">
           {data.map((entry, index) => (
             <Cell key={`cell-${entry.name}`} fill={COLORS[index % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip />
+        <Tooltip
+          contentStyle={{
+            borderRadius: "8px",
+            border: "1px solid rgba(99,102,241,0.2)",
+            backgroundColor: "rgba(30,41,59,0.95)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            color: "#f1f5f9",
+          }}
+        />
       </PieChart>
     </ResponsiveContainer>
   )

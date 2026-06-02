@@ -25,26 +25,24 @@ export default function IssuesPage() {
   const issues = issuesPage.items
   const searchQuery = useSearchStore(state => state.searchQuery)
   const normalizedSearchQuery = searchQuery.trim().toLowerCase()
-  const filteredIssues = [...issues]
-    .filter(issue => {
-      if (!normalizedSearchQuery) return true
+  const filteredIssues = issues.filter(issue => {
+    if (!normalizedSearchQuery) return true
 
-      return [
-        issue.studentName ?? "",
-        issue.category,
-        issue.description,
-        issue.status,
-        issue.priority,
-      ].join(" ").toLowerCase().includes(normalizedSearchQuery)
-    })
-    .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    return [
+      issue.studentName ?? "",
+      issue.category,
+      issue.description,
+      issue.status,
+      issue.priority,
+    ].join(" ").toLowerCase().includes(normalizedSearchQuery)
+  })
 
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Global Issues</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Track and manage student-reported issues.</p>
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Global Issues</h1>
+          <p className="text-slate-400">Track and manage student-reported issues.</p>
         </div>
         <NewIssueDialog onSaved={refresh} />
       </div>
@@ -70,10 +68,10 @@ export default function IssuesPage() {
                   <TableRow key={issue.id}>
                     <TableCell className="font-medium whitespace-nowrap">{issue.studentName ?? "Unknown student"}</TableCell>
                     <TableCell>
-                      <span className="font-semibold text-xs text-zinc-700 dark:text-zinc-300">{issue.category}</span>
+                      <span className="font-semibold text-xs text-gray-700 dark:text-slate-300">{issue.category}</span>
                     </TableCell>
                     <TableCell className="max-w-xs">
-                      <span className="truncate block text-zinc-500" title={issue.description}>
+                      <span className="truncate block text-gray-400 dark:text-slate-500" title={issue.description}>
                         {issue.description}
                       </span>
                     </TableCell>
@@ -87,7 +85,7 @@ export default function IssuesPage() {
                         {issue.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right text-xs text-zinc-500 whitespace-nowrap">
+                    <TableCell className="text-right text-xs text-gray-400 dark:text-slate-500 whitespace-nowrap">
                       {formatDistanceToNow(new Date(issue.createdAt), { addSuffix: true })}
                     </TableCell>
                   </TableRow>
@@ -95,7 +93,7 @@ export default function IssuesPage() {
               })}
               {!loading && !error && filteredIssues.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-zinc-500">
+                <TableCell colSpan={6} className="h-24 text-center text-gray-400 dark:text-slate-500">
                     No issues found.
                   </TableCell>
                 </TableRow>

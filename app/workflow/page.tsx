@@ -18,10 +18,10 @@ export default function WorkflowPage() {
     <div className="flex flex-col gap-8">
       <div className="max-w-4xl">
         <Badge variant="secondary">Workflow Library</Badge>
-        <h1 className="mt-4 text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">
+        <h1 className="mt-4 text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">
           Assignment Workflow
         </h1>
-        <p className="mt-2 max-w-3xl text-zinc-500 dark:text-zinc-400">
+        <p className="mt-2 max-w-3xl text-gray-500 dark:text-slate-400">
           Use this workflow system to prepare academic assignments systematically. Select a workflow card below
           to open the full step-by-step guide.
         </p>
@@ -33,9 +33,9 @@ export default function WorkflowPage() {
 
           return (
             <Card key={card.slug} className="group flex min-h-[280px] flex-col overflow-hidden">
-              <CardHeader className="gap-4 border-b border-zinc-200/70 dark:border-zinc-800/70">
+              <CardHeader className="gap-4 border-b border-gray-200 dark:border-white/5">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <Badge variant="outline">{card.category}</Badge>
@@ -46,7 +46,7 @@ export default function WorkflowPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex flex-1 flex-col justify-between gap-6 pt-5 sm:pt-6">
-                <p className="text-sm leading-6 text-zinc-600 dark:text-zinc-400">{card.description}</p>
+                <p className="text-sm leading-6 text-gray-500 dark:text-slate-400">{card.description}</p>
                 <Button asChild variant="outline" className="w-full justify-between gap-2 sm:w-fit">
                   <Link href={`/workflow/${card.slug}`}>
                     {card.buttonText}

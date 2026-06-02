@@ -202,8 +202,8 @@ export default function StudentsPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Students</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Manage student records and track progress.</p>
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Students</h1>
+          <p className="text-slate-400">Manage student records and track progress.</p>
         </div>
         
         {isAdmin && (
@@ -256,10 +256,10 @@ export default function StudentsPage() {
                         type="button"
                         key={course.id}
                         onClick={() => toggleCourse(course.id)}
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 ${
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 focus:ring-offset-slate-900 ${
                           selectedCourses.includes(course.id)
-                            ? 'border-transparent bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900'
-                            : 'border-zinc-200 text-zinc-950 hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800'
+                            ? 'border-indigo-500/50 bg-indigo-500/20 text-indigo-300'
+                            : 'border-gray-300 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:border-gray-400 dark:hover:border-slate-500 hover:text-slate-200'
                         }`}
                       >
                         {course.code}
@@ -284,7 +284,7 @@ export default function StudentsPage() {
                       id="status"
                       value={newStatus}
                       onChange={(e) => setNewStatus(e.target.value as "Active" | "Inactive")}
-                      className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300"
+                      className="flex h-10 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                     >
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
@@ -316,13 +316,13 @@ export default function StudentsPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-6">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-white/5 pb-6">
           <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 dark:text-slate-500" />
             <input 
               type="text" 
               placeholder="Search students..." 
-              className="h-9 w-full rounded-md border border-zinc-200 bg-transparent pl-9 pr-4 text-sm shadow-sm outline-none focus:ring-1 focus:ring-zinc-950 dark:border-zinc-800 dark:focus:ring-zinc-300"
+              className="h-9 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 pl-9 pr-4 text-sm text-slate-200 placeholder:text-gray-400 dark:text-slate-500 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -359,10 +359,10 @@ export default function StudentsPage() {
                   <TableCell>
                     <div className="flex flex-col gap-1 max-w-[200px]">
                       {student.issues.slice(0, 2).map(issue => (
-                         <span key={issue} className="text-xs truncate text-zinc-600 dark:text-zinc-400">• {issue}</span>
-                      ))}
-                      {student.issues.length > 2 && (
-                        <span className="text-[10px] text-zinc-400">+{student.issues.length - 2} more</span>
+                       <span key={issue} className="text-xs truncate text-gray-400 dark:text-slate-500">• {issue}</span>
+                       ))}
+                       {student.issues.length > 2 && (
+                         <span className="text-[10px] text-gray-400 dark:text-slate-500">+{student.issues.length - 2} more</span>
                       )}
                     </div>
                   </TableCell>
@@ -396,7 +396,7 @@ export default function StudentsPage() {
               ))}
               {!loading && !error && filteredStudents.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-zinc-500">
+                  <TableCell colSpan={7} className="h-24 text-center text-gray-400 dark:text-slate-500">
                     No students found.
                   </TableCell>
                 </TableRow>

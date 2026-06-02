@@ -138,8 +138,8 @@ export default function CoursesPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Courses</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Manage the academic course catalog.</p>
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Courses</h1>
+          <p className="text-slate-400">Manage the academic course catalog.</p>
         </div>
 
         {isAdmin && (
@@ -224,7 +224,7 @@ export default function CoursesPage() {
                   <TableRow key={course.id}>
                     <TableCell className="font-semibold">{course.code}</TableCell>
                     <TableCell>{course.title}</TableCell>
-                    <TableCell className="text-right text-zinc-600 dark:text-zinc-400">{course.enrolledStudents}</TableCell>
+                    <TableCell className="text-right text-gray-400 dark:text-slate-500">{course.enrolledStudents}</TableCell>
                     {isAdmin && (
                       <TableCell>
                         <div className="flex justify-end gap-1">
@@ -244,7 +244,7 @@ export default function CoursesPage() {
               })}
               {!loading && !error && courses.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center text-zinc-500">
+                  <TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center text-gray-400 dark:text-slate-500">
                     No courses found.
                   </TableCell>
                 </TableRow>

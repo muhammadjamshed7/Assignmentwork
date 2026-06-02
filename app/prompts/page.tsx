@@ -540,7 +540,7 @@ Example: "Please send the file by Monday."`,
 }
 
 const selectClassName =
-  "flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300"
+  "flex h-10 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
 
 type PromptFormState = typeof EMPTY_PROMPT_FORM
 type SubjectWisePrompt = (typeof subjectWisePrompts)[number]
@@ -640,7 +640,7 @@ export default function PromptsPage() {
       })
   }, [globalSearchQuery, searchTerm, subjectPromptFilter])
 
-  const selectedPrompt = filteredPrompts.find(p => p.id === selectedPromptId) ?? filteredPrompts[0]
+  const selectedPrompt = filteredPrompts.find(p => p.id === selectedPromptId) ?? filteredPrompts[0] ?? null
   const deletingPrompt = prompts.find(prompt => prompt.id === deletingPromptId)
 
   function updateFormField(field: keyof PromptFormState, value: string) {
@@ -818,8 +818,8 @@ export default function PromptsPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Prompt Library</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Reusable prompt templates for common academic tasks.</p>
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Prompt Library</h1>
+          <p className="text-slate-400">Reusable prompt templates for common academic tasks.</p>
         </div>
 
         {isAdmin && (
@@ -905,7 +905,7 @@ export default function PromptsPage() {
                 />
               </div>
 
-              {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
+              {formError && <p className="text-sm text-red-400">{formError}</p>}
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -919,30 +919,30 @@ export default function PromptsPage() {
         )}
       </div>
 
-      <Card className="overflow-hidden border-zinc-200/80 dark:border-zinc-800/80">
-        <div className="bg-gradient-to-r from-zinc-50 to-white dark:from-zinc-900/50 dark:to-zinc-950">
+      <Card className="overflow-hidden">
+        <div className="bg-gradient-to-r from-slate-900/30 to-slate-800/10">
           <CardHeader>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                    <svg className="h-3.5 w-3.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100 dark:bg-slate-800 shadow-sm">
+                    <svg className="h-3.5 w-3.5 text-gray-500 dark:text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
                     </svg>
                   </div>
-                  <Badge variant="secondary" className="text-[11px] font-medium uppercase tracking-wider">
+                  <Badge variant="outline" className="text-[11px] font-medium uppercase tracking-wider">
                     {writingStyleInstruction.section}
                   </Badge>
                 </div>
                 <CardTitle className="mt-3 text-xl">Writing Style Instructions</CardTitle>
-                <CardDescription className="mt-1.5 max-w-2xl leading-relaxed text-zinc-500 dark:text-zinc-400">
+                <CardDescription className="mt-1.5 max-w-2xl leading-relaxed text-gray-500 dark:text-slate-400">
                   {writingStyleInstruction.description}
                 </CardDescription>
               </div>
               <Button
                 type="button"
                 variant={isWritingStyleOpen ? "default" : "outline"}
-                className={`group shrink-0 gap-2 transition-all sm:mt-0 ${isWritingStyleOpen ? "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200" : "hover:border-zinc-400 hover:bg-zinc-100 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"}`}
+                className={`group shrink-0 gap-2 transition-all sm:mt-0 ${isWritingStyleOpen ? "bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30" : "hover:border-slate-600 hover:bg-gray-100 dark:bg-slate-800"}`}
                 aria-expanded={isWritingStyleOpen}
                 onClick={() => setIsWritingStyleOpen(current => !current)}
               >
@@ -959,26 +959,26 @@ export default function PromptsPage() {
           className={`grid transition-all duration-300 ease-in-out ${isWritingStyleOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
         >
           <div className="overflow-hidden">
-            <CardContent className="border-t border-zinc-200/70 bg-zinc-50/50 pb-6 pt-5 dark:border-zinc-800/70 dark:bg-zinc-900/30 sm:pt-6">
+            <CardContent className="border-t border-gray-200 dark:border-white/5 bg-white/80 dark:bg-slate-900/20 pb-6 pt-5 sm:pt-6">
               <div className="grid gap-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[11px] font-bold text-white dark:bg-zinc-50 dark:text-zinc-900">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500/20 text-[11px] font-bold text-indigo-300">
                         P
                       </div>
-                      <h3 className="text-base font-semibold text-zinc-950 dark:text-zinc-50">
+                      <h3 className="text-base font-semibold text-slate-100">
                         {writingStyleInstruction.promptTitle}
                       </h3>
                     </div>
-                    <p className="mt-1.5 pl-8 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    <p className="mt-1.5 pl-8 text-sm leading-relaxed text-gray-500 dark:text-slate-400">
                       Copy this prompt when you need simple, natural, direct writing instructions.
                     </p>
                   </div>
                   <Button
                     type="button"
                     variant="default"
-                    className="ml-8 gap-2 bg-zinc-900 text-white shadow-sm hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200 sm:ml-0"
+                    className="ml-8 gap-2 sm:ml-0"
                     onClick={handleCopyWritingStylePrompt}
                   >
                     <Copy className="h-4 w-4" aria-hidden="true" />
@@ -986,8 +986,8 @@ export default function PromptsPage() {
                   </Button>
                 </div>
                 <div className="relative">
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-zinc-900/5 to-transparent dark:from-zinc-50/5" />
-                  <pre className="relative max-h-[520px] overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-white/80 p-5 text-sm leading-7 text-zinc-800 shadow-sm backdrop-blur-sm dark:border-zinc-700/80 dark:bg-zinc-900/80 dark:text-zinc-200">
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-indigo-500/5 to-transparent" />
+                  <pre className="relative max-h-[520px] overflow-auto whitespace-pre-wrap rounded-xl border border-gray-300/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-900/80 p-5 text-sm leading-7 text-gray-700 dark:text-slate-300 shadow-sm backdrop-blur-sm">
                     {writingStyleInstruction.promptText}
                   </pre>
                 </div>
@@ -998,11 +998,11 @@ export default function PromptsPage() {
       </Card>
 
       <Card>
-        <CardHeader className="gap-4 border-b border-zinc-200/70 sm:flex-row sm:items-start sm:justify-between dark:border-zinc-800/70">
-          <div>
-            <div className="mb-3 flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-zinc-500" aria-hidden="true" />
-              <Badge variant="secondary">Subject-Wise Academic Prompts</Badge>
+          <CardHeader className="gap-4 border-b border-gray-200 dark:border-white/5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-gray-500 dark:text-slate-400" aria-hidden="true" />
+                <Badge variant="secondary">Subject-Wise Academic Prompts</Badge>
             </div>
             <CardTitle>Subject-Wise Academic Prompt Library</CardTitle>
             <CardDescription className="mt-2 max-w-3xl leading-6">
@@ -1029,7 +1029,7 @@ export default function PromptsPage() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredSubjectPrompts.map(prompt => (
               <Card key={prompt.title} className="flex min-h-[320px] flex-col">
-                <CardHeader className="gap-3 border-b border-zinc-200/70 dark:border-zinc-800/70">
+                <CardHeader className="gap-3 border-b border-gray-200 dark:border-white/5">
                   <div className="flex items-start justify-between gap-3">
                     <Badge variant="secondary">{prompt.category}</Badge>
                     {isAdmin && (
@@ -1068,7 +1068,7 @@ export default function PromptsPage() {
           </div>
 
           {filteredSubjectPrompts.length === 0 && (
-            <div className="rounded-lg border border-dashed border-zinc-200 p-8 text-center text-sm text-zinc-500 dark:border-zinc-800">
+            <div className="rounded-lg border border-dashed border-gray-300 dark:border-slate-700 p-8 text-center text-sm text-gray-400 dark:text-slate-500">
               No subject-wise prompts match this filter.
             </div>
           )}
@@ -1079,11 +1079,11 @@ export default function PromptsPage() {
         <Card>
           <CardHeader className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" aria-hidden="true" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 dark:text-slate-500" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search prompts..."
-                className="h-9 w-full rounded-md border border-zinc-200 bg-transparent pl-9 pr-4 text-sm shadow-sm outline-none focus:ring-1 focus:ring-zinc-950 dark:border-zinc-800 dark:focus:ring-zinc-300"
+                className="h-9 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 pl-9 pr-4 text-sm text-slate-200 placeholder:text-gray-400 dark:text-slate-500 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
@@ -1118,12 +1118,12 @@ export default function PromptsPage() {
                 {filteredPrompts.map(prompt => (
                   <TableRow
                     key={prompt.id}
-                    className={`cursor-pointer ${selectedPromptId === prompt.id || (!selectedPromptId && prompt === selectedPrompt) ? 'bg-zinc-100 dark:bg-zinc-800/50' : ''}`}
+                    className={`cursor-pointer ${selectedPromptId === prompt.id || (!selectedPromptId && filteredPrompts[0]?.id === prompt.id) ? 'bg-indigo-500/5' : ''}`}
                     onClick={() => setSelectedPromptId(prompt.id)}
                   >
                     <TableCell className="max-w-sm">
-                      <div className="font-medium text-zinc-950 dark:text-zinc-50">{prompt.title}</div>
-                      <div className="mt-1 line-clamp-2 text-xs text-zinc-500">{prompt.content}</div>
+                      <div className="font-medium text-gray-700 dark:text-slate-300">{prompt.title}</div>
+                      <div className="mt-1 line-clamp-2 text-xs text-gray-400 dark:text-slate-500">{prompt.content}</div>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {prompt.tags.map(tag => (
                           <Badge key={tag} variant="outline" className="text-[10px]">
@@ -1135,10 +1135,10 @@ export default function PromptsPage() {
                     <TableCell>
                       <Badge variant="secondary">{prompt.category}</Badge>
                     </TableCell>
-                    <TableCell className="max-w-[190px] truncate text-zinc-600 dark:text-zinc-400">
+                    <TableCell className="max-w-[190px] truncate text-gray-400 dark:text-slate-500">
                       {getCourseLabel(prompt.relatedCourseId)}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-xs text-zinc-500">
+                    <TableCell className="whitespace-nowrap text-xs text-gray-400 dark:text-slate-500">
                       {formatDistanceToNow(new Date(prompt.updatedAt), { addSuffix: true })}
                     </TableCell>
                     <TableCell>
@@ -1165,8 +1165,8 @@ export default function PromptsPage() {
                 ))}
                 {!loading && !error && filteredPrompts.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-zinc-500">
-                      No prompts found.
+                  <TableCell colSpan={5} className="h-24 text-center text-gray-400 dark:text-slate-500">
+                    No prompts found.
                     </TableCell>
                   </TableRow>
                 )}
@@ -1193,7 +1193,7 @@ export default function PromptsPage() {
                   <Badge variant="secondary">{selectedPrompt.category}</Badge>
                   <Badge variant="outline">{getCourseLabel(selectedPrompt.relatedCourseId)}</Badge>
                 </div>
-                <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-200">
+                <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded-md border border-gray-300/50 dark:border-slate-700/50 bg-gray-50 dark:bg-slate-900/50 p-4 text-sm leading-6 text-gray-700 dark:text-slate-300">
                   {selectedPrompt.content}
                 </pre>
                 <Button type="button" variant="outline" className="w-full gap-2" onClick={() => handleCopy(selectedPrompt)}>
@@ -1202,7 +1202,7 @@ export default function PromptsPage() {
                 </Button>
               </div>
             ) : (
-              <div className="rounded-md border border-dashed border-zinc-200 p-6 text-sm text-zinc-500 dark:border-zinc-800">
+              <div className="rounded-md border border-dashed border-gray-300 dark:border-slate-700 p-6 text-sm text-gray-400 dark:text-slate-500">
                 Create a prompt to preview it here.
               </div>
             )}
@@ -1246,7 +1246,7 @@ export default function PromptsPage() {
                 <DialogDescription className="leading-6">{selectedSubjectPrompt.description}</DialogDescription>
               </DialogHeader>
 
-              <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-200">
+              <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-lg border border-gray-300/50 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/60 p-4 text-sm leading-6 text-gray-700 dark:text-slate-300">
                 {selectedSubjectPrompt.content}
               </pre>
 

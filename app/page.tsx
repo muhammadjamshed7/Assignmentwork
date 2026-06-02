@@ -28,7 +28,7 @@ const ResolutionProgressChart = dynamic(
 )
 
 function ChartPlaceholder() {
-  return <div className="h-full w-full animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-900" />
+  return <div className="h-full w-full animate-pulse rounded-lg bg-gray-100 dark:bg-slate-800" />
 }
 
 export default function DashboardPage() {
@@ -45,11 +45,11 @@ export default function DashboardPage() {
   const openIssues = issues.length - resolvedIssues
 
   const stats = [
-    { title: "Total Writers", value: students.length, icon: Users, color: "text-blue-600 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300" },
-    { title: "Active Courses", value: courses.length, icon: BookOpen, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300" },
-    { title: "Open Issues", value: openIssues, icon: AlertCircle, color: "text-red-600 bg-red-50 dark:bg-red-950/40 dark:text-red-300" },
-    { title: "Resolved Issues", value: resolvedIssues, icon: CheckCircle2, color: "text-green-600 bg-green-50 dark:bg-green-950/40 dark:text-green-300" },
-    { title: "Pending Reviews", value: pendingReviews, icon: Clock, color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300" },
+    { title: "Total Writers", value: students.length, icon: Users, color: "from-blue-600/20 to-blue-700/10 text-blue-400 shadow-blue-500/10" },
+    { title: "Active Courses", value: courses.length, icon: BookOpen, color: "from-emerald-600/20 to-emerald-700/10 text-emerald-400 shadow-emerald-500/10" },
+    { title: "Open Issues", value: openIssues, icon: AlertCircle, color: "from-red-600/20 to-red-700/10 text-red-400 shadow-red-500/10" },
+    { title: "Resolved Issues", value: resolvedIssues, icon: CheckCircle2, color: "from-green-600/20 to-green-700/10 text-green-400 shadow-green-500/10" },
+    { title: "Pending Reviews", value: pendingReviews, icon: Clock, color: "from-amber-600/20 to-amber-700/10 text-amber-400 shadow-amber-500/10" },
   ]
 
   const pieData = useMemo(() => {
@@ -70,12 +70,12 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
-        <div className="inline-flex w-fit items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+        <div className="inline-flex w-fit items-center rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-400 shadow-sm">
           Open workspace overview
         </div>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Dashboard</h1>
-          <p className="mt-1 text-zinc-500 dark:text-zinc-400">Monitor writers, courses, issues, and review activity from one place.</p>
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="mt-1 text-gray-500 dark:text-slate-400">Monitor writers, courses, issues, and review activity from one place.</p>
         </div>
       </div>
 
@@ -84,17 +84,17 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stats.map((stat, i) => (
-          <Card key={i} className="overflow-hidden">
+          <Card key={i} className="group overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-white/20 hover:shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              <CardTitle className="font-body text-sm font-medium text-gray-500 dark:text-slate-400">
                 {stat.title}
               </CardTitle>
-              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${stat.color}`}>
+              <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ${stat.color} shadow-lg`}>
                 <stat.icon className="h-4 w-4" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-zinc-950 dark:text-zinc-50">{stat.value}</div>
+              <div className="font-display text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</div>
             </CardContent>
           </Card>
         ))}
@@ -102,7 +102,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="md:col-span-2 lg:col-span-4">
-          <CardHeader className="border-b border-zinc-200/70 dark:border-zinc-800/70">
+          <CardHeader className="border-b border-gray-200 dark:border-white/5">
             <CardTitle>Issues by Category</CardTitle>
             <CardDescription>Issues grouped by category</CardDescription>
           </CardHeader>
@@ -112,7 +112,7 @@ export default function DashboardPage() {
         </Card>
         
         <Card className="md:col-span-2 lg:col-span-3">
-          <CardHeader className="border-b border-zinc-200/70 dark:border-zinc-800/70">
+          <CardHeader className="border-b border-gray-200 dark:border-white/5">
             <CardTitle>Resolution Progress</CardTitle>
             <CardDescription>Issue status distribution</CardDescription>
           </CardHeader>
@@ -123,7 +123,7 @@ export default function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader className="border-b border-zinc-200/70 dark:border-zinc-800/70">
+        <CardHeader className="border-b border-gray-200 dark:border-white/5">
           <CardTitle>Recent Students Overview</CardTitle>
           <CardDescription>Recently active students</CardDescription>
         </CardHeader>
@@ -164,13 +164,13 @@ export default function DashboardPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-[60px] rounded-full bg-zinc-200 dark:bg-zinc-800">
+                      <div className="h-2 w-[60px] rounded-full bg-gray-100 dark:bg-slate-800">
                         <div 
-                          className="h-full rounded-full bg-zinc-900 dark:bg-zinc-50" 
+                          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" 
                           style={{ width: `${student.progress}%` }}
                         />
                       </div>
-                      <span className="text-xs text-zinc-500">{student.progress}%</span>
+                      <span className="text-xs text-gray-400 dark:text-slate-500">{student.progress}%</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right text-zinc-500 text-xs">

@@ -27,6 +27,7 @@ import { listStudents } from "@/lib/data/students"
 import { useSupabaseQuery } from "@/lib/data/hooks"
 import { getErrorMessage } from "@/lib/data/client"
 import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
+import { Student } from "@/lib/data/types"
 
 const ISSUE_CATEGORIES: IssueCategory[] = [
   "Prompt Issues",
@@ -45,23 +46,25 @@ const PRIORITIES: PriorityLevel[] = ["Low", "Medium", "High", "Critical"]
 type NewIssueDialogProps = {
   onIssueCreated?: (issueId: string) => void
   onSaved?: () => Promise<void> | void
+  students?: Student[]
 }
 
 const selectClassName =
-  "flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300"
+  "flex h-10 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
 
-export function NewIssueDialog({ onIssueCreated, onSaved }: NewIssueDialogProps) {
+export function NewIssueDialog({ onIssueCreated, onSaved, students: externalStudents }: NewIssueDialogProps) {
   const { isAdmin } = useCurrentUserRole()
 
   if (!isAdmin) {
     return null
   }
 
-  return <NewIssueDialogContent onIssueCreated={onIssueCreated} onSaved={onSaved} />
+  return <NewIssueDialogContent onIssueCreated={onIssueCreated} onSaved={onSaved} externalStudents={externalStudents} />
 }
 
-function NewIssueDialogContent({ onIssueCreated, onSaved }: NewIssueDialogProps) {
-  const { data: students, refresh } = useSupabaseQuery(listStudents, [], ["students", "student_courses"])
+function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents }: NewIssueDialogProps & { externalStudents?: Student[] }) {
+  const { data: fetchedStudents, refresh } = useSupabaseQuery(listStudents, [], ["students", "student_courses"])
+  const students = externalStudents ?? fetchedStudents
   const { addToast } = useToastStore()
   const [open, setOpen] = React.useState(false)
   const [studentId, setStudentId] = React.useState(students[0]?.id ?? "")
@@ -250,7 +253,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved }: NewIssueDialogProps)
             />
           </div>
 
-          {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
+          {formError && <p className="text-sm text-red-400">{formError}</p>}
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

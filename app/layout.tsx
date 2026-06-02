@@ -30,22 +30,21 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fafafa' },
-    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
-  ],
+  themeColor: '#080d1a',
 };
 
 const themeScript = `
-(() => {
+(function() {
   try {
-    const storedTheme = localStorage.getItem('tds-management-theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const theme = storedTheme === 'dark' || (!storedTheme && prefersDark) ? 'dark' : 'light';
-
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    document.documentElement.style.colorScheme = theme;
-  } catch {}
+    const theme = localStorage.getItem('tds-management-theme');
+    if (!theme || theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.colorScheme = 'dark';
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.colorScheme = 'light';
+    }
+  } catch(e) {}
 })();
 `;
 
@@ -53,9 +52,12 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body suppressHydrationWarning className="h-full antialiased font-sans flex flex-col min-h-screen">
+      <body suppressHydrationWarning className="h-full antialiased font-body flex flex-col min-h-screen bg-white text-gray-900 dark:bg-[#080d1a] dark:text-slate-100">
         <PwaRegister />
         <DashboardLayout>
           {children}

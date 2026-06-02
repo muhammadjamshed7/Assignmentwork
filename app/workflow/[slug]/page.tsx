@@ -29,7 +29,7 @@ function ArticleSection({
 }) {
   return (
     <section className="grid gap-4">
-      <h2 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">{title}</h2>
+      <h2 className="text-xl font-semibold tracking-tight text-slate-100">{title}</h2>
       {children}
     </section>
   )
@@ -44,7 +44,7 @@ function PromptBlock({
 }) {
   return (
     <Card>
-      <CardHeader className="gap-4 border-b border-zinc-200/70 sm:flex-row sm:items-start sm:justify-between dark:border-zinc-800/70">
+      <CardHeader className="gap-4 border-b border-gray-200 dark:border-white/5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle>{label}</CardTitle>
           <CardDescription className="mt-2">Reusable prompt block. Copy it when you need this workflow.</CardDescription>
@@ -52,7 +52,7 @@ function PromptBlock({
         <CopyWorkflowButton label={label} text={text} />
       </CardHeader>
       <CardContent className="pt-5 sm:pt-6">
-        <pre className="max-h-[620px] overflow-auto whitespace-pre-wrap rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-200">
+        <pre className="max-h-[620px] overflow-auto whitespace-pre-wrap rounded-lg border border-gray-300/50 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/60 p-4 text-sm leading-6 text-gray-700 dark:text-slate-300">
           {text}
         </pre>
       </CardContent>
@@ -62,7 +62,7 @@ function PromptBlock({
 
 function WorkflowCodeBlock({ text }: { text: string }) {
   return (
-    <pre className="overflow-x-auto whitespace-pre rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-200">
+    <pre className="overflow-x-auto whitespace-pre rounded-lg border border-gray-300/50 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/60 p-4 text-sm leading-6 text-gray-700 dark:text-slate-300">
       {text}
     </pre>
   )
@@ -72,9 +72,9 @@ function PlaceholderGuide() {
   return (
     <dl className="grid gap-3 sm:grid-cols-2">
       {placeholderGuide.map(item => (
-        <div key={item.token} className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
-          <dt className="font-mono text-sm font-semibold text-zinc-950 dark:text-zinc-50">{item.token}</dt>
-          <dd className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-400">{item.description}</dd>
+        <div key={item.token} className="rounded-lg border border-gray-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/40 p-4">
+          <dt className="font-mono text-sm font-semibold text-slate-100">{item.token}</dt>
+          <dd className="mt-1 text-sm leading-6 text-gray-500 dark:text-slate-400">{item.description}</dd>
         </div>
       ))}
     </dl>
@@ -85,13 +85,13 @@ function UnknownAssignmentArticle() {
   return (
     <>
       <ArticleSection title="Purpose">
-        <p className="leading-7 text-zinc-600 dark:text-zinc-400">
+        <p className="leading-7 text-gray-500 dark:text-slate-400">
           Use this workflow before starting an unclear, unfamiliar, incomplete, or first-time assignment. It forces
           planning before writing, solving, coding, or preparing the final answer.
         </p>
       </ArticleSection>
       <ArticleSection title="When To Use">
-        <ul className="grid gap-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+        <ul className="grid gap-2 text-sm leading-6 text-gray-500 dark:text-slate-400">
           <li>When the assignment brief is incomplete or unfamiliar.</li>
           <li>When the subject, tools, outputs, or deliverables are not yet clear.</li>
           <li>When a technical workflow, report structure, or evidence checklist is needed before execution.</li>
@@ -128,13 +128,13 @@ function ToolsInstallationArticle() {
   return (
     <>
       <ArticleSection title="Purpose">
-        <p className="leading-7 text-zinc-600 dark:text-zinc-400">
+        <p className="leading-7 text-gray-500 dark:text-slate-400">
           Use this standalone workflow whenever an assignment requires installing, selecting, configuring, or using a
           technical tool, platform, programming environment, notebook, database, cybersecurity tool, or visualization app.
         </p>
       </ArticleSection>
       <ArticleSection title="Core Rule">
-        <p className="leading-7 text-zinc-600 dark:text-zinc-400">
+        <p className="leading-7 text-gray-500 dark:text-slate-400">
           Do not directly start a tool-based assignment. First create the installation, access, setup, evidence, and
           submission workflow.
         </p>
@@ -189,7 +189,7 @@ function StandardAcademicArticle() {
         <div className="grid gap-4">
           {workflowSteps.map(step => (
             <Card key={step.number}>
-              <CardHeader className="gap-4 border-b border-zinc-200/70 sm:flex-row sm:items-start sm:justify-between dark:border-zinc-800/70">
+      <CardHeader className="gap-4 border-b border-gray-200 dark:border-white/5 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <Badge variant="secondary">Step {step.number}</Badge>
                   <CardTitle className="mt-3">{step.title}</CardTitle>
@@ -198,7 +198,7 @@ function StandardAcademicArticle() {
                 <CopyWorkflowButton label={step.title} text={step.prompt} />
               </CardHeader>
               <CardContent className="pt-5 sm:pt-6">
-                <pre className="whitespace-pre-wrap rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-200">
+                <pre className="whitespace-pre-wrap rounded-lg border border-gray-300/50 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/60 p-4 text-sm leading-6 text-gray-700 dark:text-slate-300">
                   {step.prompt}
                 </pre>
               </CardContent>
@@ -217,7 +217,7 @@ function MasterPromptArticle() {
         <PlaceholderGuide />
       </ArticleSection>
       <ArticleSection title="Ethical Academic Support Note">
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm leading-6 text-amber-300">
           This prompt is designed for ethical academic support, including planning, outlining, drafting assistance,
           citation checking, editing, and quality review. It must not be used to misrepresent authorship, fabricate
           sources, or bypass academic-integrity requirements.
@@ -258,7 +258,7 @@ export default async function WorkflowDetailPage({
 
   return (
     <article className="mx-auto flex max-w-4xl flex-col gap-8">
-      <Button asChild variant="ghost" className="w-fit gap-2 px-0 hover:bg-transparent">
+      <Button asChild variant="ghost" className="w-fit gap-2 px-0 text-gray-700 dark:text-slate-300 hover:bg-transparent hover:text-gray-900 dark:hover:text-white">
         <Link href="/workflow">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           Back to Workflows
@@ -266,13 +266,13 @@ export default async function WorkflowDetailPage({
       </Button>
 
       <header className="grid gap-4">
-        <Badge variant="secondary" className="w-fit">{workflow.category}</Badge>
+        <Badge className="w-fit bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">{workflow.category}</Badge>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl dark:text-zinc-50">
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight sm:text-4xl">
             {workflow.title}
           </h1>
-          <p className="mt-3 text-lg leading-8 text-zinc-600 dark:text-zinc-400">{workflow.subtitle}</p>
-          <p className="mt-2 leading-7 text-zinc-500 dark:text-zinc-500">{workflow.description}</p>
+          <p className="mt-3 text-lg leading-8 text-gray-500 dark:text-slate-400">{workflow.subtitle}</p>
+          <p className="mt-2 leading-7 text-gray-500 dark:text-slate-400">{workflow.description}</p>
         </div>
       </header>
 
@@ -280,10 +280,10 @@ export default async function WorkflowDetailPage({
         <WorkflowArticle slug={workflow.slug} />
       </div>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="flex flex-col gap-3 rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-zinc-950 dark:text-zinc-50">Next workflow</p>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">{nextWorkflow.title}</p>
+          <p className="text-sm font-medium text-slate-100">Next workflow</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400">{nextWorkflow.title}</p>
         </div>
         <Button asChild variant="outline" className="gap-2">
           <Link href={`/workflow/${nextWorkflow.slug}`}>

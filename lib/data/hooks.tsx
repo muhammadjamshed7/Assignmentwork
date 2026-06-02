@@ -91,7 +91,7 @@ export function useSupabaseQuery<T>(
 
 export function LoadingState({ label = "Loading data..." }: { label?: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-zinc-200 p-8 text-center text-sm text-zinc-500 dark:border-zinc-800">
+    <div className="rounded-lg border border-dashed border-gray-300 dark:border-slate-700 p-8 text-center text-sm text-gray-400 dark:text-slate-500">
       {label}
     </div>
   );
@@ -99,7 +99,7 @@ export function LoadingState({ label = "Loading data..." }: { label?: string }) 
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+    <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
       <div className="font-medium">Unable to load data</div>
       <p className="mt-1">{message}</p>
       {onRetry && (

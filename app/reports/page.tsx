@@ -29,19 +29,19 @@ export default function ReportsIndexPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Reports Generator</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Generate detailed PDF reports per student.</p>
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Reports Generator</h1>
+          <p className="text-slate-400">Generate detailed PDF reports per student.</p>
         </div>
       </div>
 
       <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-6">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 dark:border-white/5 pb-6">
           <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 dark:text-slate-500" />
             <input
               type="text"
               placeholder="Search students..."
-              className="h-9 w-full rounded-md border border-zinc-200 bg-transparent pl-9 pr-4 text-sm shadow-sm outline-none focus:ring-1 focus:ring-zinc-950 dark:border-zinc-800 dark:focus:ring-zinc-300"
+              className="h-9 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 pl-9 pr-4 text-sm text-slate-200 placeholder:text-gray-400 dark:text-slate-500 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -68,12 +68,12 @@ export default function ReportsIndexPage() {
                 return (
                   <TableRow key={student.id}>
                     <TableCell className="font-medium">{student.name}</TableCell>
-                    <TableCell className="text-zinc-500">{student.assignedTrainer}</TableCell>
+                    <TableCell className="text-slate-500">{student.assignedTrainer}</TableCell>
                     <TableCell>
                       {openIssues > 0 ? (
                         <Badge variant="destructive">{openIssues} Open</Badge>
                       ) : (
-                        <span className="text-xs text-zinc-500">No open issues</span>
+                        <span className="text-xs text-gray-400 dark:text-slate-500">No open issues</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -94,7 +94,7 @@ export default function ReportsIndexPage() {
               })}
               {!loading && !error && filteredStudents.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-zinc-500">
+                  <TableCell colSpan={5} className="h-24 text-center text-gray-400 dark:text-slate-500">
                     No students found matching your search.
                   </TableCell>
                 </TableRow>

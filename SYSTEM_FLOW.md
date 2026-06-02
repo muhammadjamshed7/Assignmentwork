@@ -19,7 +19,8 @@ flowchart TD
   Shell --> Issues[Route /issues]
   Shell --> Comments[Route /comments]
   Shell --> Tools[Route /tools]
-  Shell --> Settings[Route /settings]
+  Shell --> Workflow[Routes /workflow and /workflow/:slug]
+Shell --> Settings[Route /settings]
 
   Dashboard --> Hook[useSupabaseQuery]
   Students --> Hook
@@ -29,6 +30,7 @@ flowchart TD
   Issues --> Hook
   Comments --> Hook
   Tools --> Hook
+  Workflow --> StaticData[workflow-data.ts — no Supabase]
   Shell --> Hook
 
   Hook --> DataModules[lib/data modules]
@@ -367,13 +369,49 @@ flowchart LR
 
 Successful create, update, and delete actions refresh the directory and show toast notifications.
 
-### 9. Analytics
+### 9. Workflow
+
+Routes:
+- `/workflow`
+- `/workflow/[slug]`
+
+The workflow pages are **server components** that consume static data from `app/workflow/workflow-data.ts` — no Supabase queries or realtime subscriptions are involved.
+
+The index page (`/workflow`) renders a 2-column card grid:
+
+- Each card shows an icon, category badge, title, description, and a CTA link.
+- Four workflow types exist: Unknown Assignment, Tools Installation, Standard Academic Assignment, Master Assignment Prompt.
+
+The detail page (`/workflow/[slug]`) uses `generateStaticParams` to pre-render all four workflow guides at build time. Each page renders:
+
+- Step-by-step instruction cards from `workflowSteps`.
+- Prompt block cards with copy-to-clipboard functionality via `CopyWorkflowButton`.
+- A template placeholder guide table with token descriptions.
+
+Flow:
+
+```mermaid
+flowchart TD
+  WorkflowIndex[/workflow] --> Cards[Card grid from workflowCards]
+  Cards --> Detail[/workflow/:slug]
+  Detail --> WorkflowData[workflow-data.ts]
+  WorkflowData --> Steps[workflowSteps]
+  WorkflowData --> Prompts[Prompt blocks]
+  WorkflowData --> Placeholders[Placeholder guide table]
+  Steps --> CopyButton[CopyWorkflowButton]
+  Prompts --> CopyButton
+  CopyButton --> Clipboard[navigator.clipboard]
+```
+
+The workflow module exports four main data structures: `workflowCards` (index cards), `workflowSteps` (step arrays per slug), `masterPrompt` / `placeholderGuide` (utility exports for the master prompt workflow), and individual prompt constants for each workflow type.
+
+### 10. Analytics
 
 Route: `/analytics`
 
 The analytics route remains hidden from the sidebar until it loads real Supabase aggregates.
 
-### 10. Settings
+### 11. Settings
 
 Route: `/settings`
 
@@ -387,7 +425,7 @@ The Supabase integration status is checked on mount by calling `requireSupabase(
 
 User management runs through API routes that use `SUPABASE_SERVICE_ROLE_KEY` server-side. It is available as an operational tool, but the dashboard itself does not require a user login.
 
-### 11. Layout, Navigation, Theme, Toasts, and PWA
+### 12. Layout, Navigation, Theme, Toasts, and PWA
 
 Shared layout:
 
@@ -449,6 +487,7 @@ The active data access functions live under `lib/data/`.
 | `prompts.ts` | `listPrompts`, `listPromptsPage` | `createPrompt`, `updatePrompt`, `deletePrompt` |
 | `ai-tools.ts` | `listAiTools`, `listAiToolsPage` | `createAiTool`, `updateAiTool`, `deleteAiTool` |
 | `dashboard.ts` | Combined page loaders | None |
+| `workflow-data.ts` | Static data (`workflowCards`, `workflowSteps`, prompt constants) | None — server component, no Supabase |
 
 Shared helpers:
 
@@ -477,6 +516,7 @@ Each page subscribes only to the tables that can affect its visible data.
 | Reports index | `students`, `student_courses`, `courses`, `issues` |
 | Student report | `students`, `student_courses`, `courses`, `issues`, `comments` |
 | AI Tools Directory | `ai_tools` |
+| Workflow index + detail | None (static server components) |
 | Dashboard layout notifications | `issues`, `comments` |
 
 ## Student Status Sync Logic
@@ -558,6 +598,7 @@ flowchart TD
   Realtime --> Reports[Reports update]
   AddCourses --> Prompts[Create course-related prompts]
   Prompts --> Support[Use prompts in academic support workflows]
+  Support --> Workflow[Follow workflow guides in /workflow]
 ```
 
 ## Current Implementation Notes
@@ -569,6 +610,7 @@ flowchart TD
 - `store/useAppStore.ts` has been removed; selected issue state lives locally in the comments page.
 - Analytics is present as a route shell but hidden from sidebar navigation until real aggregates are added; Settings is read-only apart from its live Supabase connection check.
 - AI tool metrics can be created, edited, and deleted from `/tools`.
+- The workflow pages (`/workflow`, `/workflow/[slug]`) are server components using static data from `workflow-data.ts` with no Supabase dependency.
 - The report PDF export is server-side through `app/api/report/[studentId]/pdf/route.ts` and `@react-pdf/renderer`.
 - The global search input filters Students, Issues, and Prompts client-side without navigation or reloads.
 - Dashboard routes are open-access; no login or Supabase Auth session is required.

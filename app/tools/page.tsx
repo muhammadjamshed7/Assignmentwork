@@ -107,7 +107,7 @@ function renderDescription(description?: string) {
         href={part}
         target="_blank"
         rel="noreferrer"
-        className="font-medium text-zinc-950 underline underline-offset-4 hover:text-zinc-700 dark:text-zinc-50 dark:hover:text-zinc-300"
+        className="font-medium text-indigo-400 underline underline-offset-4 hover:text-indigo-300"
       >
         {part}
       </a>
@@ -233,8 +233,8 @@ export default function AIToolsPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">AI Tools Directory</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">AI Tools Directory</h1>
+          <p className="text-slate-400">
             Track approved AI resources, including writing-refinement tools that improve clarity, tone, and readability
             while keeping students responsible for reviewing and understanding final work.
           </p>
@@ -287,11 +287,11 @@ export default function AIToolsPage() {
       {error && <ErrorState message={error} onRetry={refresh} />}
 
       <div className="relative w-full sm:max-w-xs">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" aria-hidden="true" />
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 dark:text-slate-500" aria-hidden="true" />
         <input
           type="text"
           placeholder="Search tools..."
-          className="h-9 w-full rounded-md border border-zinc-200 bg-transparent pl-9 pr-4 text-sm shadow-sm outline-none focus:ring-1 focus:ring-zinc-950 dark:border-zinc-800 dark:focus:ring-zinc-300"
+          className="h-9 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 pl-9 pr-4 text-sm text-slate-200 placeholder:text-gray-400 dark:text-slate-500 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
         />
@@ -305,8 +305,8 @@ export default function AIToolsPage() {
           return (
             <section key={section.key} className="grid gap-4">
               <div>
-                <h2 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">{section.title}</h2>
-                <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">{section.description}</p>
+                <h2 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">{section.title}</h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-500 dark:text-slate-400">{section.description}</p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {sectionTools.map(tool => (
@@ -329,7 +329,7 @@ export default function AIToolsPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                      <p className="whitespace-pre-wrap text-sm leading-6 text-gray-500 dark:text-slate-400">
                         {renderDescription(tool.description)}
                       </p>
                     </CardContent>
@@ -340,7 +340,7 @@ export default function AIToolsPage() {
           )
         })}
         {!loading && !error && sortedTools.length === 0 && (
-          <div className="p-12 text-center text-zinc-500 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+          <div className="p-12 text-center text-gray-400 dark:text-slate-500 sm:col-span-2 lg:col-span-3 xl:col-span-4">
             No AI tools found. Add tools later when you have real data.
           </div>
         )}

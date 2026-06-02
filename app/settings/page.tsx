@@ -181,8 +181,8 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Settings</h1>
-        <p className="text-zinc-500 dark:text-zinc-400">Connection status and user access management.</p>
+        <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Settings</h1>
+        <p className="text-slate-400">Connection status and user access management.</p>
       </div>
       
       <div className="grid gap-6">
@@ -195,19 +195,19 @@ export default function SettingsPage() {
              <div className="grid gap-2">
                <label className="text-sm font-medium">Status</label>
                {supabaseStatus.state === "loading" && (
-                 <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-                   <div className="h-2 w-2 animate-pulse rounded-full bg-zinc-400" />
-                   {supabaseStatus.message}
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-slate-500" />
+                    {supabaseStatus.message}
                  </div>
                )}
                {supabaseStatus.state === "connected" && (
-                 <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-                   <div className="h-2 w-2 rounded-full bg-green-500" />
+                  <div className="flex items-center gap-2 text-sm text-emerald-400">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
                    {supabaseStatus.message}
                  </div>
                )}
                {supabaseStatus.state === "disconnected" && (
-                 <div className="space-y-1 text-sm text-red-600 dark:text-red-400">
+                  <div className="space-y-1 text-sm text-red-400">
                    <div className="flex items-center gap-2 font-medium">
                      <div className="h-2 w-2 rounded-full bg-red-500" />
                      Disconnected
@@ -243,7 +243,7 @@ export default function SettingsPage() {
                     id="invite-role"
                     value={inviteRole}
                     onChange={(event) => setInviteRole(event.target.value as UserRole)}
-                    className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:focus-visible:ring-zinc-300"
+                    className="flex h-10 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                   >
                     <option value="viewer">Viewer</option>
                     <option value="admin">Admin</option>
@@ -255,12 +255,12 @@ export default function SettingsPage() {
               </form>
 
               {usersError && (
-                <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-600 dark:text-red-400">
+                <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
                   {usersError}
                 </div>
               )}
 
-              <div className="rounded-md border border-zinc-200 dark:border-zinc-800">
+              <div className="rounded-md border border-gray-200 dark:border-slate-800">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -277,7 +277,7 @@ export default function SettingsPage() {
                           <select
                             value={user.role}
                             onChange={(event) => updateUserRole(user.id, event.target.value as UserRole)}
-                            className="h-9 rounded-md border border-zinc-200 bg-white px-2 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+                            className="h-9 rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 px-2 text-sm text-slate-200"
                           >
                             <option value="viewer">Viewer</option>
                             <option value="admin">Admin</option>
@@ -293,14 +293,14 @@ export default function SettingsPage() {
                     ))}
                     {!usersLoading && users.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={3} className="h-20 text-center text-sm text-zinc-500">
+                        <TableCell colSpan={3} className="h-20 text-center text-sm text-gray-400 dark:text-slate-500">
                           No users found.
                         </TableCell>
                       </TableRow>
                     )}
                     {usersLoading && (
                       <TableRow>
-                        <TableCell colSpan={3} className="h-20 text-center text-sm text-zinc-500">
+                        <TableCell colSpan={3} className="h-20 text-center text-sm text-gray-400 dark:text-slate-500">
                           Loading users...
                         </TableCell>
                       </TableRow>

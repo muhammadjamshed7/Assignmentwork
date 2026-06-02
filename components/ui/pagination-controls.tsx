@@ -14,7 +14,7 @@ export const PaginationControls = memo(function PaginationControls({ page, pageS
   const end = Math.min(total, page * pageSize);
 
   return (
-    <div className="flex flex-col gap-3 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-500 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-t border-gray-200 dark:border-slate-800 px-4 py-3 text-sm text-gray-400 dark:text-slate-500 sm:flex-row sm:items-center sm:justify-between">
       <div>
         Showing {start}-{end} of {total}
       </div>
@@ -28,7 +28,7 @@ export const PaginationControls = memo(function PaginationControls({ page, pageS
         >
           Previous
         </Button>
-        <span className="min-w-20 text-center text-xs font-medium text-zinc-600 dark:text-zinc-400">
+        <span className="min-w-20 text-center text-xs font-medium text-gray-500 dark:text-slate-400">
           Page {page} of {totalPages}
         </span>
         <Button

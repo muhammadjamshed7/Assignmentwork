@@ -1,7 +1,6 @@
 import { requireSupabase } from "@/lib/data/client";
 import { mapAiTool } from "@/lib/data/mappers";
-import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
-import { AiToolUsage, PaginatedResult, PaginationOptions } from "@/lib/data/types";
+import { AiToolUsage } from "@/lib/data/types";
 import { assertAdmin } from "@/lib/auth/roles";
 
 export async function listAiTools(): Promise<AiToolUsage[]> {
@@ -13,19 +12,6 @@ export async function listAiTools(): Promise<AiToolUsage[]> {
 
   if (error) throw error;
   return (data ?? []).map(mapAiTool);
-}
-
-export async function listAiToolsPage(options: PaginationOptions = {}): Promise<PaginatedResult<AiToolUsage>> {
-  const supabase = requireSupabase();
-  const pagination = getPaginationRange(options);
-  const { data, error, count } = await supabase
-    .from("ai_tools")
-    .select("id, tool_name, description, usage_count, active_students, related_problems, success_rate", { count: "exact" })
-    .order("usage_count", { ascending: false })
-    .range(pagination.from, pagination.to);
-
-  if (error) throw error;
-  return toPaginatedResult((data ?? []).map(mapAiTool), count, pagination);
 }
 
 export async function createAiTool(input: {

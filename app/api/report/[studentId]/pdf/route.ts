@@ -394,7 +394,6 @@ export async function GET(
     }
 
     const { student, studentIssues, studentComments } = result
-    const sortedComments = [...studentComments].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     const pdfDocument = ReportDocument({
       comments: studentComments,
       issues: studentIssues,
