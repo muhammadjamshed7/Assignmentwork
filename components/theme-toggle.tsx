@@ -20,11 +20,7 @@ function getInitialTheme(): Theme {
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("dark")
-
-  useEffect(() => {
-    setTheme(getInitialTheme())
-  }, [])
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
 
   useEffect(() => {
     const root = document.documentElement

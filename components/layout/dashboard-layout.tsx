@@ -35,7 +35,7 @@ const navigation = [
   { name: "Prompts", href: "/prompts", icon: ClipboardList },
   { name: "Workflow", href: "/workflow", icon: Workflow },
   { name: "Issues", href: "/issues", icon: Wrench },
-  { name: "Comments/Tickets", href: "/comments", icon: MessageSquare },
+  { name: "Comments & Tickets", href: "/comments", icon: MessageSquare },
   { name: "AI Tools", href: "/tools", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
@@ -61,11 +61,11 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-deep-navy-900">
-      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-3 border-b border-gray-200 dark:border-white/10 bg-white/80 dark:bg-deep-navy-900/80 px-3 shadow-lg shadow-black/20 backdrop-blur-md sm:gap-x-6 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-3 border-b border-gray-200 bg-white/90 px-3 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-deep-navy-900/85 dark:shadow-lg dark:shadow-black/20 sm:gap-x-6 sm:px-6 lg:px-8">
         <Button
           variant="ghost"
           size="icon"
-          className="shrink-0 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-slate-200"
+          className="shrink-0 text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200"
           aria-label="Toggle sidebar"
           title="Toggle sidebar"
           onClick={handleSidebarToggle}
@@ -83,17 +83,17 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
         </Button>
         <div className="flex min-w-0 flex-1 gap-x-3 self-stretch lg:gap-x-6">
           <div className="flex min-w-0 flex-1 flex-col justify-center">
-            <span className="truncate text-sm font-display font-semibold text-white sm:text-base">
-              TDS Management
+            <span className="truncate text-sm font-display font-semibold text-gray-950 dark:text-white sm:text-base">
+              TDS Assignment Operations
             </span>
             <span className="truncate text-xs text-gray-400 dark:text-slate-500">
-              Academic operations
+              Writers, courses, reviews, and support work
             </span>
           </div>
           <div className="ml-auto flex items-center gap-x-2 sm:gap-x-4 lg:gap-x-6">
             <PwaInstallButton />
             <ThemeToggle />
-            <button type="button" className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 dark:text-slate-400 transition-colors hover:bg-gray-100 dark:hover:bg-white/5 hover:text-slate-200">
+            <button type="button" className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-200">
               <span className="sr-only">View notifications</span>
               <span className="absolute right-2.5 top-2.5 flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75" />
@@ -107,10 +107,10 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
                 O
               </div>
               <div className="hidden sm:flex sm:flex-col sm:items-start sm:justify-center">
-                <span className="max-w-52 truncate text-sm font-medium text-white">
-                  Open workspace
+                <span className="max-w-52 truncate text-sm font-medium text-gray-950 dark:text-white">
+                  Admin workspace
                 </span>
-                <span className="text-xs text-gray-400 dark:text-slate-500">No login required</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">Local access mode</span>
               </div>
             </div>
           </div>
@@ -192,8 +192,8 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
                 O
               </div>
               <div className={cn("min-w-0", sidebarCollapsed && "lg:sr-only")}>
-                <p className="truncate text-sm font-medium text-white">Open Workspace</p>
-                <p className="truncate text-xs text-gray-400 dark:text-slate-500">Admin</p>
+                <p className="truncate text-sm font-medium text-white">Admin workspace</p>
+                <p className="truncate text-xs text-gray-400 dark:text-slate-500">Local access</p>
               </div>
             </div>
           </div>

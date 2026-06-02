@@ -22,7 +22,7 @@ const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#f97316", "#8b5cf6", "#ec4899"
 
 export function IssueCategoryChart({ data }: { data: ChartDatum[] }) {
   if (data.length === 0) {
-    return <div className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-slate-400">No data</div>
+    return <div className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-slate-400">No issue categories logged yet</div>
   }
 
   return (
@@ -53,7 +53,7 @@ export function IssueCategoryChart({ data }: { data: ChartDatum[] }) {
 
 export function ResolutionProgressChart({ data }: { data: ChartDatum[] }) {
   if (data.length === 0) {
-    return <div className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-slate-400">No data</div>
+    return <div className="flex h-full items-center justify-center text-sm text-gray-500 dark:text-slate-400">No issue status history yet</div>
   }
 
   return (
@@ -77,5 +77,4 @@ export function ResolutionProgressChart({ data }: { data: ChartDatum[] }) {
     </ResponsiveContainer>
   )
 }
-
 
