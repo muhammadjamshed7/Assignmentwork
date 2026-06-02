@@ -15,27 +15,6 @@ export async function listCourses(): Promise<Course[]> {
   return (data ?? []).map(mapCourse);
 }
 
-export async function listCoursesWithEnrollment(): Promise<CourseWithEnrollment[]> {
-  const supabase = requireSupabase();
-  const [coursesResult, enrollmentsResult] = await Promise.all([
-    supabase.from("courses").select("id, code, title, created_at, updated_at").order("code", { ascending: true }),
-    supabase.from("student_courses").select("course_id"),
-  ]);
-
-  if (coursesResult.error) throw coursesResult.error;
-  if (enrollmentsResult.error) throw enrollmentsResult.error;
-
-  const enrollmentCounts = new Map<string, number>();
-  for (const enrollment of enrollmentsResult.data ?? []) {
-    enrollmentCounts.set(enrollment.course_id, (enrollmentCounts.get(enrollment.course_id) ?? 0) + 1);
-  }
-
-  return (coursesResult.data ?? []).map(row => ({
-    ...mapCourse(row),
-    enrolledStudents: enrollmentCounts.get(row.id) ?? 0,
-  }));
-}
-
 export async function listCoursesWithEnrollmentPage(options: PaginationOptions = {}): Promise<PaginatedResult<CourseWithEnrollment>> {
   const supabase = requireSupabase();
   const pagination = getPaginationRange(options);

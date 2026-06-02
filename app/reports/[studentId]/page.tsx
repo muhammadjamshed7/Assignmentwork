@@ -1,7 +1,7 @@
 "use client"
 
-import * as React from "react"
-import { Issue, Comment } from "@/lib/data/types"
+import { useState, use, useMemo } from "react"
+import { Issue, Comment, Student } from "@/lib/data/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,24 +10,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Download, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { formatDistanceToNow, format } from "date-fns"
-import { listStudents } from "@/lib/data/students"
-import { listIssues } from "@/lib/data/issues"
-import { listComments } from "@/lib/data/comments"
+import { listStudentById } from "@/lib/data/students"
+import { listIssuesByStudentId } from "@/lib/data/issues"
+import { listCommentsByStudentId } from "@/lib/data/comments"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
+import { getStatusVariant, getPriorityVariant } from "@/lib/utils"
 
 export default function StudentReportPage({ params }: { params: Promise<{ studentId: string }> }) {
-  const { studentId } = React.use(params)
+  const { studentId } = use(params)
   const { data, loading, error, refresh } = useSupabaseQuery(
     async () => {
-      const [students, issues, comments] = await Promise.all([listStudents(), listIssues(), listComments()])
-      return { students, issues, comments }
+      const [student, studentIssues, studentComments] = await Promise.all([
+        listStudentById(studentId),
+        listIssuesByStudentId(studentId),
+        listCommentsByStudentId(studentId),
+      ])
+      return { student, studentIssues, studentComments }
     },
-    { students: [], issues: [], comments: [] },
+    { student: null as Student | null, studentIssues: [] as Issue[], studentComments: [] as Comment[] },
     ["students", "student_courses", "courses", "issues", "comments"]
   )
-  const { students, issues, comments } = data
-  
-  const student = students.find(s => s.id === studentId)
+  const { student, studentIssues, studentComments } = data
 
   if (loading) {
     return <LoadingState label="Loading student report..." />
@@ -45,39 +48,23 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
     )
   }
 
-  const studentIssues = issues.filter(i => i.studentId === student.id)
-  const studentComments = comments.filter(c => c.studentId === student.id).sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-  
-  // Issue Stats
   const totalIssues = studentIssues.length
-  const issuesByCategory = studentIssues.reduce((acc, issue) => {
-    acc[issue.category] = (acc[issue.category] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
+  const issuesByCategory = useMemo(() =>
+    studentIssues.reduce((acc, issue) => {
+      acc[issue.category] = (acc[issue.category] || 0) + 1
+      return acc
+    }, {} as Record<string, number>),
+    [studentIssues]
+  )
 
-  const issuesByStatus = studentIssues.reduce((acc, issue) => {
-    acc[issue.status] = (acc[issue.status] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
+  const issuesByStatus = useMemo(() =>
+    studentIssues.reduce((acc, issue) => {
+      acc[issue.status] = (acc[issue.status] || 0) + 1
+      return acc
+    }, {} as Record<string, number>),
+    [studentIssues]
+  )
 
-  const getStatusVariant = (status: string) => {
-    switch(status) {
-      case 'Resolved': return 'success'
-      case 'In Progress': return 'info'
-      case 'Escalated': return 'destructive'
-      default: return 'pending'
-    }
-  }
-
-  const getPriorityVariant = (priority: string) => {
-    switch(priority) {
-      case 'Critical': return 'destructive'
-      case 'High': return 'default'
-      case 'Medium': return 'secondary'
-      default: return 'outline'
-    }
-  }
-  
   const handleExportPDF = () => {
     window.open(`/api/report/${studentId}/pdf`, "_blank", "noopener,noreferrer")
   }
@@ -320,11 +307,11 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
                   <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-50">Recent Activity</h3>
                   <div className="space-y-4 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-zinc-200 dark:before:via-zinc-800 before:to-transparent">
                      {/* Currently we don't have a distinct activity log array, so we will weave issues and comments together by timestamp */}
-                     {
-                       [...studentIssues.map(i => ({ type: 'issue', data: i, time: i.createdAt })), 
-                        ...studentComments.map(c => ({ type: 'comment', data: c, time: c.createdAt }))]
-                       .sort((a,b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-                       .map((activity) => (
+                      {
+                        [...studentIssues.map(i => ({ type: 'issue' as const, data: i, time: i.createdAt })), 
+                         ...studentComments.map(c => ({ type: 'comment' as const, data: c, time: c.createdAt }))]
+                        .sort((a,b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+                        .map((activity) => (
                           <div key={`${activity.type}-${activity.data.id}`} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                            <div className="flex items-center justify-center w-5 h-5 rounded-full border border-white dark:border-zinc-950 bg-zinc-200 dark:bg-zinc-800 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2" />
                            <div className="w-[calc(100%-2rem)] md:w-[calc(50%-2rem)] p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">

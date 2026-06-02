@@ -330,10 +330,10 @@ function reportFileName(studentName: string) {
   return `Report-${safeName}.pdf`
 }
 
-async function getReportData() {
+async function getReportData(studentId: string) {
   const supabase = requireSupabase()
 
-  const [studentsResult, issuesResult, commentsResult] = await Promise.all([
+  const [studentResult, issuesResult, commentsResult] = await Promise.all([
     supabase
       .from("students")
       .select(`
@@ -348,27 +348,36 @@ async function getReportData() {
         last_update,
         student_courses(course:courses(id, code, title))
       `)
-      .order("last_update", { ascending: false }),
+      .eq("id", studentId)
+      .single(),
     supabase
       .from("issues")
       .select("id, student_id, category, description, status, priority, created_at, updated_at, student:students(id, name)")
+      .eq("student_id", studentId)
       .order("created_at", { ascending: false }),
     supabase
       .from("comments")
       .select("id, student_id, issue_id, author_name, role, text, created_at, updated_at")
+      .eq("student_id", studentId)
       .order("created_at", { ascending: true }),
   ])
 
-  if (studentsResult.error) throw studentsResult.error
+  if (studentResult.error) {
+    if (studentResult.status === 406) {
+      return null
+    }
+    throw studentResult.error
+  }
   if (issuesResult.error) throw issuesResult.error
   if (commentsResult.error) throw commentsResult.error
 
   const issues = (issuesResult.data ?? []).map(mapIssue)
+  const student = mapStudent(studentResult.data, issues)
 
   return {
-    students: (studentsResult.data ?? []).map(row => mapStudent(row, issues)),
-    issues,
-    comments: (commentsResult.data ?? []).map(mapComment),
+    student,
+    studentIssues: issues,
+    studentComments: (commentsResult.data ?? []).map(mapComment),
   }
 }
 
@@ -378,18 +387,14 @@ export async function GET(
 ) {
   try {
     const { studentId } = await context.params
-    const { students, issues, comments } = await getReportData()
+    const result = await getReportData(studentId)
 
-    const student = students.find(item => item.id === studentId)
-
-    if (!student) {
+    if (!result) {
       return Response.json({ error: "Student report not found." }, { status: 404 })
     }
 
-    const studentIssues = issues.filter(issue => issue.studentId === student.id)
-    const studentComments = comments
-      .filter(comment => comment.studentId === student.id)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    const { student, studentIssues, studentComments } = result
+    const sortedComments = [...studentComments].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     const pdfDocument = ReportDocument({
       comments: studentComments,
       issues: studentIssues,

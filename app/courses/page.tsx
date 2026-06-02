@@ -32,11 +32,11 @@ export default function CoursesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null)
   const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [newCode, setNewCode] = useState("")
   const [newTitle, setNewTitle] = useState("")
   const [formError, setFormError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
   const deletingCourse = courses.find(course => course.id === deletingCourseId)
 
   const resetCourseForm = () => {

@@ -19,6 +19,7 @@ import { useSearchStore } from "@/store/useSearchStore"
 import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 import { Student } from "@/lib/data/types"
+import { getStatusVariant, getPriorityVariant } from "@/lib/utils"
 
 const PAGE_SIZE = 10
 
@@ -71,24 +72,6 @@ export default function StudentsPage() {
     return (!localQuery || searchableText.includes(localQuery)) &&
       (!globalQuery || searchableText.includes(globalQuery))
   })
-
-  const getStatusVariant = (status: string) => {
-    switch(status) {
-      case 'Resolved': return 'success'
-      case 'In Progress': return 'info'
-      case 'Escalated': return 'destructive'
-      default: return 'pending'
-    }
-  }
-
-  const getPriorityVariant = (priority: string) => {
-    switch(priority) {
-      case 'Critical': return 'destructive'
-      case 'High': return 'default'
-      case 'Medium': return 'secondary'
-      default: return 'outline'
-    }
-  }
 
   const toggleCourse = (courseId: string) => {
     setSelectedCourses(prev => 

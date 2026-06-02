@@ -4,17 +4,6 @@ import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
 import { PaginatedResult, PaginationOptions, Prompt } from "@/lib/data/types";
 import { assertAdmin } from "@/lib/auth/roles";
 
-export async function listPrompts(): Promise<Prompt[]> {
-  const supabase = requireSupabase();
-  const { data, error } = await supabase
-    .from("prompts")
-    .select("id, title, category, content, related_course_id, tags, created_at, updated_at")
-    .order("updated_at", { ascending: false });
-
-  if (error) throw error;
-  return (data ?? []).map(mapPrompt);
-}
-
 export async function listPromptsPage(options: PaginationOptions = {}): Promise<PaginatedResult<Prompt>> {
   const supabase = requireSupabase();
   const pagination = getPaginationRange(options);

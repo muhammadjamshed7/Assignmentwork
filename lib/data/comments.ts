@@ -15,6 +15,18 @@ export async function listComments(): Promise<Comment[]> {
   return (data ?? []).map(mapComment);
 }
 
+export async function listCommentsByStudentId(studentId: string): Promise<Comment[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("comments")
+    .select("id, student_id, issue_id, author_name, role, text, created_at, updated_at")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []).map(mapComment);
+}
+
 export async function listCommentsPage(options: PaginationOptions & { issueId?: string } = {}): Promise<PaginatedResult<Comment>> {
   const supabase = requireSupabase();
   const pagination = getPaginationRange(options);

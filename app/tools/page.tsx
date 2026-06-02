@@ -29,6 +29,61 @@ const EMPTY_TOOL_FORM = {
   description: "",
 }
 
+const GENERAL_TOOL_ORDER = [
+  "ChatGPT",
+  "Claude Opus",
+  "Google Gemini",
+  "Grok",
+  "Perplexity",
+  "Google AI Studio",
+  "LMArena",
+]
+
+const WRITING_TOOL_ORDER = [
+  "Custom GPT AI Humanizer",
+  "HumanizeAI Pro",
+  "SuperHumanizer AI",
+  "WriteHuman AI",
+  "GPTHuman AI",
+  "WalterWrites",
+  "AuraWrite AI",
+  "DigitalMagicWand",
+]
+
+const STEALTH_TOOL_ORDER = [
+  "StealthWriter",
+  "StealthGPT",
+  "Undetectable AI",
+  "BypassGPT",
+]
+
+const toolSections = [
+  {
+    key: "general",
+    title: "General AI Tools",
+    description: "Core AI assistants and research tools for planning, drafting, analysis, coding, and source discovery.",
+    order: GENERAL_TOOL_ORDER,
+  },
+  {
+    key: "writing",
+    title: "Writing Tools",
+    description: "Humanizing and rewriting tools for readability, tone, sentence flow, and draft refinement.",
+    order: WRITING_TOOL_ORDER,
+  },
+  {
+    key: "stealth",
+    title: "AI Remover / Stealth Tools",
+    description: "Stealth, detector, bypass, and AI-likelihood refinement tools. Use ethically for review and polish only.",
+    order: STEALTH_TOOL_ORDER,
+  },
+]
+
+const toolOrder = new Map(
+  toolSections.flatMap((section, sectionIndex) =>
+    section.order.map((toolName, toolIndex) => [toolName, sectionIndex * 100 + toolIndex] as const)
+  )
+)
+
 type ToolFormState = typeof EMPTY_TOOL_FORM
 
 function toToolForm(tool: AiToolUsage): ToolFormState {
@@ -60,6 +115,11 @@ function renderDescription(description?: string) {
   })
 }
 
+function getToolSectionKey(toolName: string) {
+  const matchingSection = toolSections.find(section => section.order.includes(toolName))
+  return matchingSection?.key ?? "general"
+}
+
 export default function AIToolsPage() {
   const { data: aiTools, loading, error, refresh } = useSupabaseQuery(
     listAiTools,
@@ -73,10 +133,10 @@ export default function AIToolsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingToolId, setEditingToolId] = useState<string | null>(null)
   const [deletingToolId, setDeletingToolId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [form, setForm] = useState<ToolFormState>(EMPTY_TOOL_FORM)
   const [formError, setFormError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   const deletingTool = aiTools.find(tool => tool.id === deletingToolId)
   const filteredTools = aiTools.filter(tool => {
@@ -84,6 +144,16 @@ export default function AIToolsPage() {
     if (!query) return true
 
     return tool.toolName.toLowerCase().includes(query) || (tool.description ?? "").toLowerCase().includes(query)
+  })
+  const sortedTools = [...filteredTools].sort((firstTool, secondTool) => {
+    const firstOrder = toolOrder.get(firstTool.toolName)
+    const secondOrder = toolOrder.get(secondTool.toolName)
+
+    if (firstOrder !== undefined && secondOrder !== undefined) return firstOrder - secondOrder
+    if (firstOrder !== undefined) return -1
+    if (secondOrder !== undefined) return 1
+
+    return firstTool.toolName.localeCompare(secondTool.toolName)
   })
 
   function updateFormField(field: keyof ToolFormState, value: string) {
@@ -164,7 +234,10 @@ export default function AIToolsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">AI Tools Directory</h1>
-          <p className="text-zinc-500 dark:text-zinc-400">Add real AI tools when you are ready to track approved resources.</p>
+          <p className="text-zinc-500 dark:text-zinc-400">
+            Track approved AI resources, including writing-refinement tools that improve clarity, tone, and readability
+            while keeping students responsible for reviewing and understanding final work.
+          </p>
         </div>
 
         {isAdmin && (
@@ -224,34 +297,49 @@ export default function AIToolsPage() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredTools.map(tool => (
-          <Card key={tool.id} className="group relative overflow-hidden">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-3">
-                <CardTitle className="text-base">{tool.toolName}</CardTitle>
-                {isAdmin && (
-                  <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => openEditDialog(tool)}>
-                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span className="sr-only">Edit</span>
-                    </Button>
-                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" title="Delete" onClick={() => setDeletingToolId(tool.id)}>
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span className="sr-only">Delete</span>
-                    </Button>
-                  </div>
-                )}
+      <div className="grid gap-8">
+        {toolSections.map(section => {
+          const sectionTools = sortedTools.filter(tool => getToolSectionKey(tool.toolName) === section.key)
+          if (sectionTools.length === 0) return null
+
+          return (
+            <section key={section.key} className="grid gap-4">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">{section.title}</h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">{section.description}</p>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                {renderDescription(tool.description)}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-        {!loading && !error && filteredTools.length === 0 && (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {sectionTools.map(tool => (
+                  <Card key={tool.id} className="group relative overflow-hidden">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <CardTitle className="text-base">{tool.toolName}</CardTitle>
+                        {isAdmin && (
+                          <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" title="Edit" onClick={() => openEditDialog(tool)}>
+                              <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" title="Delete" onClick={() => setDeletingToolId(tool.id)}>
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="whitespace-pre-wrap text-sm leading-6 text-zinc-600 dark:text-zinc-400">
+                        {renderDescription(tool.description)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )
+        })}
+        {!loading && !error && sortedTools.length === 0 && (
           <div className="p-12 text-center text-zinc-500 sm:col-span-2 lg:col-span-3 xl:col-span-4">
             No AI tools found. Add tools later when you have real data.
           </div>

@@ -6,8 +6,10 @@ import { Users, BookOpen, AlertCircle, CheckCircle2, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatDistanceToNow } from "date-fns"
+import { useMemo } from "react"
 import { getDashboardData } from "@/lib/data/dashboard"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
+import { getStatusVariant, getPriorityVariant } from "@/lib/utils"
 
 const IssueCategoryChart = dynamic(
   () => import("@/components/dashboard/charts").then(mod => mod.IssueCategoryChart),
@@ -26,7 +28,7 @@ const ResolutionProgressChart = dynamic(
 )
 
 function ChartPlaceholder() {
-  return <div className="h-full w-full animate-pulse rounded-md bg-zinc-100 dark:bg-zinc-900" />
+  return <div className="h-full w-full animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-900" />
 }
 
 export default function DashboardPage() {
@@ -38,59 +40,43 @@ export default function DashboardPage() {
 
   const { students, issues, courses } = data
 
-  // Stats calculations
-  const totalStudents = students.length
-  const totalCourses = courses.length
-  const resolvedIssues = issues.filter(i => i.status === 'Resolved').length
+  const resolvedIssues = useMemo(() => issues.filter(i => i.status === 'Resolved').length, [issues])
+  const pendingReviews = useMemo(() => issues.filter(i => i.status === 'Pending').length, [issues])
   const openIssues = issues.length - resolvedIssues
-  const pendingReviews = issues.filter(i => i.status === 'Pending').length
 
   const stats = [
-    { title: "Total Writers", value: totalStudents, icon: Users, color: "text-blue-500" },
-    { title: "Active Courses", value: totalCourses, icon: BookOpen, color: "text-emerald-500" },
-    { title: "Open Issues", value: openIssues, icon: AlertCircle, color: "text-red-500" },
-    { title: "Resolved Issues", value: resolvedIssues, icon: CheckCircle2, color: "text-green-500" },
-    { title: "Pending Reviews", value: pendingReviews, icon: Clock, color: "text-yellow-500" },
+    { title: "Total Writers", value: students.length, icon: Users, color: "text-blue-600 bg-blue-50 dark:bg-blue-950/40 dark:text-blue-300" },
+    { title: "Active Courses", value: courses.length, icon: BookOpen, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300" },
+    { title: "Open Issues", value: openIssues, icon: AlertCircle, color: "text-red-600 bg-red-50 dark:bg-red-950/40 dark:text-red-300" },
+    { title: "Resolved Issues", value: resolvedIssues, icon: CheckCircle2, color: "text-green-600 bg-green-50 dark:bg-green-950/40 dark:text-green-300" },
+    { title: "Pending Reviews", value: pendingReviews, icon: Clock, color: "text-amber-600 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300" },
   ]
 
-  // Chart data
-  const issuesByCategory = issues.reduce((acc, issue) => {
-    acc[issue.category] = (acc[issue.category] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
+  const pieData = useMemo(() => {
+    const issuesByCategory = issues.reduce((acc, issue) => {
+      acc[issue.category] = (acc[issue.category] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    return Object.entries(issuesByCategory).map(([name, value]) => ({ name, value }))
+  }, [issues])
 
-  const pieData = Object.entries(issuesByCategory).map(([name, value]) => ({ name, value }))
-
-  const resolutionProgress = [
+  const resolutionProgress = useMemo(() => [
     { name: 'Resolved', value: resolvedIssues },
     { name: 'In Progress', value: issues.filter(i => i.status === 'In Progress').length },
     { name: 'Pending', value: issues.filter(i => i.status === 'Pending').length },
     { name: 'Escalated', value: issues.filter(i => i.status === 'Escalated').length },
-  ]
-
-  const getStatusVariant = (status: string) => {
-    switch(status) {
-      case 'Resolved': return 'success'
-      case 'In Progress': return 'info'
-      case 'Escalated': return 'destructive'
-      default: return 'pending'
-    }
-  }
-
-  const getPriorityVariant = (priority: string) => {
-    switch(priority) {
-      case 'Critical': return 'destructive'
-      case 'High': return 'default'
-      case 'Medium': return 'secondary'
-      default: return 'outline'
-    }
-  }
+  ], [issues, resolvedIssues])
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Dashboard</h1>
-        <p className="text-zinc-500 dark:text-zinc-400">Overview of students, issues, and platform metrics.</p>
+      <div className="flex flex-col gap-2">
+        <div className="inline-flex w-fit items-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
+          Open workspace overview
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">Dashboard</h1>
+          <p className="mt-1 text-zinc-500 dark:text-zinc-400">Monitor writers, courses, issues, and review activity from one place.</p>
+        </div>
       </div>
 
       {loading && <LoadingState label="Loading dashboard metrics..." />}
@@ -98,12 +84,14 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stats.map((stat, i) => (
-          <Card key={i}>
+          <Card key={i} className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
                 {stat.title}
               </CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${stat.color}`}>
+                <stat.icon className="h-4 w-4" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-zinc-950 dark:text-zinc-50">{stat.value}</div>
@@ -114,32 +102,32 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="md:col-span-2 lg:col-span-4">
-          <CardHeader>
+          <CardHeader className="border-b border-zinc-200/70 dark:border-zinc-800/70">
             <CardTitle>Issues by Category</CardTitle>
             <CardDescription>Issues grouped by category</CardDescription>
           </CardHeader>
-          <CardContent className="min-h-[260px] h-[260px] sm:h-[300px]">
+          <CardContent className="min-h-[260px] h-[260px] pt-5 sm:h-[300px] sm:pt-6">
             <IssueCategoryChart data={pieData} />
           </CardContent>
         </Card>
         
         <Card className="md:col-span-2 lg:col-span-3">
-          <CardHeader>
+          <CardHeader className="border-b border-zinc-200/70 dark:border-zinc-800/70">
             <CardTitle>Resolution Progress</CardTitle>
             <CardDescription>Issue status distribution</CardDescription>
           </CardHeader>
-          <CardContent className="min-h-[260px] h-[260px] sm:h-[300px]">
+          <CardContent className="min-h-[260px] h-[260px] pt-5 sm:h-[300px] sm:pt-6">
             <ResolutionProgressChart data={resolutionProgress} />
           </CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b border-zinc-200/70 dark:border-zinc-800/70">
           <CardTitle>Recent Students Overview</CardTitle>
           <CardDescription>Recently active students</CardDescription>
         </CardHeader>
-        <CardContent className="p-0 sm:p-6">
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>

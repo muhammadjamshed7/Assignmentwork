@@ -130,6 +130,270 @@ $description$,
     0,
     0,
     100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000008',
+    'Custom GPT AI Humanizer',
+    $description$
+Alternative Name: Custom GPT AI Humanizer
+Category: Writing Tools / AI Humanizing / Rewriting
+Official Link: https://chatgpt.com/g/g-2azCVmXdy-ai-humanizer
+
+Short Description:
+A custom ChatGPT-based AI humanizer designed to rewrite AI-generated text into a more natural, readable, and human-like style.
+
+Recommended Use:
+Humanizing assignment drafts, improving sentence flow, rewriting robotic text, and making academic writing sound more natural.
+
+Student Note / Academic Integrity Note:
+Use for refinement only. The final work must still be checked, edited, understood, and ethically submitted by the student.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000018',
+    'HumanizeAI Pro',
+    $description$
+Alternative Name: Humanize AI Pro
+Category: Writing Tools / AI Humanizing / Rewriting
+Official Link: https://www.humanizeai.pro/
+
+Short Description:
+HumanizeAI Pro is an AI humanizing tool used to rewrite AI-generated text into clearer, smoother, and more natural writing.
+
+Recommended Use:
+Humanizing AI-assisted assignment drafts, improving fluency, polishing essays, and refining academic writing tone.
+
+Student Note / Academic Integrity Note:
+Use this tool for readability and language refinement only. The student must verify accuracy, originality, and assignment compliance before submission.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000019',
+    'SuperHumanizer AI',
+    $description$
+Alternative Name: Super Humanizer AI
+Category: Writing Tools / AI Humanizing / Rewriting
+Official Link: https://superhumanizer.ai/
+
+Short Description:
+SuperHumanizer AI helps rewrite AI-generated content into more natural, human-like writing with improved flow and readability.
+
+Recommended Use:
+Rewriting AI-generated paragraphs, improving natural tone, and refining assignment drafts before final editing.
+
+Student Note / Academic Integrity Note:
+Use for writing polish only. Do not use it as a replacement for understanding, editing, or producing academically responsible work.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000009',
+    'WriteHuman AI',
+    $description$
+Alternative Name: Write Human
+Category: Writing Tools / AI Humanizing / Rewriting
+Official Link: https://writehuman.ai/
+
+Short Description:
+WriteHuman AI rewrites AI-generated text into smoother, more natural, conversational writing while preserving the original meaning.
+
+Recommended Use:
+Humanizing ChatGPT, Gemini, Grok, Claude, or other AI-generated text before final editing.
+
+Student Note / Academic Integrity Note:
+Best for improving tone and readability in essays, reports, and general academic writing. Students must review and take responsibility for the final content.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000010',
+    'GPTHuman AI',
+    $description$
+Alternative Name: GPT Human AI
+Category: Writing Tools / AI Humanizing / Rewriting
+Official Link: https://gpthuman.ai/
+
+Short Description:
+GPTHuman AI is an AI humanizer that rewrites AI-generated text into more natural, human-like writing.
+
+Recommended Use:
+Essay rewriting, assignment text polishing, and improving readability of AI-assisted drafts.
+
+Student Note / Academic Integrity Note:
+Use only after the student has reviewed the meaning, accuracy, and academic quality of the content.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000011',
+    'WalterWrites',
+    $description$
+Alternative Names: Walter AI, Walterai Humanizer
+Category: Writing Tools / AI Humanizing / Rewriting
+Official Link: https://walterwrites.ai/
+
+Short Description:
+WalterWrites helps humanize, detect, and rewrite AI-generated content while preserving the writer's voice.
+
+Recommended Use:
+Rewriting AI-assisted drafts, improving natural tone, checking AI-likelihood, and preserving writing style.
+
+Student Note / Academic Integrity Note:
+Useful when the goal is to keep the student's original voice while improving clarity and fluency. Do not use to misrepresent authorship.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000012',
+    'StealthWriter',
+    $description$
+Alternative Name: Stealth Writer
+Category: AI Remover / Stealth Tools
+Official Link: https://stealthwriter.ai/
+
+Short Description:
+StealthWriter rewrites AI-generated content into more natural, polished, human-like writing.
+
+Recommended Use:
+Refining robotic AI text, improving assignment readability, and making writing sound more natural.
+
+Student Note / Academic Integrity Note:
+Use for language improvement and readability, not for dishonest submission.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000013',
+    'StealthGPT',
+    $description$
+Alternative Name: Stealth GPT
+Category: AI Remover / Stealth Tools
+Official Link: https://www.stealthgpt.ai/
+
+Short Description:
+StealthGPT is an AI rewriting and humanizing platform for transforming AI-generated content into more natural writing.
+
+Recommended Use:
+Rewriting AI-generated drafts, improving sentence variation, and refining tone.
+
+Student Note / Academic Integrity Note:
+Final text must be reviewed for accuracy, originality, and compliance with assignment rules.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000014',
+    'AuraWrite AI',
+    $description$
+Alternative Name: AuraWrite
+Category: Writing Tools / AI Humanizing / Rewriting
+Official Link: https://aurawriteai.com/
+
+Short Description:
+AuraWrite AI humanizes AI-generated text by improving fluency, tone, sentence structure, and natural readability.
+
+Recommended Use:
+Academic writing refinement, essay polishing, rewriting AI-generated drafts, and improving clarity.
+
+Student Note / Academic Integrity Note:
+Suitable for improving natural language quality after the assignment content is already understood and prepared.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000015',
+    'DigitalMagicWand',
+    $description$
+Alternative Name: Digital Magic Wand
+Category: Writing Tools / AI Humanizing / Rewriting
+Official Link: https://digitalmagicwand.com/ai-humanizer
+
+Short Description:
+DigitalMagicWand provides an AI humanizer for rewriting machine-generated text into more natural writing.
+
+Recommended Use:
+Rewriting AI-generated paragraphs, improving natural flow, and refining assignment text.
+
+Student Note / Academic Integrity Note:
+Use for readability improvement only. Do not use as a substitute for learning or original academic work.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000016',
+    'Undetectable AI',
+    $description$
+Alternative Name: Undetectable.ai
+Category: AI Remover / Stealth Tools
+Official Link: https://undetectable.ai/
+
+Short Description:
+Undetectable AI provides AI detection and humanizing tools that rewrite AI-generated text into more natural writing.
+
+Recommended Use:
+Checking and refining AI-assisted writing, improving tone, and making text more readable.
+
+Student Note / Academic Integrity Note:
+Use carefully and ethically. The final assignment must remain accurate, properly reviewed, and compliant with academic rules.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000017',
+    'BypassGPT',
+    $description$
+Alternative Name: Bypass GPT
+Category: AI Remover / Stealth Tools
+Official Link: https://www.bypassgpt.ai/
+
+Short Description:
+BypassGPT rewrites AI-generated text into more natural, human-like writing.
+
+Recommended Use:
+Rewriting AI-generated drafts, improving conversational tone, and polishing assignment content.
+
+Student Note / Academic Integrity Note:
+Must be used only for refinement and readability improvement, not for academic misconduct.
+$description$,
+    0,
+    0,
+    0,
+    100
   )
 on conflict (tool_name) do update
 set

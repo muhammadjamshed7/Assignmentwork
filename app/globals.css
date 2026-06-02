@@ -9,6 +9,52 @@ body {
   overscroll-behavior-y: none;
 }
 
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 body {
   -webkit-tap-highlight-color: transparent;
+  background: #f6f7f9;
+  text-rendering: optimizeLegibility;
+}
+
+.dark body {
+  background: #09090b;
+}
+
+::selection {
+  background: #18181b;
+  color: #fafafa;
+}
+
+.dark ::selection {
+  background: #fafafa;
+  color: #18181b;
+}
+
+* {
+  scrollbar-color: #a1a1aa transparent;
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #a1a1aa;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+  border: 3px solid transparent;
+  background-clip: padding-box;
 }

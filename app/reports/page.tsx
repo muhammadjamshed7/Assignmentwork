@@ -9,6 +9,7 @@ import { Search, FileText } from "lucide-react"
 import Link from "next/link"
 import { getReportsIndexData } from "@/lib/data/dashboard"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
+import { getStatusVariant } from "@/lib/utils"
 
 export default function ReportsIndexPage() {
   const { data, loading, error, refresh } = useSupabaseQuery(
@@ -23,15 +24,6 @@ export default function ReportsIndexPage() {
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     s.assignedCourses.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))
   )
-
-  const getStatusVariant = (status: string) => {
-    switch(status) {
-      case 'Resolved': return 'success'
-      case 'In Progress': return 'info'
-      case 'Escalated': return 'destructive'
-      default: return 'pending'
-    }
-  }
 
   return (
     <div className="flex flex-col gap-8">

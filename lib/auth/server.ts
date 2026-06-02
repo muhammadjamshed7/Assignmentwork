@@ -20,7 +20,7 @@ function getServiceRoleKey() {
   return serviceRoleKey;
 }
 
-export function createServiceRoleClient() {
+function createServiceRoleClient() {
   return createClient(getSupabaseUrl(), getServiceRoleKey(), {
     auth: {
       autoRefreshToken: false,

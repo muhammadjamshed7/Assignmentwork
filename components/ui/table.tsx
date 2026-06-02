@@ -9,7 +9,7 @@ const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableE
 Table.displayName = "Table"
 
 const TableHeader = React.forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>(({ className, ...props }, ref) => (
-  <thead ref={ref} className={cn("[&_tr]:border-b border-zinc-200 dark:border-zinc-800", className)} {...props} />
+  <thead ref={ref} className={cn("border-y border-zinc-200 bg-zinc-50/80 dark:border-zinc-800 dark:bg-zinc-900/50 [&_tr]:border-b-0", className)} {...props} />
 ))
 TableHeader.displayName = "TableHeader"
 
@@ -19,17 +19,17 @@ const TableBody = React.forwardRef<HTMLTableSectionElement, React.HTMLAttributes
 TableBody.displayName = "TableBody"
 
 const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(({ className, ...props }, ref) => (
-  <tr ref={ref} className={cn("border-b border-zinc-200 transition-colors hover:bg-zinc-100/50 data-[state=selected]:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800/50 dark:data-[state=selected]:bg-zinc-800", className)} {...props} />
+  <tr ref={ref} className={cn("border-b border-zinc-200/80 transition-colors hover:bg-zinc-50 data-[state=selected]:bg-zinc-100 dark:border-zinc-800/80 dark:hover:bg-zinc-900/70 dark:data-[state=selected]:bg-zinc-800", className)} {...props} />
 ))
 TableRow.displayName = "TableRow"
 
 const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<HTMLTableCellElement>>(({ className, ...props }, ref) => (
-  <th ref={ref} className={cn("h-12 px-3 text-left align-middle font-medium text-zinc-500 sm:px-4 dark:text-zinc-400 [&:has([role=checkbox])]:pr-0", className)} {...props} />
+  <th ref={ref} className={cn("h-11 px-3 text-left align-middle text-xs font-semibold uppercase text-zinc-500 sm:px-4 dark:text-zinc-400 [&:has([role=checkbox])]:pr-0", className)} {...props} />
 ))
 TableHead.displayName = "TableHead"
 
 const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(({ className, ...props }, ref) => (
-  <td ref={ref} className={cn("px-3 py-3 align-middle sm:p-4 [&:has([role=checkbox])]:pr-0", className)} {...props} />
+  <td ref={ref} className={cn("px-3 py-3 align-middle text-zinc-700 sm:p-4 dark:text-zinc-300 [&:has([role=checkbox])]:pr-0", className)} {...props} />
 ))
 TableCell.displayName = "TableCell"
 

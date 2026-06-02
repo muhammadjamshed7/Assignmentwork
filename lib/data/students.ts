@@ -66,6 +66,38 @@ export async function listStudentsPage(options: PaginationOptions = {}): Promise
   return toPaginatedResult((studentsResult.data ?? []).map(row => mapStudent(row, issues)), studentsResult.count, pagination);
 }
 
+export async function listStudentById(studentId: string): Promise<Student | null> {
+  const supabase = requireSupabase();
+  const [studentResult, issuesResult] = await Promise.all([
+    supabase
+      .from("students")
+      .select(`
+        id,
+        name,
+        email,
+        assigned_trainer,
+        notes,
+        overall_status,
+        priority,
+        progress,
+        last_update,
+        student_courses(course:courses(id, code, title))
+      `)
+      .eq("id", studentId)
+      .single(),
+    supabase
+      .from("issues")
+      .select("id, student_id, category, description, status, priority, created_at, updated_at")
+      .eq("student_id", studentId),
+  ]);
+
+  if (studentResult.error) throw studentResult.error;
+  if (issuesResult.error) throw issuesResult.error;
+
+  const issues = (issuesResult.data ?? []).map(mapIssue);
+  return studentResult.data ? mapStudent(studentResult.data, issues) : null;
+}
+
 export async function createStudent(input: {
   name: string;
   email?: string;
@@ -124,8 +156,7 @@ export async function createStudent(input: {
     if (coursesError) throw coursesError;
   }
 
-  const students = await listStudents();
-  return students.find(item => item.id === student.id);
+  return listStudentById(student.id);
 }
 
 export async function updateStudent(studentId: string, input: {
@@ -192,8 +223,7 @@ export async function updateStudent(studentId: string, input: {
     if (coursesError) throw coursesError;
   }
 
-  const students = await listStudents();
-  return students.find(item => item.id === studentId);
+  return listStudentById(studentId);
 }
 
 export async function deleteStudent(studentId: string) {

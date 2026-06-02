@@ -10,6 +10,7 @@ import { listIssuesPage } from "@/lib/data/issues"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 import { useSearchStore } from "@/store/useSearchStore"
 import { PaginationControls } from "@/components/ui/pagination-controls"
+import { getStatusVariant, getPriorityVariant } from "@/lib/utils"
 
 const PAGE_SIZE = 10
 
@@ -37,24 +38,6 @@ export default function IssuesPage() {
       ].join(" ").toLowerCase().includes(normalizedSearchQuery)
     })
     .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-  const getStatusVariant = (status: string) => {
-    switch(status) {
-      case 'Resolved': return 'success'
-      case 'In Progress': return 'info'
-      case 'Escalated': return 'destructive'
-      default: return 'pending'
-    }
-  }
-
-  const getPriorityVariant = (priority: string) => {
-    switch(priority) {
-      case 'Critical': return 'destructive'
-      case 'High': return 'default'
-      case 'Medium': return 'secondary'
-      default: return 'outline'
-    }
-  }
 
   return (
     <div className="flex flex-col gap-8">

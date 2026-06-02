@@ -15,6 +15,18 @@ export async function listIssues(): Promise<Issue[]> {
   return (data ?? []).map(mapIssue);
 }
 
+export async function listIssuesByStudentId(studentId: string): Promise<Issue[]> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("issues")
+    .select("id, student_id, category, description, status, priority, created_at, updated_at, student:students(id, name)")
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []).map(mapIssue);
+}
+
 export async function listIssuesPage(options: PaginationOptions = {}): Promise<PaginatedResult<Issue>> {
   const supabase = requireSupabase();
   const pagination = getPaginationRange(options);

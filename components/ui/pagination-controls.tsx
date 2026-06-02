@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Button } from "@/components/ui/button";
 
 type PaginationControlsProps = {
@@ -7,7 +8,7 @@ type PaginationControlsProps = {
   onPageChange: (page: number) => void;
 };
 
-export function PaginationControls({ page, pageSize, total, onPageChange }: PaginationControlsProps) {
+export const PaginationControls = memo(function PaginationControls({ page, pageSize, total, onPageChange }: PaginationControlsProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(total, page * pageSize);
@@ -42,4 +43,4 @@ export function PaginationControls({ page, pageSize, total, onPageChange }: Pagi
       </div>
     </div>
   );
-}
+});
