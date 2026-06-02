@@ -52,9 +52,6 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body suppressHydrationWarning className="h-full antialiased font-body flex flex-col min-h-screen bg-white text-gray-900 dark:bg-[#080d1a] dark:text-slate-100">
