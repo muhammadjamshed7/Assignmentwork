@@ -95,8 +95,6 @@ npm.cmd run build
 | --- | --- |
 | `supabase/schema.sql` | Main app schema: tables, enums, triggers, indexes, grants, RLS, realtime publication. |
 | `supabase/seed.sql` | Seeds only the approved baseline AI tool records. No demo students, courses, issues, comments, or prompts. |
-| `supabase/full-reset.sql` | Deprecated reset helper from the pre-auth schema. Use `supabase/schema.sql` plus `supabase/seed.sql` for the current auth-enabled app. |
-| `supabase/reset-current-app.sql` | Deprecated reset helper from the pre-auth schema. Use `supabase/schema.sql` for the current auth-enabled app. |
 | `supabase/clear-data.sql` | Truncates app data while preserving schema. Run `seed.sql` afterward if you want baseline AI tools back. |
 
 There is also a helper script for reseeding approved tools from `.env.local`:
@@ -148,7 +146,7 @@ Important database behavior:
 - Issue insert/update/delete triggers recalculate each student's derived status and priority.
 - Student comments can set a related issue back to `Pending`.
 - Realtime is enabled for app tables so subscribed pages refresh automatically.
-- RLS is enabled but open for anon/authenticated access in this no-login workspace mode.
+- RLS is approval-aware: approved admins can manage all data, while approved students are scoped to their own student records and student-safe resources.
 
 ## Open Access Mode
 

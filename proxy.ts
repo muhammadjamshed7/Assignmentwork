@@ -6,7 +6,7 @@ import { isUserRole, isUserStatus, type UserRole, type UserStatus } from "@/lib/
 const PUBLIC_PATHS = new Set(["/login", "/admin/login", "/register", "/pending-approval", "/access-denied"]);
 const ADMIN_LOGIN_PATH = "/admin/login";
 const STUDENT_LOGIN_PATH = "/login";
-const ADMIN_ONLY_PATHS = new Set(["/", "/students", "/reports", "/settings"]);
+const ADMIN_ONLY_PREFIXES = ["/students", "/reports", "/settings"];
 const STUDENT_ALLOWED_PREFIXES = [
   "/workflow",
   "/prompts",
@@ -26,7 +26,7 @@ function isPublicPath(pathname: string) {
 }
 
 function loginPathFor(pathname: string) {
-  return ADMIN_ONLY_PATHS.has(pathname) || Array.from(ADMIN_ONLY_PATHS).some(path => path !== "/" && pathname.startsWith(`${path}/`))
+  return pathname === "/" || ADMIN_ONLY_PREFIXES.some(path => pathname === path || pathname.startsWith(`${path}/`))
     ? ADMIN_LOGIN_PATH
     : STUDENT_LOGIN_PATH;
 }

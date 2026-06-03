@@ -4,7 +4,9 @@
 -- students, courses, student_courses, issues, comments,
 -- prompts, ai_tools, user_roles
 --
--- Open-access mode: no login route, no default auth user seed.
+-- Auth-enabled mode: use Supabase Auth plus user_roles approval status.
+-- To create the default admin, run scripts/ensure-default-admin.mjs or
+-- supabase/00-reset-admin-auth.sql followed by supabase/01-enable-admin-auth.sql.
 -- =========================================================
 
 -- 1. Extensions
