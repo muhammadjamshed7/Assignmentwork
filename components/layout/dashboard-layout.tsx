@@ -42,7 +42,7 @@ const navigation = [
   { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
 ]
 
-const publicPaths = new Set(["/login", "/register", "/pending-approval", "/access-denied"])
+const publicPaths = new Set(["/login", "/admin/login", "/register", "/pending-approval", "/access-denied"])
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -86,7 +86,7 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
 
   async function signOut() {
     await createSupabaseClient()?.auth.signOut()
-    window.location.href = "/login"
+    window.location.href = profile?.role === "admin" ? "/admin/login" : "/login"
   }
 
   function handleSidebarToggle() {

@@ -3,7 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isUserRole, isUserStatus, type UserRole, type UserStatus } from "@/lib/auth/role-utils";
 
-const PUBLIC_PATHS = new Set(["/login", "/register", "/pending-approval", "/access-denied"]);
+const PUBLIC_PATHS = new Set(["/login", "/admin/login", "/register", "/pending-approval", "/access-denied"]);
+const ADMIN_LOGIN_PATH = "/admin/login";
+const STUDENT_LOGIN_PATH = "/login";
+const ADMIN_ONLY_PATHS = new Set(["/", "/students", "/reports", "/settings"]);
 const STUDENT_ALLOWED_PREFIXES = [
   "/workflow",
   "/prompts",
@@ -20,6 +23,12 @@ function getRedirectUrl(request: NextRequest, pathname: string) {
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.has(pathname);
+}
+
+function loginPathFor(pathname: string) {
+  return ADMIN_ONLY_PATHS.has(pathname) || Array.from(ADMIN_ONLY_PATHS).some(path => path !== "/" && pathname.startsWith(`${path}/`))
+    ? ADMIN_LOGIN_PATH
+    : STUDENT_LOGIN_PATH;
 }
 
 function isStudentAllowedPath(pathname: string) {
@@ -40,7 +49,7 @@ export async function proxy(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return isPublicPath(pathname) ? response : NextResponse.redirect(getRedirectUrl(request, "/login"));
+    return isPublicPath(pathname) ? response : NextResponse.redirect(getRedirectUrl(request, loginPathFor(pathname)));
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -61,7 +70,7 @@ export async function proxy(request: NextRequest) {
 
   if (!user) {
     if (isPublicPath(pathname)) return response;
-    const loginUrl = getRedirectUrl(request, "/login");
+    const loginUrl = getRedirectUrl(request, loginPathFor(pathname));
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }

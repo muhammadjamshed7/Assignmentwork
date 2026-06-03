@@ -70,10 +70,16 @@ Start the dev server:
 npm run dev
 ```
 
-Open:
+Open student login:
 
 ```text
 http://localhost:3000/login
+```
+
+Open admin login:
+
+```text
+http://localhost:3000/admin/login
 ```
 
 On Windows PowerShell, if `npm.ps1` is blocked by execution policy, run scripts through `npm.cmd`, for example:
