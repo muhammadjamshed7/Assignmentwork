@@ -6,6 +6,11 @@
 
 begin;
 
+do $$
+begin
+  raise exception 'Deprecated reset-current-app.sql uses the pre-auth open-access schema. Use supabase/schema.sql and supabase/seed.sql instead.';
+end $$;
+
 -- Remove every existing table, view, policy, trigger, and function in public.
 drop schema if exists public cascade;
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { isUserRole } from "@/lib/auth/role-utils";
+import { isUserRole, isUserStatus } from "@/lib/auth/role-utils";
 import { requireAdminRequest } from "@/lib/auth/server";
 import { getErrorMessage } from "@/lib/data/client";
 
@@ -11,27 +11,57 @@ type UserRouteContext = {
 export async function PATCH(request: Request, context: UserRouteContext) {
   try {
     const { userId } = await context.params;
-    const { supabase } = await requireAdminRequest();
+    const { user, supabase } = await requireAdminRequest();
     const body = await request.json();
-    const role = isUserRole(body.role) ? body.role : null;
+    const role = isUserRole(body.role) ? body.role : undefined;
+    const status = isUserStatus(body.status) ? body.status : undefined;
 
-    if (!role) {
-      return NextResponse.json({ error: "Role must be admin or viewer." }, { status: 400 });
+    if (!role && !status) {
+      return NextResponse.json({ error: "Provide a valid role or status." }, { status: 400 });
     }
+
+    const { data: existing, error: existingError } = await supabase
+      .from("user_roles")
+      .select("email, role, status, student_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    const nextRole = role ?? existing?.role ?? "student";
+    const nextStatus = status ?? existing?.status ?? "pending";
+    const approvalFields = status === "approved"
+      ? { approved_by: user.id, approved_at: new Date().toISOString() }
+      : status
+        ? { approved_by: null, approved_at: null }
+        : {};
 
     const { error: roleError } = await supabase
       .from("user_roles")
-      .upsert({ user_id: userId, role }, { onConflict: "user_id" });
+      .upsert({
+        user_id: userId,
+        email: existing?.email ?? null,
+        student_id: existing?.student_id ?? null,
+        role: nextRole,
+        status: nextStatus,
+        ...approvalFields,
+      }, { onConflict: "user_id" });
 
     if (roleError) throw roleError;
 
     const { error: metadataError } = await supabase.auth.admin.updateUserById(userId, {
-      user_metadata: { role },
+      user_metadata: { role: nextRole, status: nextStatus },
     });
 
     if (metadataError) throw metadataError;
 
-    return NextResponse.json({ role });
+    return NextResponse.json({
+      user: {
+        id: userId,
+        role: nextRole,
+        status: nextStatus,
+      },
+    });
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 403 });
   }

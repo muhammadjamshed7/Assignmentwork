@@ -1,15 +1,13 @@
 "use client"
 
-import { type FormEvent, useCallback, useEffect, useState } from "react"
-import { Trash2 } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
+import { CheckCircle2, ShieldOff, Trash2, XCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
-import { type UserRole } from "@/lib/auth/role-utils"
+import { type UserRole, type UserStatus } from "@/lib/auth/role-utils"
 import { getErrorMessage, requireSupabase } from "@/lib/data/client"
 
 type SupabaseStatus =
@@ -21,6 +19,8 @@ type ManagedUser = {
   id: string
   email: string
   role: UserRole
+  status: UserStatus
+  studentId?: string | null
   createdAt?: string
   lastSignInAt?: string
 }
@@ -34,9 +34,6 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [usersError, setUsersError] = useState("")
   const [usersLoading, setUsersLoading] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState("")
-  const [inviteRole, setInviteRole] = useState<UserRole>("viewer")
-  const [isInviting, setIsInviting] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -110,49 +107,22 @@ export default function SettingsPage() {
     }
   }, [loadUsers])
 
-  async function inviteUser(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setIsInviting(true)
-    setUsersError("")
-
-    try {
-      const response = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
-      })
-      const payload = await response.json()
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to invite user.")
-      }
-
-      setInviteEmail("")
-      setInviteRole("viewer")
-      await loadUsers()
-    } catch (error) {
-      setUsersError(getErrorMessage(error))
-    } finally {
-      setIsInviting(false)
-    }
-  }
-
-  async function updateUserRole(userId: string, role: UserRole) {
+  async function updateUser(userId: string, input: { role?: UserRole; status?: UserStatus }) {
     setUsersError("")
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify(input),
       })
       const payload = await response.json()
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to update role.")
+        throw new Error(payload.error ?? "Unable to update user.")
       }
 
-      setUsers(prev => prev.map(user => user.id === userId ? { ...user, role } : user))
+      setUsers(prev => prev.map(user => user.id === userId ? { ...user, ...payload.user } : user))
     } catch (error) {
       setUsersError(getErrorMessage(error))
     }
@@ -223,37 +193,9 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>User Management</CardTitle>
-              <CardDescription>Manage admin and viewer accounts.</CardDescription>
+              <CardDescription>Approve, reject, disable, and manage student/admin access.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <form onSubmit={inviteUser} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_160px_auto] lg:items-end">
-                <div className="grid gap-2">
-                  <Label htmlFor="invite-email">Email</Label>
-                  <Input
-                    id="invite-email"
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(event) => setInviteEmail(event.target.value)}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="invite-role">Role</Label>
-                  <select
-                    id="invite-role"
-                    value={inviteRole}
-                    onChange={(event) => setInviteRole(event.target.value as UserRole)}
-                    className="flex h-10 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
-                  >
-                    <option value="viewer">Viewer</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <Button type="submit" disabled={isInviting}>
-                  {isInviting ? "Inviting..." : "Invite User"}
-                </Button>
-              </form>
-
               {usersError && (
                 <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
                   {usersError}
@@ -266,6 +208,7 @@ export default function SettingsPage() {
                     <TableRow>
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -276,31 +219,57 @@ export default function SettingsPage() {
                         <TableCell>
                           <select
                             value={user.role}
-                            onChange={(event) => updateUserRole(user.id, event.target.value as UserRole)}
-                            className="h-9 rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 px-2 text-sm text-slate-200"
+                            onChange={(event) => updateUser(user.id, { role: event.target.value as UserRole })}
+                            className="h-9 rounded-md border border-gray-300 bg-gray-100/50 px-2 text-sm text-gray-900 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
                           >
-                            <option value="viewer">Viewer</option>
+                            <option value="student">Student</option>
                             <option value="admin">Admin</option>
                           </select>
                         </TableCell>
+                        <TableCell>
+                          <select
+                            value={user.status}
+                            onChange={(event) => updateUser(user.id, { status: event.target.value as UserStatus })}
+                            className="h-9 rounded-md border border-gray-300 bg-gray-100/50 px-2 text-sm text-gray-900 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="disabled">Disabled</option>
+                          </select>
+                        </TableCell>
                         <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                          <Button type="button" variant="ghost" size="icon" title="Approve student" onClick={() => void updateUser(user.id, { status: "approved" })}>
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden="true" />
+                            <span className="sr-only">Approve user</span>
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" title="Reject student" onClick={() => void updateUser(user.id, { status: "rejected" })}>
+                            <XCircle className="h-4 w-4 text-red-500" aria-hidden="true" />
+                            <span className="sr-only">Reject user</span>
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" title="Disable user" onClick={() => void updateUser(user.id, { status: "disabled" })}>
+                            <ShieldOff className="h-4 w-4 text-amber-500" aria-hidden="true" />
+                            <span className="sr-only">Disable user</span>
+                          </Button>
                           <Button type="button" variant="ghost" size="icon" title="Remove user" onClick={() => void removeUser(user.id)}>
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                             <span className="sr-only">Remove user</span>
                           </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
                     {!usersLoading && users.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={3} className="h-20 text-center text-sm text-gray-400 dark:text-slate-500">
+                        <TableCell colSpan={4} className="h-20 text-center text-sm text-gray-400 dark:text-slate-500">
                           No users found.
                         </TableCell>
                       </TableRow>
                     )}
                     {usersLoading && (
                       <TableRow>
-                        <TableCell colSpan={3} className="h-20 text-center text-sm text-gray-400 dark:text-slate-500">
+                        <TableCell colSpan={4} className="h-20 text-center text-sm text-gray-400 dark:text-slate-500">
                           Loading users...
                         </TableCell>
                       </TableRow>

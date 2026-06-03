@@ -2,6 +2,8 @@
 
 ---
 
+> Legacy note: this document still describes the pre-auth open-access architecture. The current app requires Supabase Auth, approval status checks, and role-based route access. Use `README.md`, `supabase/schema.sql`, and the current `lib/auth/*` implementation as the source of truth until this document is rewritten.
+
 ## 1. PROJECT OVERVIEW
 
 **TDS Management** is an academic services admin dashboard built with Next.js 16 (App Router) and Supabase. It allows academic staff to manage students, courses, issues, comments, reusable prompt templates, AI tool directories, workflow guides, and detailed per-student reports — all without requiring any user login or authentication.

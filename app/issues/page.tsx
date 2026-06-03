@@ -11,6 +11,7 @@ import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 import { useSearchStore } from "@/store/useSearchStore"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 import { getStatusVariant, getPriorityVariant } from "@/lib/utils"
+import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
 
 const PAGE_SIZE = 10
 
@@ -23,6 +24,7 @@ export default function IssuesPage() {
     String(page)
   )
   const issues = issuesPage.items
+  const { isAdmin } = useCurrentUserRole()
   const searchQuery = useSearchStore(state => state.searchQuery)
   const normalizedSearchQuery = searchQuery.trim().toLowerCase()
   const filteredIssues = issues.filter(issue => {
@@ -41,8 +43,8 @@ export default function IssuesPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Global Issues</h1>
-          <p className="text-slate-400">Track and manage student-reported issues.</p>
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">{isAdmin ? "Global Issues" : "My Issues"}</h1>
+          <p className="text-slate-400">{isAdmin ? "Track and manage student-reported issues." : "Track your own issue tickets and status updates."}</p>
         </div>
         <NewIssueDialog onSaved={refresh} />
       </div>

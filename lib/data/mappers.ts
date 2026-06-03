@@ -46,6 +46,7 @@ export function mapStudent(row: Row, issues: Issue[] = []): Student {
 
   return {
     id: studentId,
+    userId: row.user_id ? asString(row.user_id) : undefined,
     name: asString(row.name),
     email: row.email ? asString(row.email) : undefined,
     assignedCourses: joinedCourses.map(item => item.course?.code).filter(Boolean) as string[],

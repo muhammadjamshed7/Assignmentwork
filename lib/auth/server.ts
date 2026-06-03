@@ -1,4 +1,14 @@
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+
+import {
+  CurrentUserProfile,
+  isApprovedAdmin,
+  isUserRole,
+  isUserStatus,
+  UNAUTHORIZED_MESSAGE,
+} from "@/lib/auth/role-utils";
 
 function getSupabaseUrl() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -8,6 +18,16 @@ function getSupabaseUrl() {
   }
 
   return supabaseUrl;
+}
+
+function getAnonKey() {
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!anonKey) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured.");
+  }
+
+  return anonKey;
 }
 
 function getServiceRoleKey() {
@@ -20,7 +40,28 @@ function getServiceRoleKey() {
   return serviceRoleKey;
 }
 
-function createServiceRoleClient() {
+export async function createServerSupabaseClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient(getSupabaseUrl(), getAnonKey(), {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        } catch {
+          // Server Components cannot set cookies; route handlers and actions can.
+        }
+      },
+    },
+  });
+}
+
+export function createServiceRoleClient() {
   return createClient(getSupabaseUrl(), getServiceRoleKey(), {
     auth: {
       autoRefreshToken: false,
@@ -29,11 +70,56 @@ function createServiceRoleClient() {
   });
 }
 
-export async function requireAdminRequest() {
-  const serviceClient = createServiceRoleClient();
+export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !userData.user) {
+    return null;
+  }
+
+  const { data: roleRow, error: roleError } = await supabase
+    .from("user_roles")
+    .select("user_id, email, role, status, student_id")
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+
+  if (roleError) {
+    throw roleError;
+  }
+
+  const role = isUserRole(roleRow?.role) ? roleRow.role : "student";
+  const status = isUserStatus(roleRow?.status) ? roleRow.status : "pending";
 
   return {
-    user: { id: "open-access" },
-    supabase: serviceClient,
+    userId: userData.user.id,
+    email: roleRow?.email || userData.user.email || "",
+    role,
+    status,
+    studentId: typeof roleRow?.student_id === "string" ? roleRow.student_id : null,
+  };
+}
+
+export async function requireApprovedUser() {
+  const profile = await getCurrentUserProfile();
+
+  if (!profile || profile.status !== "approved") {
+    throw new Error("Approved login is required.");
+  }
+
+  return profile;
+}
+
+export async function requireAdminRequest() {
+  const profile = await getCurrentUserProfile();
+
+  if (!profile || !isApprovedAdmin(profile)) {
+    throw new Error(UNAUTHORIZED_MESSAGE);
+  }
+
+  return {
+    user: { id: profile.userId, email: profile.email },
+    profile,
+    supabase: createServiceRoleClient(),
   };
 }

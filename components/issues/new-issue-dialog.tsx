@@ -50,19 +50,19 @@ type NewIssueDialogProps = {
 }
 
 const selectClassName =
-  "flex h-10 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+  "flex h-10 w-full rounded-md border border-gray-300 bg-gray-100/50 px-3 py-2 text-sm text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
 
 export function NewIssueDialog({ onIssueCreated, onSaved, students: externalStudents }: NewIssueDialogProps) {
-  const { isAdmin } = useCurrentUserRole()
+  const { isAdmin, isStudent } = useCurrentUserRole()
 
-  if (!isAdmin) {
+  if (!isAdmin && !isStudent) {
     return null
   }
 
-  return <NewIssueDialogContent onIssueCreated={onIssueCreated} onSaved={onSaved} externalStudents={externalStudents} />
+  return <NewIssueDialogContent onIssueCreated={onIssueCreated} onSaved={onSaved} externalStudents={externalStudents} isAdmin={isAdmin} />
 }
 
-function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents }: NewIssueDialogProps & { externalStudents?: Student[] }) {
+function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents, isAdmin }: NewIssueDialogProps & { externalStudents?: Student[]; isAdmin: boolean }) {
   const { data: fetchedStudents, refresh } = useSupabaseQuery(listStudents, [], ["students", "student_courses"])
   const students = externalStudents ?? fetchedStudents
   const { addToast } = useToastStore()
@@ -152,7 +152,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents }: Ne
       <DialogTrigger asChild>
         <Button type="button" className="gap-2">
           <PlusCircle className="h-4 w-4" aria-hidden="true" />
-          New Issue
+          {isAdmin ? "New Issue" : "New Ticket"}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
@@ -163,6 +163,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents }: Ne
           </DialogHeader>
 
           <div className="grid gap-4 sm:grid-cols-2">
+            {isAdmin && (
             <div className="grid gap-2">
               <Label htmlFor="new-issue-student">Student</Label>
               <select
@@ -180,6 +181,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents }: Ne
                 ))}
               </select>
             </div>
+            )}
 
             <div className="grid gap-2">
               <Label htmlFor="new-issue-category">Category</Label>
@@ -213,6 +215,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents }: Ne
               </select>
             </div>
 
+            {isAdmin && (
             <div className="grid gap-2">
               <Label htmlFor="new-issue-status">Status</Label>
               <select
@@ -228,6 +231,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents }: Ne
                 ))}
               </select>
             </div>
+            )}
           </div>
 
           <div className="grid gap-2">
@@ -242,6 +246,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents }: Ne
             />
           </div>
 
+          {isAdmin && (
           <div className="grid gap-2">
             <Label htmlFor="new-issue-admin-comment">Admin Comment</Label>
             <Textarea
@@ -252,6 +257,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents }: Ne
               className="min-h-[90px]"
             />
           </div>
+          )}
 
           {formError && <p className="text-sm text-red-400">{formError}</p>}
 

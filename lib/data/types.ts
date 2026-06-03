@@ -34,6 +34,7 @@ export interface Course {
 
 export interface Student {
   id: string;
+  userId?: string;
   name: string;
   email?: string;
   assignedCourses: string[];

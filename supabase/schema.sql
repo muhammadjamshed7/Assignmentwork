@@ -66,6 +66,7 @@ create table if not exists public.courses (
 
 create table if not exists public.students (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid unique references auth.users(id) on delete set null,
   name text not null,
   email text unique,
   assigned_trainer text not null default 'Unassigned',
@@ -133,10 +134,31 @@ create table if not exists public.ai_tools (
 
 create table if not exists public.user_roles (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  role text not null check (role in ('admin', 'viewer')),
+  email text not null,
+  role text not null check (role in ('admin', 'student')),
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'disabled')),
+  student_id uuid unique references public.students(id) on delete set null,
+  approved_by uuid references auth.users(id) on delete set null,
+  approved_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.students add column if not exists user_id uuid unique references auth.users(id) on delete set null;
+alter table public.user_roles add column if not exists email text;
+alter table public.user_roles add column if not exists status text not null default 'pending';
+alter table public.user_roles add column if not exists student_id uuid unique references public.students(id) on delete set null;
+alter table public.user_roles add column if not exists approved_by uuid references auth.users(id) on delete set null;
+alter table public.user_roles add column if not exists approved_at timestamptz;
+alter table public.user_roles drop constraint if exists user_roles_role_check;
+alter table public.user_roles add constraint user_roles_role_check check (role in ('admin', 'student'));
+alter table public.user_roles drop constraint if exists user_roles_status_check;
+alter table public.user_roles add constraint user_roles_status_check check (status in ('pending', 'approved', 'rejected', 'disabled'));
+update public.user_roles set role = 'student' where role = 'viewer';
+update public.user_roles set email = auth_users.email
+from auth.users auth_users
+where public.user_roles.user_id = auth_users.id and public.user_roles.email is null;
+alter table public.user_roles alter column email set not null;
 
 create or replace function public.current_user_role()
 returns text
@@ -146,6 +168,46 @@ security definer
 set search_path = public
 as $$
   select role from public.user_roles where user_id = auth.uid() limit 1
+$$;
+
+create or replace function public.current_user_status()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select status from public.user_roles where user_id = auth.uid() limit 1
+$$;
+
+create or replace function public.current_student_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select student_id from public.user_roles where user_id = auth.uid() limit 1
+$$;
+
+create or replace function public.is_approved_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.current_user_role() = 'admin' and public.current_user_status() = 'approved', false)
+$$;
+
+create or replace function public.is_approved_student()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.current_user_role() = 'student' and public.current_user_status() = 'approved', false)
 $$;
 
 -- 5. Student rollup helper
@@ -287,6 +349,8 @@ create index if not exists idx_comments_student_id on public.comments(student_id
 create index if not exists idx_comments_issue_id on public.comments(issue_id);
 create index if not exists idx_prompts_category on public.prompts(category);
 create index if not exists idx_prompts_related_course_id on public.prompts(related_course_id);
+create index if not exists idx_students_user_id on public.students(user_id);
+create index if not exists idx_user_roles_role_status on public.user_roles(role, status);
 
 -- 8. Row level security
 grant usage on schema public to postgres, anon, authenticated, service_role;
@@ -322,8 +386,16 @@ begin
     execute format('drop policy if exists "Admin insert" on public.%I', table_name);
     execute format('drop policy if exists "Admin update" on public.%I', table_name);
     execute format('drop policy if exists "Admin delete" on public.%I', table_name);
-
-    execute format('create policy "Allow public app access" on public.%I for all to anon, authenticated using (true) with check (true)', table_name);
+    execute format('drop policy if exists "Approved admin all" on public.%I', table_name);
+    execute format('drop policy if exists "Approved student read assigned courses" on public.%I', table_name);
+    execute format('drop policy if exists "Approved student read own student" on public.%I', table_name);
+    execute format('drop policy if exists "Approved student read own enrollments" on public.%I', table_name);
+    execute format('drop policy if exists "Approved student read own issues" on public.%I', table_name);
+    execute format('drop policy if exists "Approved student create own issues" on public.%I', table_name);
+    execute format('drop policy if exists "Approved student read own comments" on public.%I', table_name);
+    execute format('drop policy if exists "Approved student create own comments" on public.%I', table_name);
+    execute format('drop policy if exists "Approved students read prompts" on public.%I', table_name);
+    execute format('drop policy if exists "Approved students read ai tools" on public.%I', table_name);
   end loop;
 end $$;
 
@@ -331,13 +403,72 @@ drop policy if exists "Authenticated read own role or admin" on public.user_role
 drop policy if exists "Admin insert roles" on public.user_roles;
 drop policy if exists "Admin update roles" on public.user_roles;
 drop policy if exists "Admin delete roles" on public.user_roles;
+drop policy if exists "Users read own role or admin" on public.user_roles;
+drop policy if exists "Admin manage roles" on public.user_roles;
 
-create policy "Allow public role access"
+create policy "Users read own role or admin"
+on public.user_roles
+for select
+to authenticated
+using (user_id = auth.uid() or public.is_approved_admin());
+
+create policy "Admin manage roles"
 on public.user_roles
 for all
-to anon, authenticated
-using (true)
-with check (true);
+to authenticated
+using (public.is_approved_admin())
+with check (public.is_approved_admin());
+
+create policy "Approved admin all" on public.courses for all to authenticated using (public.is_approved_admin()) with check (public.is_approved_admin());
+create policy "Approved admin all" on public.students for all to authenticated using (public.is_approved_admin()) with check (public.is_approved_admin());
+create policy "Approved admin all" on public.student_courses for all to authenticated using (public.is_approved_admin()) with check (public.is_approved_admin());
+create policy "Approved admin all" on public.issues for all to authenticated using (public.is_approved_admin()) with check (public.is_approved_admin());
+create policy "Approved admin all" on public.comments for all to authenticated using (public.is_approved_admin()) with check (public.is_approved_admin());
+create policy "Approved admin all" on public.prompts for all to authenticated using (public.is_approved_admin()) with check (public.is_approved_admin());
+create policy "Approved admin all" on public.ai_tools for all to authenticated using (public.is_approved_admin()) with check (public.is_approved_admin());
+
+create policy "Approved student read assigned courses"
+on public.courses for select to authenticated
+using (
+  public.is_approved_student()
+  and exists (
+    select 1 from public.student_courses sc
+    where sc.course_id = courses.id
+    and sc.student_id = public.current_student_id()
+  )
+);
+
+create policy "Approved student read own student"
+on public.students for select to authenticated
+using (public.is_approved_student() and id = public.current_student_id());
+
+create policy "Approved student read own enrollments"
+on public.student_courses for select to authenticated
+using (public.is_approved_student() and student_id = public.current_student_id());
+
+create policy "Approved student read own issues"
+on public.issues for select to authenticated
+using (public.is_approved_student() and student_id = public.current_student_id());
+
+create policy "Approved student create own issues"
+on public.issues for insert to authenticated
+with check (public.is_approved_student() and student_id = public.current_student_id());
+
+create policy "Approved student read own comments"
+on public.comments for select to authenticated
+using (public.is_approved_student() and student_id = public.current_student_id());
+
+create policy "Approved student create own comments"
+on public.comments for insert to authenticated
+with check (public.is_approved_student() and student_id = public.current_student_id());
+
+create policy "Approved students read prompts"
+on public.prompts for select to authenticated
+using (public.is_approved_student());
+
+create policy "Approved students read ai tools"
+on public.ai_tools for select to authenticated
+using (public.is_approved_student());
 
 -- 9. Realtime
 do $$

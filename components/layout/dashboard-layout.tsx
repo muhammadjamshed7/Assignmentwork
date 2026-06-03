@@ -19,29 +19,37 @@ import {
   FileText,
   ClipboardList,
   Bell,
+  LogOut,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { PwaInstallButton } from "@/components/pwa-install-button"
+import { createSupabaseClient } from "@/lib/supabase"
 
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Writers", href: "/students", icon: Users },
-  { name: "Reports", href: "/reports", icon: FileText },
-  { name: "Courses", href: "/courses", icon: BookOpen },
-  { name: "Prompts", href: "/prompts", icon: ClipboardList },
-  { name: "Workflow", href: "/workflow", icon: Workflow },
-  { name: "Issues", href: "/issues", icon: Wrench },
-  { name: "Comments & Tickets", href: "/comments", icon: MessageSquare },
-  { name: "AI Tools", href: "/tools", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin"] },
+  { name: "Writers", href: "/students", icon: Users, roles: ["admin"] },
+  { name: "Reports", href: "/reports", icon: FileText, roles: ["admin"] },
+  { name: "Courses", href: "/courses", icon: BookOpen, roles: ["admin", "student"] },
+  { name: "Prompts", href: "/prompts", icon: ClipboardList, roles: ["admin", "student"] },
+  { name: "Workflow", href: "/workflow", icon: Workflow, roles: ["admin", "student"] },
+  { name: "Issues", href: "/issues", icon: Wrench, roles: ["admin", "student"] },
+  { name: "Comments & Tickets", href: "/comments", icon: MessageSquare, roles: ["admin", "student"] },
+  { name: "AI Tools", href: "/tools", icon: BarChart3, roles: ["admin", "student"] },
+  { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
 ]
+
+const publicPaths = new Set(["/login", "/register", "/pending-approval", "/access-denied"])
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+
+  if (publicPaths.has(pathname)) {
+    return <>{children}</>
+  }
 
   return <DashboardShell pathname={pathname}>{children}</DashboardShell>
 }
@@ -49,6 +57,37 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 function DashboardShell({ children, pathname }: { children: React.ReactNode; pathname: string }) {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
+  const [profile, setProfile] = React.useState<{ email: string; role: "admin" | "student" } | null>(null)
+
+  React.useEffect(() => {
+    let mounted = true
+
+    async function loadProfile() {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" })
+        const payload = await response.json()
+        if (mounted && response.ok) setProfile(payload.user)
+      } catch {
+        if (mounted) setProfile(null)
+      }
+    }
+
+    void loadProfile()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const visibleNavigation = navigation.filter(item => {
+    if (!profile) return false
+    return item.roles.includes(profile.role)
+  })
+
+  async function signOut() {
+    await createSupabaseClient()?.auth.signOut()
+    window.location.href = "/login"
+  }
 
   function handleSidebarToggle() {
     if (window.matchMedia("(min-width: 1024px)").matches) {
@@ -110,9 +149,12 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
                 <span className="max-w-52 truncate text-sm font-medium text-gray-950 dark:text-white">
                   Admin workspace
                 </span>
-                <span className="text-xs text-gray-400 dark:text-slate-500">Local access mode</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">{profile?.role === "admin" ? "Admin access" : "Student access"}</span>
               </div>
             </div>
+            <Button type="button" variant="ghost" size="icon" title="Sign out" aria-label="Sign out" onClick={signOut}>
+              <LogOut className="h-5 w-5" aria-hidden="true" />
+            </Button>
           </div>
         </div>
       </header>
@@ -154,7 +196,7 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
 
           <nav className="flex flex-1 flex-col overflow-y-auto px-3 py-5 lg:py-6">
             <ul role="list" className="flex flex-1 flex-col gap-y-1">
-              {navigation.map((item) => (
+              {visibleNavigation.map((item) => (
                 <li key={item.name}>
                   <Link
                     href={item.href}
@@ -192,8 +234,8 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
                 O
               </div>
               <div className={cn("min-w-0", sidebarCollapsed && "lg:sr-only")}>
-                <p className="truncate text-sm font-medium text-white">Admin workspace</p>
-                <p className="truncate text-xs text-gray-400 dark:text-slate-500">Local access</p>
+                <p className="truncate text-sm font-medium text-white">{profile?.email ?? "Signed in"}</p>
+                <p className="truncate text-xs capitalize text-gray-400 dark:text-slate-500">{profile?.role ?? "loading"}</p>
               </div>
             </div>
           </div>

@@ -2,7 +2,8 @@ import { requireSupabase } from "@/lib/data/client";
 import { mapComment } from "@/lib/data/mappers";
 import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
 import { Comment, PaginatedResult, PaginationOptions, Role } from "@/lib/data/types";
-import { assertAdmin } from "@/lib/auth/roles";
+import { assertAdmin, getCurrentProfileFromApi } from "@/lib/auth/roles";
+import { isApprovedAdmin, isApprovedStudent } from "@/lib/auth/role-utils";
 
 export async function listComments(): Promise<Comment[]> {
   const supabase = requireSupabase();
@@ -53,7 +54,15 @@ export async function createComment(input: {
   role: Role;
   text: string;
 }) {
-  await assertAdmin();
+  const profile = await getCurrentProfileFromApi();
+  const canCreateAsAdmin = isApprovedAdmin(profile);
+  const canCreateAsStudent = Boolean(
+    profile && isApprovedStudent(profile) && profile.studentId === input.studentId && input.role === "Student"
+  );
+
+  if (!canCreateAsAdmin && !canCreateAsStudent) {
+    throw new Error("You can only comment on your own approved ticket.");
+  }
 
   const supabase = requireSupabase();
   const text = input.text.trim();

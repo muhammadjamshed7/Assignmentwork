@@ -9,9 +9,9 @@ import {
 } from "@react-pdf/renderer"
 import { format } from "date-fns"
 
-import { requireSupabase } from "@/lib/data/client"
 import { mapComment, mapIssue, mapStudent } from "@/lib/data/mappers"
 import { Comment, Issue, Student } from "@/lib/data/types"
+import { createServiceRoleClient, requireApprovedUser } from "@/lib/auth/server"
 
 export const runtime = "nodejs"
 
@@ -331,13 +331,14 @@ function reportFileName(studentName: string) {
 }
 
 async function getReportData(studentId: string) {
-  const supabase = requireSupabase()
+  const supabase = createServiceRoleClient()
 
   const [studentResult, issuesResult, commentsResult] = await Promise.all([
     supabase
       .from("students")
       .select(`
         id,
+        user_id,
         name,
         email,
         assigned_trainer,
@@ -387,6 +388,12 @@ export async function GET(
 ) {
   try {
     const { studentId } = await context.params
+    const profile = await requireApprovedUser()
+
+    if (profile.role === "student" && profile.studentId !== studentId) {
+      return Response.json({ error: "You can only access your own report." }, { status: 403 })
+    }
+
     const result = await getReportData(studentId)
 
     if (!result) {

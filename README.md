@@ -2,7 +2,7 @@
 
 TDS Management is a Next.js App Router dashboard for managing academic service work: students, courses, issues, comments, prompts, reports, approved AI tools, settings, and an assignment workflow prompt guide.
 
-The app currently runs in open-access workspace mode. There is no login page or route guard; routes render directly, role helpers resolve to admin-compatible access, and Supabase RLS policies allow anon/authenticated access to the app tables.
+The app requires Supabase Auth login. Admin users can manage the full workspace, while student users register into a pending state and must be approved before accessing student-allowed pages.
 
 For deeper architecture notes, see [SYSTEM_FLOW.md](./SYSTEM_FLOW.md).
 
@@ -44,6 +44,26 @@ psql $DATABASE_URL < supabase/schema.sql
 psql $DATABASE_URL < supabase/seed.sql
 ```
 
+If you are upgrading an existing database, apply the auth approval migration first:
+
+```bash
+psql $DATABASE_URL < supabase/auth-approval-migration.sql
+```
+
+Create or update the default admin account:
+
+```bash
+npm run seed:admin
+```
+
+If SQL Editor setup is needed instead, run `supabase/00-reset-admin-auth.sql` first, then `supabase/01-enable-admin-auth.sql`.
+
+Default admin login:
+
+```text
+admin@tds.com / admin123
+```
+
 Start the dev server:
 
 ```bash
@@ -53,7 +73,7 @@ npm run dev
 Open:
 
 ```text
-http://localhost:3000
+http://localhost:3000/login
 ```
 
 On Windows PowerShell, if `npm.ps1` is blocked by execution policy, run scripts through `npm.cmd`, for example:
@@ -68,10 +88,9 @@ npm.cmd run build
 | File | Purpose |
 | --- | --- |
 | `supabase/schema.sql` | Main app schema: tables, enums, triggers, indexes, grants, RLS, realtime publication. |
-| `schema.sql` | Root copy of the same schema for convenience. Keep it aligned with `supabase/schema.sql`. |
 | `supabase/seed.sql` | Seeds only the approved baseline AI tool records. No demo students, courses, issues, comments, or prompts. |
-| `supabase/full-reset.sql` | Drops app tables, recreates schema, and seeds approved AI tools in one SQL Editor run. |
-| `supabase/reset-current-app.sql` | Drops and recreates the public schema for a completely empty current app schema. |
+| `supabase/full-reset.sql` | Deprecated reset helper from the pre-auth schema. Use `supabase/schema.sql` plus `supabase/seed.sql` for the current auth-enabled app. |
+| `supabase/reset-current-app.sql` | Deprecated reset helper from the pre-auth schema. Use `supabase/schema.sql` for the current auth-enabled app. |
 | `supabase/clear-data.sql` | Truncates app data while preserving schema. Run `seed.sql` afterward if you want baseline AI tools back. |
 
 There is also a helper script for reseeding approved tools from `.env.local`:
@@ -200,5 +219,5 @@ npm run start
 - App data should flow through `lib/data/*` helpers rather than direct page-level Supabase queries where possible.
 - `useSupabaseQuery()` handles loading state, error state, refresh, and realtime subscriptions.
 - Zustand is not the source of app records; it is used for global search and toast notifications.
-- Keep `schema.sql` and `supabase/schema.sql` identical when changing database schema.
+- Keep database schema changes in `supabase/schema.sql`.
 - Keep seed data limited to approved baseline AI tool records unless real operational data is intentionally being added.

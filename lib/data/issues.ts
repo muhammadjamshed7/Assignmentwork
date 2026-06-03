@@ -2,7 +2,8 @@ import { requireSupabase } from "@/lib/data/client";
 import { mapIssue } from "@/lib/data/mappers";
 import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
 import { Issue, IssueCategory, IssueStatus, PaginatedResult, PaginationOptions, PriorityLevel } from "@/lib/data/types";
-import { assertAdmin } from "@/lib/auth/roles";
+import { assertAdmin, getCurrentProfileFromApi } from "@/lib/auth/roles";
+import { isApprovedAdmin, isApprovedStudent } from "@/lib/auth/role-utils";
 
 export async function listIssues(): Promise<Issue[]> {
   const supabase = requireSupabase();
@@ -47,7 +48,13 @@ export async function createIssue(input: {
   status: IssueStatus;
   priority: PriorityLevel;
 }) {
-  await assertAdmin();
+  const profile = await getCurrentProfileFromApi();
+  const canCreateAsAdmin = isApprovedAdmin(profile);
+  const canCreateAsStudent = Boolean(profile && isApprovedStudent(profile) && profile.studentId === input.studentId);
+
+  if (!canCreateAsAdmin && !canCreateAsStudent) {
+    throw new Error("You can only create issues for your own approved account.");
+  }
 
   const supabase = requireSupabase();
   const description = input.description.trim();

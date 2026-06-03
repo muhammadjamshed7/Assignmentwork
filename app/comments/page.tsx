@@ -45,7 +45,7 @@ export default function CommentsPage() {
   const error = baseError || commentsError
   const refresh = () => Promise.all([baseRefresh(), commentsRefresh()]).then(() => {})
   const { addToast } = useToastStore()
-  const { isAdmin } = useCurrentUserRole()
+  const { isAdmin, isStudent } = useCurrentUserRole()
   
   // New reply state
   const [replyText, setReplyText] = useState("")
@@ -77,15 +77,17 @@ export default function CommentsPage() {
     setFormError("")
 
     try {
+      const commentRole: Role = isAdmin ? selectedRole : "Student"
+
       await createComment({
         studentId: relatedStudent?.id || '',
         issueId: activeIssueId,
-        authorName: selectedRole === 'Admin' ? 'Admin User' : (relatedStudent?.name || 'Student'),
-        role: selectedRole,
+        authorName: commentRole === 'Admin' ? 'Admin User' : (relatedStudent?.name || 'Student'),
+        role: commentRole,
         text: replyText
       })
 
-      if (selectedRole === 'Admin' && nextStatus) {
+      if (commentRole === 'Admin' && nextStatus) {
         await updateIssueStatus(activeIssueId, nextStatus)
       }
 
@@ -282,9 +284,10 @@ export default function CommentsPage() {
               </div>
 
               {/* Reply Box */}
-              {isAdmin && (
+              {(isAdmin || isStudent) && (
               <div className="p-4 border-t border-gray-200 dark:border-white/5 bg-white/80 dark:bg-slate-900/80 shrink-0">
                 <form onSubmit={handleSubmitReply} className="flex flex-col gap-3">
+                  {isAdmin && (
                   <div className="flex flex-col gap-2 rounded-t-md border border-b-0 border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 p-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex flex-wrap items-center gap-2 px-2 sm:gap-4">
                        <label className="text-xs font-semibold text-gray-400 dark:text-slate-500">Posting as:</label>
@@ -314,11 +317,12 @@ export default function CommentsPage() {
                       </div>
                     )}
                   </div>
+                  )}
                   <textarea 
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder="Type your response here..." 
-                    className="w-full min-h-[100px] p-3 rounded-b-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 text-slate-200 placeholder:text-gray-400 dark:text-slate-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none text-sm"
+                    className="w-full min-h-[100px] p-3 rounded-md border border-gray-300 bg-gray-100/50 text-gray-900 placeholder:text-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 resize-none text-sm dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200 dark:placeholder:text-slate-500"
                   />
                   <div className="flex justify-end">
                     <Button type="submit" disabled={isSaving || !replyText.trim()}>{isSaving ? "Posting..." : "Reply"}</Button>

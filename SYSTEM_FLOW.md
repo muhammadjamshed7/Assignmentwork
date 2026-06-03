@@ -1,5 +1,7 @@
 # System Flow
 
+> Legacy note: this document still describes the pre-auth open-access flow. The current app requires Supabase Auth, approval status checks, and role-based route access. Use `README.md`, `supabase/schema.sql`, and the current `lib/auth/*` implementation as the source of truth until this document is rewritten.
+
 This document explains the current TDS Management academic services dashboard flow, including how pages, Supabase data modules, realtime refreshes, database triggers, and shared UI state connect.
 
 ## System Overview

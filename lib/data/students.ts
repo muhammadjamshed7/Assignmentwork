@@ -11,6 +11,7 @@ export async function listStudents(): Promise<Student[]> {
       .from("students")
       .select(`
         id,
+        user_id,
         name,
         email,
         assigned_trainer,
@@ -42,6 +43,7 @@ export async function listStudentsPage(options: PaginationOptions = {}): Promise
       .from("students")
       .select(`
         id,
+        user_id,
         name,
         email,
         assigned_trainer,
@@ -73,6 +75,7 @@ export async function listStudentById(studentId: string): Promise<Student | null
       .from("students")
       .select(`
         id,
+        user_id,
         name,
         email,
         assigned_trainer,

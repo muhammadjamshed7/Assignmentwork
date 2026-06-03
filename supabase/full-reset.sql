@@ -5,6 +5,11 @@
 -- =========================================================
 begin;
 
+do $$
+begin
+  raise exception 'Deprecated full-reset.sql uses the pre-auth open-access schema. Use supabase/schema.sql and supabase/seed.sql instead.';
+end $$;
+
 -- Drop ALL app tables (FK-safe order with cascade)
 drop table if exists public.student_courses cascade;
 drop table if exists public.comments cascade;
