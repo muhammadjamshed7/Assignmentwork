@@ -2,7 +2,7 @@
 
 TDS Management is a Next.js App Router dashboard for managing academic service work: students, courses, issues, comments, prompts, reports, approved AI tools, settings, and an assignment workflow prompt guide.
 
-The app requires Supabase Auth login. Admin users can manage the full workspace, while student users register into a pending state and must be approved before accessing student-allowed pages.
+The app requires Supabase Auth login. Admin users can manage the full workspace, while writer expert users register into a pending state and must be approved before accessing writer expert-allowed pages.
 
 For deeper architecture notes, see [SYSTEM_FLOW.md](./SYSTEM_FLOW.md).
 
@@ -61,7 +61,7 @@ If SQL Editor setup is needed instead, run `supabase/00-reset-admin-auth.sql` fi
 Default admin login:
 
 ```text
-admin@tds.com / admin123
+admin@tds.com / khan123office
 ```
 
 Start the dev server:
@@ -70,7 +70,7 @@ Start the dev server:
 npm run dev
 ```
 
-Open student login:
+Open writer expert login:
 
 ```text
 http://localhost:3000/login

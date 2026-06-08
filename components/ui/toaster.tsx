@@ -16,10 +16,10 @@ export function Toaster() {
           {toast.type === 'error' && <AlertCircle className="h-5 w-5 text-red-400 shrink-0" />}
           {toast.type === 'info' && <Info className="h-5 w-5 text-blue-400 shrink-0" />}
           <div className="flex-1 mt-0.5">
-            <h3 className="font-semibold text-sm leading-none tracking-tight text-slate-100">{toast.title}</h3>
+            <h3 className="font-semibold text-sm leading-none tracking-tight text-gray-900 dark:text-slate-100">{toast.title}</h3>
             {toast.description && <p className="text-xs text-gray-500 dark:text-slate-400 mt-1.5">{toast.description}</p>}
           </div>
-          <button onClick={() => removeToast(toast.id)} className="text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-slate-300 transition-colors">
+          <button type="button" onClick={() => removeToast(toast.id)} className="text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-slate-300 transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>

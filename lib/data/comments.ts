@@ -5,17 +5,6 @@ import { Comment, PaginatedResult, PaginationOptions, Role } from "@/lib/data/ty
 import { assertAdmin, getCurrentProfileFromApi } from "@/lib/auth/roles";
 import { isApprovedAdmin, isApprovedStudent } from "@/lib/auth/role-utils";
 
-export async function listComments(): Promise<Comment[]> {
-  const supabase = requireSupabase();
-  const { data, error } = await supabase
-    .from("comments")
-    .select("id, student_id, issue_id, author_name, role, text, created_at, updated_at")
-    .order("created_at", { ascending: true });
-
-  if (error) throw error;
-  return (data ?? []).map(mapComment);
-}
-
 export async function listCommentsByStudentId(studentId: string): Promise<Comment[]> {
   const supabase = requireSupabase();
   const { data, error } = await supabase
@@ -68,7 +57,7 @@ export async function createComment(input: {
   const text = input.text.trim();
 
   if (!input.studentId || !text) {
-    throw new Error("A student and comment text are required.");
+    throw new Error("A writer and comment text are required.");
   }
 
   const { data, error } = await supabase

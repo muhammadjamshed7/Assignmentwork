@@ -408,9 +408,6 @@ export const workflowCards = [
   },
 ]
 
-export type WorkflowSlug = (typeof workflowCards)[number]["slug"]
-
 export function getWorkflowCard(slug: string) {
   return workflowCards.find(workflow => workflow.slug === slug)
 }
-

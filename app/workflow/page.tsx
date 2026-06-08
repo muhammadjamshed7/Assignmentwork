@@ -29,7 +29,7 @@ export default function WorkflowPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {workflowCards.map(card => {
-          const Icon = workflowIcons[card.slug]
+          const Icon = workflowIcons[card.slug] ?? HelpCircle
 
           return (
             <Card key={card.slug} className="group flex min-h-[280px] flex-col overflow-hidden">

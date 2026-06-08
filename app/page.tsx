@@ -9,7 +9,8 @@ import { formatDistanceToNow } from "date-fns"
 import { useMemo } from "react"
 import { getDashboardData } from "@/lib/data/dashboard"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
-import { getStatusVariant, getPriorityVariant } from "@/lib/utils"
+import { getPriorityVariant } from "@/lib/utils"
+import { writerStatusBadgeVariant, writerStatusFromOverallStatus } from "@/lib/data/writer-status"
 
 const IssueCategoryChart = dynamic(
   () => import("@/components/dashboard/charts").then(mod => mod.IssueCategoryChart),
@@ -47,7 +48,7 @@ export default function DashboardPage() {
   const escalatedIssues = useMemo(() => issues.filter(i => i.status === 'Escalated').length, [issues])
   const resolutionRate = issues.length > 0 ? Math.round((resolvedIssues / issues.length) * 100) : 0
   const activeWriterRate = students.length > 0
-    ? Math.round((students.filter(student => student.overallStatus !== 'Resolved').length / students.length) * 100)
+    ? Math.round((students.filter(student => writerStatusFromOverallStatus(student.overallStatus) === "Active").length / students.length) * 100)
     : 0
 
   const stats = [
@@ -187,9 +188,11 @@ export default function DashboardPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusVariant(student.overallStatus)}>
-                      {student.overallStatus}
-                    </Badge>
+                    {(() => {
+                      const writerStatus = writerStatusFromOverallStatus(student.overallStatus)
+
+                      return <Badge variant={writerStatusBadgeVariant(writerStatus)}>{writerStatus}</Badge>
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Badge variant={getPriorityVariant(student.priority)}>

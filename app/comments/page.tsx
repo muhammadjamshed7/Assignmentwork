@@ -82,7 +82,7 @@ export default function CommentsPage() {
       await createComment({
         studentId: relatedStudent?.id || '',
         issueId: activeIssueId,
-        authorName: commentRole === 'Admin' ? 'Admin User' : (relatedStudent?.name || 'Student'),
+        authorName: commentRole === 'Admin' ? 'Admin User' : (relatedStudent?.name || 'Writer'),
         role: commentRole,
         text: replyText
       })
@@ -297,7 +297,7 @@ export default function CommentsPage() {
                          className="text-xs bg-transparent border-0 font-medium text-gray-900 dark:text-white focus:ring-0 cursor-pointer"
                        >
                          <option value="Admin">Admin</option>
-                         <option value="Student">Student</option>
+                         <option value="Student">Writer</option>
                        </select>
                     </div>
                     {selectedRole === 'Admin' && (

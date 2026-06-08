@@ -155,7 +155,7 @@ export default function CoursesPage() {
               <DialogHeader>
                 <DialogTitle>{editingCourseId ? "Edit Course" : "Add Course"}</DialogTitle>
                 <DialogDescription>
-                  Create a course code and title for student assignments.
+                  Create a course code and title for writer assignments.
                 </DialogDescription>
               </DialogHeader>
 
@@ -214,7 +214,7 @@ export default function CoursesPage() {
               <TableRow>
                 <TableHead>Course Code</TableHead>
                 <TableHead>Course Title</TableHead>
-                <TableHead className="text-right">Enrolled Students</TableHead>
+                <TableHead className="text-right">Enrolled Writers</TableHead>
                 {isAdmin && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
@@ -266,7 +266,7 @@ export default function CoursesPage() {
           <DialogHeader>
             <DialogTitle>Delete Course</DialogTitle>
             <DialogDescription>
-              {deletingCourse ? `Remove "${deletingCourse.code}"? Student assignments will be removed and related prompts will become course-agnostic.` : "Remove this course?"}
+              {deletingCourse ? `Remove "${deletingCourse.code}"? Writer assignments will be removed and related prompts will become course-agnostic.` : "Remove this course?"}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

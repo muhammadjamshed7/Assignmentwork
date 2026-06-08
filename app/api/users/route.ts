@@ -15,7 +15,7 @@ export async function GET() {
     if (usersError) throw usersError;
     if (rolesError) throw rolesError;
 
-    const rolesByUserId = new Map((roles ?? []).map(row => [row.user_id as string, row]));
+    const rolesByUserId = new Map((roles ?? []).map(row => [String(row.user_id), row]));
     const users = authUsers.users.map(user => {
       const roleRow = rolesByUserId.get(user.id);
       const role = roleRow?.role;
@@ -36,7 +36,7 @@ export async function GET() {
 
     return NextResponse.json({ users });
   } catch (error) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 403 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -75,6 +75,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ user: data.user });
   } catch (error) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 403 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

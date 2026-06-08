@@ -12,6 +12,7 @@ import { format } from "date-fns"
 import { mapComment, mapIssue, mapStudent } from "@/lib/data/mappers"
 import { Comment, Issue, Student } from "@/lib/data/types"
 import { createServiceRoleClient, requireApprovedUser } from "@/lib/auth/server"
+import { writerStatusFromOverallStatus } from "@/lib/data/writer-status"
 
 export const runtime = "nodejs"
 
@@ -279,25 +280,25 @@ function ReportDocument({
     {
       title: `${student.name} Report`,
       author: "TDS Management",
-      subject: "Student academic services report",
+      subject: "Writer academic services report",
     },
     h(
       Page,
       { size: "A4", style: styles.page },
-      h(Text, { style: styles.title }, "Student Report"),
+      h(Text, { style: styles.title }, "Writer Report"),
       h(Text, { style: styles.subtitle }, `Generated ${format(new Date(), "MMM d, yyyy h:mm a")}`),
       h(
         View,
         { style: styles.section },
-        h(Text, { style: styles.sectionTitle }, "Student Profile"),
+        h(Text, { style: styles.sectionTitle }, "Writer Profile"),
         h(
           View,
           { style: styles.profileGrid },
           profileItem("Name", student.name),
-          profileItem("Student ID", student.id),
+          profileItem("Writer ID", student.id),
           profileItem("Email", student.email ?? "Not recorded"),
           profileItem("Assigned Trainer", student.assignedTrainer),
-          profileItem("Overall Status", student.overallStatus),
+          profileItem("Status", writerStatusFromOverallStatus(student.overallStatus)),
           profileItem("Priority", student.priority),
           profileItem("Assigned Courses", student.assignedCourses.join(", ") || "None"),
           profileItem("Last Update", safeDate(student.lastUpdate))
@@ -326,7 +327,7 @@ function ReportDocument({
 }
 
 function reportFileName(studentName: string) {
-  const safeName = studentName.trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "") || "student"
+  const safeName = studentName.trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "") || "writer"
   return `Report-${safeName}.pdf`
 }
 
@@ -397,7 +398,7 @@ export async function GET(
     const result = await getReportData(studentId)
 
     if (!result) {
-      return Response.json({ error: "Student report not found." }, { status: 404 })
+      return Response.json({ error: "Writer report not found." }, { status: 404 })
     }
 
     const { student, studentIssues, studentComments } = result

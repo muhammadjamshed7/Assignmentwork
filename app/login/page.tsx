@@ -5,12 +5,12 @@ export default function LoginPage() {
     <LoginCard
       mode={{
         expectedRole: "student",
-        title: "Student Login",
-        description: "Use your approved student account to continue.",
-        roleError: "This login is for students. Admins must use /admin/login.",
+        title: "Writer Expert Login",
+        description: "Use your approved writer expert account to continue.",
+        roleError: "This login is for writer experts. Admins must use /admin/login.",
         alternateHref: "/register",
         alternateLabel: "Register here",
-        alternateText: "Student account not approved yet?",
+        alternateText: "Writer expert account not approved yet?",
       }}
     />
   );

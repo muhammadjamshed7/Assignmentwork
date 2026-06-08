@@ -287,7 +287,11 @@ Must be used only for refinement and readability improvement, not for academic m
   success_rate: 100,
 }))
 
-const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY || env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY is required to upsert tools. The anon key does not have write access.")
+}
+
+const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: {
     autoRefreshToken: false,
     persistSession: false,
@@ -304,4 +308,4 @@ if (error) {
   throw error
 }
 
-console.log(data.map(row => row.tool_name).join("\n"))
+console.log((data ?? []).map(row => row.tool_name).join("\n"))

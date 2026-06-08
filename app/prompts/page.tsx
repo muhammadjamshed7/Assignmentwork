@@ -1,8 +1,9 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import type { ReactNode } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { formatDistanceToNow } from "date-fns"
-import { BookOpen, ChevronDown, Copy, Eye, Pencil, PlusCircle, Search, Trash2 } from "lucide-react"
+import { BookOpen, ChevronDown, Copy, EllipsisVertical, Eye, Pencil, PlusCircle, Search, Share2, Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useToastStore } from "@/store/useToastStore"
 import { Prompt } from "@/lib/data/types"
-import { createPrompt, deletePrompt, listPromptsPage, updatePrompt } from "@/lib/data/prompts"
+import { createPrompt, deletePrompt, listPromptById, listPromptsPage, updatePrompt } from "@/lib/data/prompts"
 import { listCourses } from "@/lib/data/courses"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 import { getErrorMessage } from "@/lib/data/client"
@@ -31,6 +32,7 @@ import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 
 const PROMPT_CATEGORIES = [
+  "Voice and Image requirements",
   "Academic Planning",
   "Presentation Planning",
   "Cybersecurity",
@@ -67,6 +69,7 @@ const PAGE_SIZE = 10
 
 const SUBJECT_PROMPT_FILTERS = [
   "All",
+  "Voice and Image requirements",
   "Academic Planning",
   "Presentation Planning",
   "Cybersecurity",
@@ -77,6 +80,52 @@ const SUBJECT_PROMPT_FILTERS = [
 ]
 
 const subjectWisePrompts = [
+  {
+    title: "Voice and Image Requirements Prompt",
+    category: "Voice and Image requirements",
+    description:
+      "Use this prompt when assignment requirements arrive as images, Urdu text, Roman Urdu, English text, or voice-note transcription.",
+    tags: ["voice notes", "images", "Urdu", "Roman Urdu", "requirements clarification", "assignment brief"],
+    content: `I have received assignment requirements in different formats, including images, Urdu text, Roman Urdu, English text, and voice-note transcription. I will submit the requirements to you one by one.
+
+Your task at this stage is only to understand the requirements. Do not start solving the assignment yet.
+
+Follow these rules strictly:
+
+1. Do not make any assumptions from your side.
+2. If anything is unclear, missing, incomplete, or ambiguous, ask me cross-questions.
+3. If I provide Urdu or Roman Urdu text, understand it properly and respond in English.
+4. After each requirement, tell me clearly what you understood.
+5. Identify the assignment objective, required task, expected output, formatting requirements, citation/reference requirements, and any technical/setup/installation steps if mentioned.
+6. Do not skip any instruction.
+7. Do not add extra requirements that are not present in the provided material.
+8. Do not begin the final answer until all requirements are fully clarified.
+9. If I do not know the answers to your clarification questions, or if I am unsure about the expected output, guide me through the process step by step instead of stopping.
+10. If a task requires using any software, website, tool, or platform, explain every required action clearly.
+11. If I need to click somewhere, select an option, upload a file, open a menu, install something, configure a setting, or perform any technical step, guide me with proper arrows.
+12. Your guidance should be written like this where needed:
+
+Open the software → Click on “File” → Select “Upload” → Choose the required file → Click “Submit”
+
+13. Do not assume that I already know how to use the required software or tool.
+14. If there are multiple possible methods, ask me which method/tool I am using before giving software-specific instructions.
+15. If the assignment requires a specific output but I do not know what that output should look like, first explain the possible output format, then ask me to confirm which one is required.
+16. If I cannot confirm, proceed with the safest academically appropriate format and clearly state that this is based only on the provided requirement, not on an assumption.
+
+For every requirement I submit, respond in this structure:
+
+A. What I understood
+B. Main assignment objective
+C. Required output
+D. Formatting or style requirements
+E. Technical/setup/installation requirements, if any
+F. Missing or unclear information
+G. Cross-questions for clarification
+H. Step-by-step guidance needed from the user, if the user does not know the answer
+I. Software/tool navigation steps, if any, using proper arrows
+
+Once I confirm that all requirements are clear, then create the assignment step by step without missing any instruction. `,
+  },
   {
     title: "General Assignment Brief Analysis",
     category: "Academic Planning",
@@ -545,6 +594,32 @@ const selectClassName =
 type PromptFormState = typeof EMPTY_PROMPT_FORM
 type SubjectWisePrompt = (typeof subjectWisePrompts)[number]
 
+const isVoiceAndImagePrompt = (prompt?: Pick<SubjectWisePrompt, "category"> | null) =>
+  prompt?.category === "Voice and Image requirements"
+
+function createPromptSlug(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+function getSubjectPromptSlug(prompt: SubjectWisePrompt) {
+  return createPromptSlug(prompt.title)
+}
+
+function getUrlSearchParam(name: string) {
+  if (typeof window === "undefined") return null
+  return new URLSearchParams(window.location.search).get(name)
+}
+
+function getSharedSubjectPromptFromUrl() {
+  const subjectPromptSlug = getUrlSearchParam("subjectPrompt")
+  if (!subjectPromptSlug) return null
+
+  return subjectWisePrompts.find(prompt => getSubjectPromptSlug(prompt) === subjectPromptSlug) ?? null
+}
+
 function toPromptForm(prompt: Prompt): PromptFormState {
   return {
     title: prompt.title,
@@ -560,6 +635,218 @@ function parseTags(value: string) {
     .split(",")
     .map(tag => tag.trim())
     .filter(Boolean)
+}
+
+function WorkflowArrow() {
+  return <div className="my-3 text-center text-4xl font-bold leading-none text-blue-600">↓</div>
+}
+
+function WorkflowBox({
+  children,
+  className = "",
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={`mx-auto flex min-h-[74px] w-full max-w-[520px] items-center justify-center rounded-2xl border-2 border-blue-600 bg-white px-6 py-4 text-center text-[17px] leading-7 text-gray-950 shadow-[0_10px_24px_rgba(37,99,235,0.13)] ${className}`}>
+      <div>{children}</div>
+    </div>
+  )
+}
+
+function WorkflowSectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-auto my-4 w-fit rounded-full bg-blue-100 px-3.5 py-1.5 text-sm font-bold uppercase tracking-[0.2px] text-blue-800">
+      {children}
+    </div>
+  )
+}
+
+function AssignmentRequirementWorkflow() {
+  return (
+    <section className="overflow-hidden rounded-lg bg-gradient-to-br from-blue-50 to-slate-50 px-3 py-9 text-gray-950 sm:px-5 print:bg-white">
+      <div className="mx-auto max-w-[1200px]">
+        <header className="mb-11 text-center">
+          <h2 className="m-0 text-3xl font-bold tracking-[0.3px] text-blue-900 sm:text-[34px]">
+            Assignment Requirement Workflow
+          </h2>
+          <p className="mt-2.5 text-base text-gray-600">
+            Image, Voice Note, and Text-Based Assignment Requirement Processing
+          </p>
+        </header>
+
+        <div className="flex flex-col items-center">
+          <WorkflowBox>
+            <strong className="text-blue-800">Assignment Requirement موصول ہوئی؟</strong>
+          </WorkflowBox>
+
+          <WorkflowArrow />
+
+          <WorkflowBox>
+            <strong className="text-blue-800">Requirement کی form identify کریں</strong>
+            <br />
+            Image / Voice Note / Text
+          </WorkflowBox>
+
+          <WorkflowArrow />
+
+          <div className="mt-2 mb-3 flex w-full flex-col items-center justify-center gap-9 min-[850px]:flex-row min-[850px]:gap-20">
+            <div className="flex w-full max-w-[340px] flex-col items-center">
+              <div className="mb-4 rounded-full bg-blue-900 px-[18px] py-2.5 text-base font-bold text-white shadow-[0_8px_18px_rgba(30,58,138,0.18)]">
+                Image Requirement
+              </div>
+              <WorkflowBox className="max-w-[310px]">Image کو open کریں</WorkflowBox>
+              <WorkflowArrow />
+              <WorkflowBox className="max-w-[310px]">Image پر right click کریں</WorkflowBox>
+              <WorkflowArrow />
+              <WorkflowBox className="max-w-[310px]">Google Lens select کریں</WorkflowBox>
+              <WorkflowArrow />
+              <WorkflowBox className="max-w-[310px]">
+                Text automatically fetch
+                <br />
+                ہو جائے گا
+              </WorkflowBox>
+            </div>
+
+            <div className="flex w-full max-w-[340px] flex-col items-center">
+              <div className="mb-4 rounded-full bg-blue-900 px-[18px] py-2.5 text-base font-bold text-white shadow-[0_8px_18px_rgba(30,58,138,0.18)]">
+                Voice Note Requirement
+              </div>
+              <WorkflowBox className="max-w-[310px]">Mobile microphone open کریں</WorkflowBox>
+              <WorkflowArrow />
+              <WorkflowBox className="max-w-[310px]">Google Urdu Typing select کریں</WorkflowBox>
+              <WorkflowArrow />
+              <WorkflowBox className="max-w-[310px]">Voice note play کریں</WorkflowBox>
+              <WorkflowArrow />
+              <WorkflowBox className="max-w-[310px]">
+                Urdu typing automatically
+                <br />
+                requirements لکھتی جائے گی
+              </WorkflowBox>
+            </div>
+          </div>
+
+          <div className="relative mt-1 h-[60px] w-full max-w-[520px] max-[849px]:hidden">
+            <div className="absolute left-0 top-0 h-[50px] w-1/2 rounded-br-3xl border-b-[3px] border-r-[3px] border-blue-600" />
+            <div className="absolute right-0 top-0 h-[50px] w-1/2 rounded-bl-3xl border-b-[3px] border-l-[3px] border-blue-600" />
+            <div className="absolute bottom-[-6px] left-1/2 h-3 w-3 -translate-x-1/2 rounded-full bg-blue-600" />
+          </div>
+
+          <WorkflowArrow />
+
+          <WorkflowSectionLabel>Requirement Cleaning</WorkflowSectionLabel>
+          <WorkflowBox>
+            Extracted requirements کو clean کریں
+            <br />
+            Missing / unclear points mark کریں
+          </WorkflowBox>
+
+          <WorkflowArrow />
+
+          <WorkflowSectionLabel>GPT Understanding Stage</WorkflowSectionLabel>
+          <WorkflowBox>GPT کو requirements one-by-one دیں</WorkflowBox>
+
+          <WorkflowArrow />
+
+          <WorkflowBox>
+            <strong className="text-blue-800">GPT کو instruction دیں:</strong>
+            <br />
+            صرف understand کرنا ہے
+            <br />
+            کوئی assumption نہیں بنانی
+            <br />
+            Urdu کو understand کر کے English میں response دینا ہے
+            <br />
+            cross-questions پوچھنے ہیں
+          </WorkflowBox>
+
+          <WorkflowArrow />
+
+          <WorkflowBox>
+            GPT کی understanding verify کریں
+            <br />
+            کیا اس نے requirement صحیح سمجھی؟
+          </WorkflowBox>
+
+          <WorkflowArrow />
+
+          <WorkflowBox className="min-h-[58px] max-w-[160px] border-green-600 bg-green-50 font-bold text-green-800">
+            Yes
+          </WorkflowBox>
+
+          <WorkflowArrow />
+
+          <WorkflowSectionLabel>Execution Stage</WorkflowSectionLabel>
+          <WorkflowBox>
+            GPT سے step-by-step execution کروائیں
+            <br />
+            کوئی step miss نہ ہو
+            <br />
+            installation/setup بھی شامل ہو
+          </WorkflowBox>
+
+          <WorkflowArrow />
+
+          <WorkflowSectionLabel>Final Review</WorkflowSectionLabel>
+          <WorkflowBox>
+            Final assignment output review کریں
+            <br />
+            Requirements کے ساتھ match کریں
+          </WorkflowBox>
+        </div>
+
+        <footer className="mt-9 text-center text-sm text-gray-500">
+          Open this file in any browser to preview the workflow.
+        </footer>
+      </div>
+    </section>
+  )
+}
+
+function PromptShareMenu({
+  onShare,
+  menuId,
+}: {
+  onShare: () => void
+  menuId: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <div className="relative" onClick={(event) => event.stopPropagation()}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        title="More options"
+        aria-label="More options"
+        aria-expanded={isOpen}
+        aria-controls={menuId}
+        onClick={() => setIsOpen(current => !current)}
+      >
+        <EllipsisVertical className="h-4 w-4" aria-hidden="true" />
+      </Button>
+      {isOpen && (
+        <div
+          id={menuId}
+          className="absolute right-0 top-9 z-20 w-40 rounded-md border border-gray-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-900"
+        >
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800"
+            onClick={() => {
+              setIsOpen(false)
+              onShare()
+            }}
+          >
+            <Share2 className="h-4 w-4" aria-hidden="true" />
+            Share link
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function PromptsPage() {
@@ -582,14 +869,16 @@ export default function PromptsPage() {
   const { addToast } = useToastStore()
   const globalSearchQuery = useSearchStore(state => state.searchQuery)
   const { isAdmin } = useCurrentUserRole()
+  const [initialSharedSubjectPrompt] = useState(() => getSharedSubjectPromptFromUrl())
   const [searchTerm, setSearchTerm] = useState("")
-  const [subjectPromptFilter, setSubjectPromptFilter] = useState("All")
-  const [selectedSubjectPrompt, setSelectedSubjectPrompt] = useState<SubjectWisePrompt | null>(null)
+  const [subjectPromptFilter, setSubjectPromptFilter] = useState(initialSharedSubjectPrompt?.category ?? "All")
+  const [selectedSubjectPrompt, setSelectedSubjectPrompt] = useState<SubjectWisePrompt | null>(initialSharedSubjectPrompt)
   const [isWritingStyleOpen, setIsWritingStyleOpen] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState("All")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
-  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(null)
+  const [selectedPromptId, setSelectedPromptId] = useState<string | null>(() => getUrlSearchParam("prompt"))
+  const [sharedPrompt, setSharedPrompt] = useState<Prompt | null>(null)
   const [deletingPromptId, setDeletingPromptId] = useState<string | null>(null)
   const [form, setForm] = useState<PromptFormState>(EMPTY_PROMPT_FORM)
   const [formError, setFormError] = useState("")
@@ -640,8 +929,40 @@ export default function PromptsPage() {
       })
   }, [globalSearchQuery, searchTerm, subjectPromptFilter])
 
-  const selectedPrompt = filteredPrompts.find(p => p.id === selectedPromptId) ?? filteredPrompts[0] ?? null
+  const selectedPrompt =
+    filteredPrompts.find(p => p.id === selectedPromptId) ??
+    (sharedPrompt?.id === selectedPromptId ? sharedPrompt : null) ??
+    filteredPrompts[0] ??
+    null
   const deletingPrompt = prompts.find(prompt => prompt.id === deletingPromptId)
+
+  useEffect(() => {
+    if (!selectedPromptId) return
+
+    if (prompts.some(prompt => prompt.id === selectedPromptId) || sharedPrompt?.id === selectedPromptId) {
+      return
+    }
+
+    let isCancelled = false
+
+    listPromptById(selectedPromptId)
+      .then(prompt => {
+        if (!isCancelled) setSharedPrompt(prompt)
+      })
+      .catch(err => {
+        if (!isCancelled) {
+          addToast({
+            title: "Shared prompt not found",
+            description: getErrorMessage(err),
+            type: "error",
+          })
+        }
+      })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [addToast, prompts, selectedPromptId, sharedPrompt?.id])
 
   function updateFormField(field: keyof PromptFormState, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -773,7 +1094,40 @@ export default function PromptsPage() {
     }
   }
 
-  function openSubjectPromptEdit(prompt: SubjectWisePrompt) {
+  async function copyShareLink(url: string, title: string) {
+    try {
+      await navigator.clipboard.writeText(url)
+      addToast({
+        title: "Share link copied",
+        description: `${title} link is ready to send.`,
+        type: "success",
+      })
+    } catch {
+      addToast({
+        title: "Share Failed",
+        description: "The browser blocked clipboard access.",
+        type: "error",
+      })
+    }
+  }
+
+  function buildPromptsUrl(paramName: "prompt" | "subjectPrompt", value: string) {
+    const url = new URL("/prompts", window.location.origin)
+    url.searchParams.set(paramName, value)
+    return url.toString()
+  }
+
+  function handleShareSubjectPrompt(prompt: SubjectWisePrompt) {
+    const url = buildPromptsUrl("subjectPrompt", getSubjectPromptSlug(prompt))
+    void copyShareLink(url, prompt.title)
+  }
+
+  function handleSharePrompt(prompt: Prompt) {
+    const url = buildPromptsUrl("prompt", prompt.id)
+    void copyShareLink(url, prompt.title)
+  }
+
+  function openSubjectPromptNew(prompt: SubjectWisePrompt) {
     setForm({
       title: prompt.title,
       category: prompt.category,
@@ -1026,18 +1380,30 @@ export default function PromptsPage() {
             ))}
           </div>
 
+          {filteredSubjectPrompts.some(isVoiceAndImagePrompt) && (
+            <div className="mb-6">
+              <AssignmentRequirementWorkflow />
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredSubjectPrompts.map(prompt => (
               <Card key={prompt.title} className="flex min-h-[320px] flex-col">
                 <CardHeader className="gap-3 border-b border-gray-200 dark:border-white/5">
                   <div className="flex items-start justify-between gap-3">
                     <Badge variant="secondary">{prompt.category}</Badge>
-                    {isAdmin && (
-                      <Button type="button" variant="ghost" size="icon" title="Edit prompt" onClick={() => openSubjectPromptEdit(prompt)}>
-                        <Pencil className="h-4 w-4" aria-hidden="true" />
-                        <span className="sr-only">Edit option</span>
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {isAdmin && (
+                        <Button type="button" variant="ghost" size="icon" title="Save as new prompt" onClick={() => openSubjectPromptNew(prompt)}>
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
+                          <span className="sr-only">Save as new prompt</span>
+                        </Button>
+                      )}
+                      <PromptShareMenu
+                        menuId={`subject-prompt-share-${getSubjectPromptSlug(prompt)}`}
+                        onShare={() => handleShareSubjectPrompt(prompt)}
+                      />
+                    </div>
                   </div>
                   <div>
                     <CardTitle>{prompt.title}</CardTitle>
@@ -1147,6 +1513,10 @@ export default function PromptsPage() {
                           <Copy className="h-4 w-4" aria-hidden="true" />
                           <span className="sr-only">Copy prompt</span>
                         </Button>
+                        <PromptShareMenu
+                          menuId={`saved-prompt-share-${prompt.id}`}
+                          onShare={() => handleSharePrompt(prompt)}
+                        />
                         {isAdmin && (
                           <>
                             <Button type="button" variant="ghost" size="icon" title="Edit prompt" onClick={() => openEditDialog(prompt)}>
@@ -1200,6 +1570,10 @@ export default function PromptsPage() {
                   <Copy className="h-4 w-4" aria-hidden="true" />
                   Copy
                 </Button>
+                <Button type="button" className="w-full gap-2" onClick={() => handleSharePrompt(selectedPrompt)}>
+                  <Share2 className="h-4 w-4" aria-hidden="true" />
+                  Share Link
+                </Button>
               </div>
             ) : (
               <div className="rounded-md border border-dashed border-gray-300 dark:border-slate-700 p-6 text-sm text-gray-400 dark:text-slate-500">
@@ -1232,7 +1606,7 @@ export default function PromptsPage() {
       )}
 
       <Dialog open={!!selectedSubjectPrompt} onOpenChange={(open) => !open && setSelectedSubjectPrompt(null)}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="max-h-[90vh] overflow-auto sm:max-w-5xl">
           {selectedSubjectPrompt && (
             <div className="grid gap-5">
               <DialogHeader>
@@ -1246,6 +1620,8 @@ export default function PromptsPage() {
                 <DialogDescription className="leading-6">{selectedSubjectPrompt.description}</DialogDescription>
               </DialogHeader>
 
+              {isVoiceAndImagePrompt(selectedSubjectPrompt) && <AssignmentRequirementWorkflow />}
+
               <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-lg border border-gray-300/50 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/60 p-4 text-sm leading-6 text-gray-700 dark:text-slate-300">
                 {selectedSubjectPrompt.content}
               </pre>
@@ -1253,6 +1629,10 @@ export default function PromptsPage() {
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setSelectedSubjectPrompt(null)}>
                   Close
+                </Button>
+                <Button type="button" variant="outline" className="gap-2" onClick={() => handleShareSubjectPrompt(selectedSubjectPrompt)}>
+                  <Share2 className="h-4 w-4" aria-hidden="true" />
+                  Share Link
                 </Button>
                 <Button type="button" className="gap-2" onClick={() => handleCopySubjectPrompt(selectedSubjectPrompt)}>
                   <Copy className="h-4 w-4" aria-hidden="true" />

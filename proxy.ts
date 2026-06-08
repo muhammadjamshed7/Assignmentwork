@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isUserRole, isUserStatus, type UserRole, type UserStatus } from "@/lib/auth/role-utils";
 
-const PUBLIC_PATHS = new Set(["/login", "/admin/login", "/register", "/pending-approval", "/access-denied"]);
+const PUBLIC_PAGE_PATHS = new Set(["/login", "/admin/login", "/register", "/pending-approval", "/access-denied"]);
+const PUBLIC_API_PREFIXES = ["/api/auth"];
 const ADMIN_LOGIN_PATH = "/admin/login";
 const STUDENT_LOGIN_PATH = "/login";
 const ADMIN_ONLY_PREFIXES = ["/students", "/reports", "/settings"];
@@ -22,7 +23,11 @@ function getRedirectUrl(request: NextRequest, pathname: string) {
 }
 
 function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.has(pathname);
+  return PUBLIC_PAGE_PATHS.has(pathname) || PUBLIC_API_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function isPublicPagePath(pathname: string) {
+  return PUBLIC_PAGE_PATHS.has(pathname);
 }
 
 function loginPathFor(pathname: string) {
@@ -43,67 +48,78 @@ function homeFor(role: UserRole, status: UserStatus) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  let response = NextResponse.next();
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  try {
+    let response = NextResponse.next();
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return isPublicPath(pathname) ? response : NextResponse.redirect(getRedirectUrl(request, loginPathFor(pathname)));
-  }
+    if (PUBLIC_API_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+      return response;
+    }
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return isPublicPath(pathname) ? response : NextResponse.redirect(getRedirectUrl(request, loginPathFor(pathname)));
+    }
+
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        },
       },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-      },
-    },
-  });
+    });
 
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
+    const { data: userData } = await supabase.auth.getUser();
+    const user = userData.user;
 
-  if (!user) {
-    if (isPublicPath(pathname)) return response;
-    const loginUrl = getRedirectUrl(request, loginPathFor(pathname));
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+    if (!user) {
+      if (isPublicPath(pathname)) return response;
+      const loginUrl = getRedirectUrl(request, loginPathFor(pathname));
+      loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role, status")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    const role = isUserRole(roleRow?.role) ? roleRow.role : "student";
+    const status = isUserStatus(roleRow?.status) ? roleRow.status : "pending";
+    const targetHome = homeFor(role, status);
+
+    if (isPublicPagePath(pathname)) {
+      if (pathname === targetHome) return response;
+      return NextResponse.redirect(getRedirectUrl(request, targetHome));
+    }
+
+    if (status !== "approved") {
+      if (pathname === targetHome) return response;
+      return NextResponse.redirect(getRedirectUrl(request, targetHome));
+    }
+
+    if (role === "student" && !isStudentAllowedPath(pathname)) {
+      return NextResponse.redirect(getRedirectUrl(request, "/workflow"));
+    }
+
+    return response;
+  } catch {
+    return isPublicPath(request.nextUrl.pathname)
+      ? NextResponse.next()
+      : NextResponse.redirect(getRedirectUrl(request, loginPathFor(request.nextUrl.pathname)));
   }
-
-  const { data: roleRow } = await supabase
-    .from("user_roles")
-    .select("role, status")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const role = isUserRole(roleRow?.role) ? roleRow.role : "student";
-  const status = isUserStatus(roleRow?.status) ? roleRow.status : "pending";
-  const targetHome = homeFor(role, status);
-
-  if (isPublicPath(pathname)) {
-    if (pathname === targetHome) return response;
-    return NextResponse.redirect(getRedirectUrl(request, targetHome));
-  }
-
-  if (status !== "approved") {
-    if (pathname === targetHome) return response;
-    return NextResponse.redirect(getRedirectUrl(request, targetHome));
-  }
-
-  if (role === "student" && !isStudentAllowedPath(pathname)) {
-    return NextResponse.redirect(getRedirectUrl(request, "/workflow"));
-  }
-
-  return response;
 }
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|sw.js).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/.*|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico)$).*)",
   ],
 };

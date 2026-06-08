@@ -20,6 +20,7 @@ import {
   IssueCategory,
   IssueStatus,
   PriorityLevel,
+  Student,
 } from "@/lib/data/types"
 import { createComment } from "@/lib/data/comments"
 import { createIssue } from "@/lib/data/issues"
@@ -27,7 +28,7 @@ import { listStudents } from "@/lib/data/students"
 import { useSupabaseQuery } from "@/lib/data/hooks"
 import { getErrorMessage } from "@/lib/data/client"
 import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
-import { Student } from "@/lib/data/types"
+import { getCurrentProfileFromApi } from "@/lib/auth/roles"
 
 const ISSUE_CATEGORIES: IssueCategory[] = [
   "Prompt Issues",
@@ -67,7 +68,8 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents, isAd
   const students = externalStudents ?? fetchedStudents
   const { addToast } = useToastStore()
   const [open, setOpen] = React.useState(false)
-  const [studentId, setStudentId] = React.useState(students[0]?.id ?? "")
+
+  const [studentId, setStudentId] = React.useState(isAdmin ? (students[0]?.id ?? "") : "")
   const [category, setCategory] = React.useState<IssueCategory>("Prompt Issues")
   const [priority, setPriority] = React.useState<PriorityLevel>("Medium")
   const [status, setStatus] = React.useState<IssueStatus>("Pending")
@@ -76,8 +78,33 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents, isAd
   const [formError, setFormError] = React.useState("")
   const [isSaving, setIsSaving] = React.useState(false)
 
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (isAdmin) {
+        if (!studentId && students[0]?.id) {
+          setStudentId(students[0].id)
+        }
+        return
+      }
+
+      getCurrentProfileFromApi()
+        .then(profile => {
+          if (profile?.studentId) {
+            setStudentId(profile.studentId)
+          }
+        })
+        .catch(() => {
+          setFormError("Unable to read your account profile.")
+        })
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [isAdmin, studentId, students])
+
   function resetForm() {
-    setStudentId(students[0]?.id ?? "")
+    setStudentId(isAdmin ? (students[0]?.id ?? "") : studentId)
     setCategory("Prompt Issues")
     setPriority("Medium")
     setStatus("Pending")
@@ -104,7 +131,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents, isAd
     const cleanComment = adminComment.trim()
 
     if (!selectedStudentId || !cleanDescription) {
-      setFormError("Select a student and enter an issue description.")
+      setFormError("Select a writer and enter an issue description.")
       setIsSaving(false)
       return
     }
@@ -159,13 +186,13 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents, isAd
         <form onSubmit={handleSubmit} className="grid gap-5">
           <DialogHeader>
             <DialogTitle>Create Issue</DialogTitle>
-            <DialogDescription>Add a student issue and optionally start the admin thread.</DialogDescription>
+            <DialogDescription>Add a writer issue and optionally start the admin thread.</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 sm:grid-cols-2">
             {isAdmin && (
             <div className="grid gap-2">
-              <Label htmlFor="new-issue-student">Student</Label>
+              <Label htmlFor="new-issue-student">Writer</Label>
               <select
                 id="new-issue-student"
                 value={studentId}

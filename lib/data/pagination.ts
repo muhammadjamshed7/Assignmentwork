@@ -1,6 +1,6 @@
 import { PaginatedResult, PaginationOptions } from "@/lib/data/types";
 
-export const DEFAULT_PAGE_SIZE = 10;
+const DEFAULT_PAGE_SIZE = 10;
 
 export function getPaginationRange(options: PaginationOptions = {}) {
   const page = Math.max(1, options.page ?? 1);

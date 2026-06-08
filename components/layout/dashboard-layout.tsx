@@ -27,6 +27,11 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { PwaInstallButton } from "@/components/pwa-install-button"
 import { createSupabaseClient } from "@/lib/supabase"
+import { readJsonResponse } from "@/lib/data/client"
+
+type ProfilePayload = {
+  user?: { email: string; role: "admin" | "student" } | null
+}
 
 
 const navigation = [
@@ -65,8 +70,8 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
     async function loadProfile() {
       try {
         const response = await fetch("/api/auth/me", { cache: "no-store" })
-        const payload = await response.json()
-        if (mounted && response.ok) setProfile(payload.user)
+        const payload = await readJsonResponse<ProfilePayload>(response)
+        if (mounted && response.ok) setProfile(payload?.user ?? null)
       } catch {
         if (mounted) setProfile(null)
       }
@@ -149,7 +154,7 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
                 <span className="max-w-52 truncate text-sm font-medium text-gray-950 dark:text-white">
                   Admin workspace
                 </span>
-                <span className="text-xs text-gray-400 dark:text-slate-500">{profile?.role === "admin" ? "Admin access" : "Student access"}</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">{profile?.role === "admin" ? "Admin access" : "Writer access"}</span>
               </div>
             </div>
             <Button type="button" variant="ghost" size="icon" title="Sign out" aria-label="Sign out" onClick={signOut}>

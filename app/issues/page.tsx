@@ -44,7 +44,7 @@ export default function IssuesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">{isAdmin ? "Global Issues" : "My Issues"}</h1>
-          <p className="text-slate-400">{isAdmin ? "Track and manage student-reported issues." : "Track your own issue tickets and status updates."}</p>
+          <p className="text-slate-400">{isAdmin ? "Track and manage writer-reported issues." : "Track your own issue tickets and status updates."}</p>
         </div>
         <NewIssueDialog onSaved={refresh} />
       </div>
@@ -56,7 +56,7 @@ export default function IssuesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student</TableHead>
+                <TableHead>Writer</TableHead>
                 <TableHead>Issue Category</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Priority</TableHead>
@@ -68,7 +68,7 @@ export default function IssuesPage() {
               {filteredIssues.map((issue) => {
                 return (
                   <TableRow key={issue.id}>
-                    <TableCell className="font-medium whitespace-nowrap">{issue.studentName ?? "Unknown student"}</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap">{issue.studentName ?? "Unknown writer"}</TableCell>
                     <TableCell>
                       <span className="font-semibold text-xs text-gray-700 dark:text-slate-300">{issue.category}</span>
                     </TableCell>

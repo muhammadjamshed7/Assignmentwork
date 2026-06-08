@@ -8,7 +8,12 @@ function asString(value: unknown) {
 }
 
 export async function POST(request: Request) {
+  let supabase: ReturnType<typeof createServiceRoleClient> | null = null;
+  let createdUserId: string | null = null;
+  let createdStudentId: string | null = null;
+
   try {
+    supabase = createServiceRoleClient();
     const body = await request.json();
     const name = asString(body.name);
     const email = asString(body.email).toLowerCase();
@@ -26,7 +31,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
     }
 
-    const supabase = createServiceRoleClient();
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -35,7 +39,8 @@ export async function POST(request: Request) {
     });
 
     if (authError) throw authError;
-    if (!authData.user) throw new Error("Unable to create student account.");
+    if (!authData.user) throw new Error("Unable to create writer expert account.");
+    createdUserId = authData.user.id;
 
     const { data: student, error: studentError } = await supabase
       .from("students")
@@ -52,6 +57,7 @@ export async function POST(request: Request) {
       .single();
 
     if (studentError) throw studentError;
+    createdStudentId = student.id;
 
     const { error: roleError } = await supabase.from("user_roles").upsert({
       user_id: authData.user.id,
@@ -65,6 +71,18 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (supabase && createdStudentId) {
+      try {
+        await supabase.from("students").delete().eq("id", createdStudentId).throwOnError();
+      } catch {
+        // Best-effort rollback; keep the original registration error.
+      }
+    }
+
+    if (supabase && createdUserId) {
+      await supabase.auth.admin.deleteUser(createdUserId).catch(() => undefined);
+    }
+
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 400 });
   }
 }

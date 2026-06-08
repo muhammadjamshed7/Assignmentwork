@@ -428,7 +428,9 @@ export default async function WorkflowDetailPage({
   const { slug } = await params
   const workflow = getWorkflowCard(slug)
 
-  if (!workflow) notFound()
+  if (!workflow) {
+    notFound()
+  }
 
   const currentIndex = workflowCards.findIndex(card => card.slug === workflow.slug)
   const nextWorkflow = workflowCards[(currentIndex + 1) % workflowCards.length]

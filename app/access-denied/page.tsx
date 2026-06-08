@@ -4,12 +4,14 @@ import { ShieldX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrentProfileFromApi } from "@/lib/auth/roles";
 import { createSupabaseClient } from "@/lib/supabase";
 
 export default function AccessDeniedPage() {
   async function signOut() {
+    const profile = await getCurrentProfileFromApi().catch(() => null);
     await createSupabaseClient()?.auth.signOut();
-    window.location.href = "/login";
+    window.location.href = profile?.role === "admin" ? "/admin/login" : "/login";
   }
 
   return (

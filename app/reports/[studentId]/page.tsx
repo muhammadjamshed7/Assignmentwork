@@ -15,6 +15,7 @@ import { listIssuesByStudentId } from "@/lib/data/issues"
 import { listCommentsByStudentId } from "@/lib/data/comments"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
 import { getStatusVariant, getPriorityVariant } from "@/lib/utils"
+import { writerStatusBadgeVariant, writerStatusFromOverallStatus } from "@/lib/data/writer-status"
 
 export default function StudentReportPage({ params }: { params: Promise<{ studentId: string }> }) {
   const { studentId } = use(params)
@@ -50,7 +51,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
   )
 
   if (loading) {
-    return <LoadingState label="Loading student report..." />
+    return <LoadingState label="Loading writer report..." />
   }
 
   if (error) {
@@ -60,7 +61,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
   if (!student) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 dark:border-slate-700 p-8 text-center text-sm text-gray-400 dark:text-slate-500">
-        Student report not found.
+        Writer report not found.
       </div>
     )
   }
@@ -79,7 +80,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
             </Button>
           </Link>
           <div className="min-w-0">
-            <h1 className="text-gray-900 dark:text-white font-display text-2xl font-bold tracking-tight sm:text-3xl">Student Report</h1>
+            <h1 className="text-gray-900 dark:text-white font-display text-2xl font-bold tracking-tight sm:text-3xl">Writer Report</h1>
             <p className="text-slate-400">Detailed overview for {student.name}</p>
           </div>
         </div>
@@ -94,7 +95,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
            <h2 className="text-2xl font-bold">{student.name}</h2>
            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
              <div>
-                <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">Student ID</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">Writer ID</p>
                <p className="text-sm font-semibold">{student.id}</p>
              </div>
              <div>
@@ -103,7 +104,11 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
              </div>
              <div>
                 <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">Overall Status</p>
-               <Badge variant={getStatusVariant(student.overallStatus)} className="mt-1">{student.overallStatus}</Badge>
+               {(() => {
+                 const writerStatus = writerStatusFromOverallStatus(student.overallStatus)
+
+                 return <Badge variant={writerStatusBadgeVariant(writerStatus)} className="mt-1">{writerStatus}</Badge>
+               })()}
              </div>
              <div>
                 <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">Last Update</p>
@@ -197,7 +202,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
             <Card>
               <CardHeader>
                 <CardTitle>Issue Log</CardTitle>
-                <CardDescription>All issues reported by this student.</CardDescription>
+                <CardDescription>All issues reported by this writer.</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Table>
@@ -245,7 +250,7 @@ export default function StudentReportPage({ params }: { params: Promise<{ studen
              <Card>
                <CardHeader>
                  <CardTitle>Comments History</CardTitle>
-                 <CardDescription>Full threaded conversation tied to this student&apos;s issues.</CardDescription>
+                 <CardDescription>Full threaded conversation tied to this writer&apos;s issues.</CardDescription>
                </CardHeader>
                <CardContent>
                  <div className="space-y-6">

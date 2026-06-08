@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from "react"
 import { CheckCircle2, ShieldOff, Trash2, XCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
 import { type UserRole, type UserStatus } from "@/lib/auth/role-utils"
-import { getErrorMessage, requireSupabase } from "@/lib/data/client"
+import { getErrorMessage, readJsonResponse, requireSupabase } from "@/lib/data/client"
 
 type SupabaseStatus =
   | { state: "loading"; message: string }
@@ -25,6 +26,20 @@ type ManagedUser = {
   lastSignInAt?: string
 }
 
+type UsersPayload = {
+  users?: ManagedUser[]
+  error?: string
+}
+
+type UpdatedUserPayload = {
+  user?: Pick<ManagedUser, "role" | "status">
+  error?: string
+}
+
+type MutationPayload = {
+  error?: string
+}
+
 export default function SettingsPage() {
   const { isAdmin } = useCurrentUserRole()
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseStatus>({
@@ -34,6 +49,7 @@ export default function SettingsPage() {
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [usersError, setUsersError] = useState("")
   const [usersLoading, setUsersLoading] = useState(false)
+  const [savingUserId, setSavingUserId] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -83,13 +99,13 @@ export default function SettingsPage() {
 
     try {
       const response = await fetch("/api/users")
-      const payload = await response.json()
+      const payload = await readJsonResponse<UsersPayload>(response)
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to load users.")
+        throw new Error(payload?.error ?? "Unable to load users.")
       }
 
-      setUsers(payload.users ?? [])
+      setUsers(payload?.users ?? [])
     } catch (error) {
       setUsersError(getErrorMessage(error))
     } finally {
@@ -109,6 +125,7 @@ export default function SettingsPage() {
 
   async function updateUser(userId: string, input: { role?: UserRole; status?: UserStatus }) {
     setUsersError("")
+    setSavingUserId(userId)
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -116,15 +133,23 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       })
-      const payload = await response.json()
+      const payload = await readJsonResponse<UpdatedUserPayload>(response)
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to update user.")
+        throw new Error(payload?.error ?? "Unable to update user.")
       }
 
-      setUsers(prev => prev.map(user => user.id === userId ? { ...user, ...payload.user } : user))
+      const updatedUser = payload?.user
+
+      if (!updatedUser) {
+        throw new Error("Unable to update user.")
+      }
+
+      setUsers(prev => prev.map(user => user.id === userId ? { ...user, role: updatedUser.role, status: updatedUser.status } : user))
     } catch (error) {
       setUsersError(getErrorMessage(error))
+    } finally {
+      setSavingUserId(null)
     }
   }
 
@@ -136,10 +161,10 @@ export default function SettingsPage() {
       const response = await fetch(`/api/users/${userId}`, {
         method: "DELETE",
       })
-      const payload = await response.json()
+      const payload = await readJsonResponse<MutationPayload>(response)
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to remove user.")
+        throw new Error(payload?.error ?? "Unable to remove user.")
       }
 
       setUsers(prev => prev.filter(user => user.id !== userId))
@@ -193,7 +218,7 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>User Management</CardTitle>
-              <CardDescription>Approve, reject, disable, and manage student/admin access.</CardDescription>
+              <CardDescription>Approve, reject, disable, and manage writer expert/admin access.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {usersError && (
@@ -219,40 +244,55 @@ export default function SettingsPage() {
                         <TableCell>
                           <select
                             value={user.role}
-                            onChange={(event) => updateUser(user.id, { role: event.target.value as UserRole })}
-                            className="h-9 rounded-md border border-gray-300 bg-gray-100/50 px-2 text-sm text-gray-900 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
+                            onChange={(event) => void updateUser(user.id, { role: event.target.value as UserRole })}
+                            disabled={savingUserId === user.id}
+                            className="h-9 rounded-md border border-gray-300 bg-gray-100/50 px-2 text-sm text-gray-900 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
                           >
-                            <option value="student">Student</option>
+                            <option value="student">Writer Expert</option>
                             <option value="admin">Admin</option>
                           </select>
                         </TableCell>
                         <TableCell>
-                          <select
-                            value={user.status}
-                            onChange={(event) => updateUser(user.id, { status: event.target.value as UserStatus })}
-                            className="h-9 rounded-md border border-gray-300 bg-gray-100/50 px-2 text-sm text-gray-900 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="disabled">Disabled</option>
-                          </select>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={user.status === "approved" ? "success" : user.status === "pending" ? "pending" : "destructive"}>
+                              {user.status}
+                            </Badge>
+                            <select
+                              value={user.status}
+                              onChange={(event) => void updateUser(user.id, { status: event.target.value as UserStatus })}
+                              disabled={savingUserId === user.id}
+                              className="h-9 rounded-md border border-gray-300 bg-gray-100/50 px-2 text-sm text-gray-900 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="approved">Approved</option>
+                              <option value="rejected">Rejected</option>
+                              <option value="disabled">Disabled</option>
+                            </select>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                          <Button type="button" variant="ghost" size="icon" title="Approve student" onClick={() => void updateUser(user.id, { status: "approved" })}>
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden="true" />
-                            <span className="sr-only">Approve user</span>
-                          </Button>
-                          <Button type="button" variant="ghost" size="icon" title="Reject student" onClick={() => void updateUser(user.id, { status: "rejected" })}>
+                          <div className="flex flex-wrap justify-end gap-1">
+                          {user.status === "pending" && (
+                            <Button type="button" size="sm" className="gap-2" disabled={savingUserId === user.id} onClick={() => void updateUser(user.id, { status: "approved" })}>
+                              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                              Approve
+                            </Button>
+                          )}
+                          {user.status !== "pending" && (
+                            <Button type="button" variant="ghost" size="icon" title="Approve writer expert" disabled={savingUserId === user.id} onClick={() => void updateUser(user.id, { status: "approved" })}>
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden="true" />
+                              <span className="sr-only">Approve user</span>
+                            </Button>
+                          )}
+                          <Button type="button" variant="ghost" size="icon" title="Reject writer expert" disabled={savingUserId === user.id} onClick={() => void updateUser(user.id, { status: "rejected" })}>
                             <XCircle className="h-4 w-4 text-red-500" aria-hidden="true" />
                             <span className="sr-only">Reject user</span>
                           </Button>
-                          <Button type="button" variant="ghost" size="icon" title="Disable user" onClick={() => void updateUser(user.id, { status: "disabled" })}>
+                          <Button type="button" variant="ghost" size="icon" title="Disable user" disabled={savingUserId === user.id} onClick={() => void updateUser(user.id, { status: "disabled" })}>
                             <ShieldOff className="h-4 w-4 text-amber-500" aria-hidden="true" />
                             <span className="sr-only">Disable user</span>
                           </Button>
-                          <Button type="button" variant="ghost" size="icon" title="Remove user" onClick={() => void removeUser(user.id)}>
+                          <Button type="button" variant="ghost" size="icon" title="Remove user" disabled={savingUserId === user.id} onClick={() => void removeUser(user.id)}>
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                             <span className="sr-only">Remove user</span>
                           </Button>

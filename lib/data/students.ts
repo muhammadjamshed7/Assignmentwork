@@ -117,7 +117,7 @@ export async function createStudent(input: {
   const email = normalizeOptionalText(input.email);
 
   if (!name) {
-    throw new Error("Student name is required.");
+    throw new Error("Writer name is required.");
   }
 
   if (email) {
@@ -129,7 +129,7 @@ export async function createStudent(input: {
 
     if (duplicate.error) throw duplicate.error;
     if (duplicate.data) {
-      throw new Error("A student with this email already exists.");
+      throw new Error("A writer with this email already exists.");
     }
   }
 
@@ -178,7 +178,7 @@ export async function updateStudent(studentId: string, input: {
   const email = normalizeOptionalText(input.email);
 
   if (!name) {
-    throw new Error("Student name is required.");
+    throw new Error("Writer name is required.");
   }
 
   if (email) {
@@ -191,20 +191,25 @@ export async function updateStudent(studentId: string, input: {
 
     if (duplicate.error) throw duplicate.error;
     if (duplicate.data) {
-      throw new Error("A student with this email already exists.");
+      throw new Error("A writer with this email already exists.");
     }
+  }
+
+  const updateFields: Record<string, unknown> = {
+    name,
+    email,
+    assigned_trainer: input.assignedTrainer?.trim() || "Unassigned",
+    notes: normalizeOptionalText(input.notes),
+    priority: input.priority ?? "Medium",
+  }
+
+  if (input.overallStatus !== undefined) {
+    updateFields.overall_status = input.overallStatus
   }
 
   const { error: studentError } = await supabase
     .from("students")
-    .update({
-      name,
-      email,
-      assigned_trainer: input.assignedTrainer?.trim() || "Unassigned",
-      notes: normalizeOptionalText(input.notes),
-      overall_status: input.overallStatus ?? "Pending",
-      priority: input.priority ?? "Medium",
-    })
+    .update(updateFields)
     .eq("id", studentId);
 
   if (studentError) throw studentError;

@@ -9,7 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getErrorMessage } from "@/lib/data/client";
+import { getErrorMessage, readJsonResponse } from "@/lib/data/client";
+
+type RegisterPayload = {
+  error?: string;
+};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,10 +34,10 @@ export default function RegisterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
-      const payload = await response.json();
+      const payload = await readJsonResponse<RegisterPayload>(response);
 
       if (!response.ok) {
-        throw new Error(payload.error ?? "Unable to create account.");
+        throw new Error(payload?.error ?? "Unable to create account.");
       }
 
       router.replace("/pending-approval");
@@ -51,8 +55,8 @@ export default function RegisterPage() {
           <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
             <UserPlus className="h-5 w-5" aria-hidden="true" />
           </div>
-          <CardTitle>Student Registration</CardTitle>
-          <CardDescription>Create a student account. Access starts after admin approval.</CardDescription>
+          <CardTitle>Writer Expert Registration</CardTitle>
+          <CardDescription>Create a writer expert account. Access starts after admin approval.</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="grid gap-4">

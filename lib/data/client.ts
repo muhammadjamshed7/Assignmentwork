@@ -13,6 +13,20 @@ export function getErrorMessage(error: unknown) {
   return "Something went wrong while contacting Supabase.";
 }
 
+export async function readJsonResponse<T>(response: Response): Promise<T | null> {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (!contentType.includes("application/json")) {
+    return null;
+  }
+
+  try {
+    return await response.json() as T;
+  } catch {
+    return null;
+  }
+}
+
 export function normalizeOptionalText(value?: string) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;

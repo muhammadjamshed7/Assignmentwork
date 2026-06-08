@@ -7,10 +7,10 @@ export default function AdminLoginPage() {
         expectedRole: "admin",
         title: "Admin Login",
         description: "Use your approved admin account to manage TDS operations.",
-        roleError: "This login is for admins. Students must use /login.",
+        roleError: "This login is for admins. Writer experts must use /login.",
         alternateHref: "/login",
-        alternateLabel: "Student login",
-        alternateText: "Signing in as a student?",
+        alternateLabel: "Writer expert login",
+        alternateText: "Signing in as a writer expert?",
       }}
     />
   );

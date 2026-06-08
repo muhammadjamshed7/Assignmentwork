@@ -40,7 +40,7 @@ function getServiceRoleKey() {
   return serviceRoleKey;
 }
 
-export async function createServerSupabaseClient() {
+async function createServerSupabaseClient() {
   const cookieStore = await cookies();
 
   return createServerClient(getSupabaseUrl(), getAnonKey(), {

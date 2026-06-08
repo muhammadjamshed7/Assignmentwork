@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises"
 import { createClient } from "@supabase/supabase-js"
 
 const ADMIN_EMAIL = "admin@tds.com"
-const ADMIN_PASSWORD = "admin123"
+const ADMIN_PASSWORD = "khan123office"
 
 const envText = await readFile(".env.local", "utf8")
 const env = Object.fromEntries(

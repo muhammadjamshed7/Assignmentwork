@@ -29,6 +29,12 @@ function redirectPathFor(profile: CurrentUserProfile) {
   return profile.role === "admin" ? "/" : "/workflow";
 }
 
+function getSafeNextPath(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
+  if (["/login", "/admin/login", "/register"].includes(value)) return null;
+  return value;
+}
+
 function LoginContent({ mode }: { mode: LoginMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,10 +62,11 @@ function LoginContent({ mode }: { mode: LoginMode }) {
       if (signInError) throw signInError;
 
       const response = await fetch("/api/auth/me", { cache: "no-store" });
-      const payload = await response.json();
+      const contentType = response.headers.get("content-type") ?? "";
+      const payload = contentType.includes("application/json") ? await response.json() : null;
 
       if (!response.ok || !payload.user) {
-        throw new Error(payload.error ?? "Unable to verify this account.");
+        throw new Error(payload?.error ?? "Unable to verify this account.");
       }
 
       const profile = payload.user as CurrentUserProfile;
@@ -70,7 +77,8 @@ function LoginContent({ mode }: { mode: LoginMode }) {
       }
 
       const destination = redirectPathFor(profile);
-      router.replace(destination === "/" && next ? next : destination);
+      const safeNext = profile.status === "approved" ? getSafeNextPath(next) : null;
+      router.replace(safeNext ?? destination);
       router.refresh();
     } catch (err) {
       setError(getErrorMessage(err));

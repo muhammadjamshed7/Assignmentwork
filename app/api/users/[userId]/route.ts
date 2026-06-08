@@ -20,6 +20,10 @@ export async function PATCH(request: Request, context: UserRouteContext) {
       return NextResponse.json({ error: "Provide a valid role or status." }, { status: 400 });
     }
 
+    if (user.id === userId && (role === "student" || status === "pending" || status === "rejected" || status === "disabled")) {
+      return NextResponse.json({ error: "You cannot remove your own admin access." }, { status: 400 });
+    }
+
     const { data: existing, error: existingError } = await supabase
       .from("user_roles")
       .select("email, role, status, student_id")
@@ -27,6 +31,16 @@ export async function PATCH(request: Request, context: UserRouteContext) {
       .maybeSingle();
 
     if (existingError) throw existingError;
+
+    const { data: authUser, error: authUserError } = await supabase.auth.admin.getUserById(userId);
+
+    if (authUserError) throw authUserError;
+
+    const email = existing?.email ?? authUser.user?.email ?? null;
+
+    if (!email) {
+      return NextResponse.json({ error: "Unable to find an email address for this user." }, { status: 400 });
+    }
 
     const nextRole = role ?? existing?.role ?? "student";
     const nextStatus = status ?? existing?.status ?? "pending";
@@ -40,7 +54,7 @@ export async function PATCH(request: Request, context: UserRouteContext) {
       .from("user_roles")
       .upsert({
         user_id: userId,
-        email: existing?.email ?? null,
+        email,
         student_id: existing?.student_id ?? null,
         role: nextRole,
         status: nextStatus,
@@ -50,7 +64,11 @@ export async function PATCH(request: Request, context: UserRouteContext) {
     if (roleError) throw roleError;
 
     const { error: metadataError } = await supabase.auth.admin.updateUserById(userId, {
-      user_metadata: { role: nextRole, status: nextStatus },
+      user_metadata: {
+        ...(authUser.user?.user_metadata ?? {}),
+        role: nextRole,
+        status: nextStatus,
+      },
     });
 
     if (metadataError) throw metadataError;

@@ -9,7 +9,7 @@ import { Search, FileText } from "lucide-react"
 import Link from "next/link"
 import { getReportsIndexData } from "@/lib/data/dashboard"
 import { ErrorState, LoadingState, useSupabaseQuery } from "@/lib/data/hooks"
-import { getStatusVariant } from "@/lib/utils"
+import { writerStatusBadgeVariant, writerStatusFromOverallStatus } from "@/lib/data/writer-status"
 
 export default function ReportsIndexPage() {
   const { data, loading, error, refresh } = useSupabaseQuery(
@@ -22,7 +22,7 @@ export default function ReportsIndexPage() {
 
   const filteredStudents = students.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.assignedCourses.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))
+    s.assignedCourses.some(c => c && c.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   return (
@@ -30,7 +30,7 @@ export default function ReportsIndexPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Reports Generator</h1>
-          <p className="text-slate-400">Generate detailed PDF reports per student.</p>
+          <p className="text-slate-400">Generate detailed PDF reports per writer.</p>
         </div>
       </div>
 
@@ -40,7 +40,7 @@ export default function ReportsIndexPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 dark:text-slate-500" />
             <input
               type="text"
-              placeholder="Search students..."
+              placeholder="Search writers..."
               className="h-9 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 pl-9 pr-4 text-sm text-slate-200 placeholder:text-gray-400 dark:text-slate-500 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -53,7 +53,7 @@ export default function ReportsIndexPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Student Name</TableHead>
+                <TableHead>Writer Name</TableHead>
                 <TableHead>Trainer</TableHead>
                 <TableHead>Active Issues</TableHead>
                 <TableHead>Status</TableHead>
@@ -77,9 +77,11 @@ export default function ReportsIndexPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(student.overallStatus)}>
-                        {student.overallStatus}
-                      </Badge>
+                      {(() => {
+                        const writerStatus = writerStatusFromOverallStatus(student.overallStatus)
+
+                        return <Badge variant={writerStatusBadgeVariant(writerStatus)}>{writerStatus}</Badge>
+                      })()}
                     </TableCell>
                     <TableCell className="text-right">
                       <Link href={`/reports/${student.id}`}>
@@ -95,7 +97,7 @@ export default function ReportsIndexPage() {
               {!loading && !error && filteredStudents.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center text-gray-400 dark:text-slate-500">
-                    No students found matching your search.
+                    No writers found matching your search.
                   </TableCell>
                 </TableRow>
               )}

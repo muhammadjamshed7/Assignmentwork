@@ -60,7 +60,7 @@ export async function createIssue(input: {
   const description = input.description.trim();
 
   if (!input.studentId || !description) {
-    throw new Error("Select a student and enter an issue description.");
+    throw new Error("Select a writer and enter an issue description.");
   }
 
   const { data, error } = await supabase

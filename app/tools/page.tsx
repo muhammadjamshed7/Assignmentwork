@@ -236,7 +236,7 @@ export default function AIToolsPage() {
           <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">AI Tools Directory</h1>
           <p className="text-slate-400">
             Track approved AI resources, including writing-refinement tools that improve clarity, tone, and readability
-            while keeping students responsible for reviewing and understanding final work.
+            while keeping writers responsible for reviewing and understanding final work.
           </p>
         </div>
 

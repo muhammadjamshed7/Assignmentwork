@@ -19,7 +19,8 @@ import { useSearchStore } from "@/store/useSearchStore"
 import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
 import { PaginationControls } from "@/components/ui/pagination-controls"
 import { Student } from "@/lib/data/types"
-import { getStatusVariant, getPriorityVariant } from "@/lib/utils"
+import { getPriorityVariant } from "@/lib/utils"
+import { writerStatusBadgeVariant, writerStatusFromOverallStatus, type WriterStatus } from "@/lib/data/writer-status"
 
 const PAGE_SIZE = 10
 
@@ -49,7 +50,7 @@ export default function StudentsPage() {
   const [newEmail, setNewEmail] = useState("")
   const [selectedCourses, setSelectedCourses] = useState<string[]>([])
   const [newTrainer, setNewTrainer] = useState("")
-  const [newStatus, setNewStatus] = useState<"Active" | "Inactive">("Active")
+  const [newStatus, setNewStatus] = useState<WriterStatus>("Active")
   const [newNotes, setNewNotes] = useState("")
   const [formError, setFormError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
@@ -81,6 +82,14 @@ export default function StudentsPage() {
     )
   }
 
+  const addSelectedCourse = (courseId: string) => {
+    if (!courseId) return
+    setSelectedCourses(prev => prev.includes(courseId) ? prev : [...prev, courseId])
+  }
+
+  const selectedCourseRows = courses.filter(course => selectedCourses.includes(course.id))
+  const unassignedCourseRows = courses.filter(course => !selectedCourses.includes(course.id))
+
   const resetForm = () => {
     setEditingStudentId(null)
     setNewName("")
@@ -103,7 +112,7 @@ export default function StudentsPage() {
     setNewEmail(student.email ?? "")
     setSelectedCourses(student.assignedCourseIds)
     setNewTrainer(student.assignedTrainer)
-    setNewStatus(student.overallStatus === "Pending" ? "Inactive" : "Active")
+    setNewStatus(writerStatusFromOverallStatus(student.overallStatus))
     setNewNotes(student.notes ?? "")
     setFormError("")
     setIsModalOpen(true)
@@ -126,7 +135,7 @@ export default function StudentsPage() {
     const emailTrimmed = newEmail.trim()
     
     if (!nameTrimmed) {
-      setFormError("Student Name is required.")
+      setFormError("Writer name is required.")
       setIsSaving(false)
       return
     }
@@ -136,7 +145,7 @@ export default function StudentsPage() {
     )
 
     if (isDuplicate) {
-      setFormError("A student with this email already exists.")
+      setFormError("A writer with this email already exists.")
       setIsSaving(false)
       return
     }
@@ -160,7 +169,7 @@ export default function StudentsPage() {
       await refresh()
 
       addToast({
-        title: editingStudentId ? "Student Updated" : "Student Created",
+        title: editingStudentId ? "Writer Updated" : "Writer Created",
         description: editingStudentId ? `${nameTrimmed} was saved.` : `${nameTrimmed} has been added successfully.`,
         type: "success"
       })
@@ -183,8 +192,8 @@ export default function StudentsPage() {
       await refresh()
       setDeletingStudentId(null)
       addToast({
-        title: "Student Deleted",
-        description: "The student record was removed.",
+        title: "Writer Deleted",
+        description: "The writer record was removed.",
         type: "success",
       })
     } catch (err) {
@@ -202,21 +211,21 @@ export default function StudentsPage() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Students</h1>
-          <p className="text-slate-400">Manage student records and track progress.</p>
+          <h1 className="text-gray-900 dark:text-white font-display text-3xl font-bold tracking-tight">Writers</h1>
+          <p className="text-slate-400">Manage writer details, assigned courses, status, and support issues.</p>
         </div>
         
         {isAdmin && (
         <Dialog open={isModalOpen} onOpenChange={handleDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button type="button" onClick={openCreateDialog}>Add New Student</Button>
+            <Button type="button" onClick={openCreateDialog}>Add New Writer</Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <form onSubmit={handleSubmitStudent}>
               <DialogHeader>
-                <DialogTitle>{editingStudentId ? "Edit Student" : "Add New Student"}</DialogTitle>
+                <DialogTitle>{editingStudentId ? "Edit Writer" : "Add New Writer"}</DialogTitle>
                 <DialogDescription>
-                  Enter the details of the new student. This will be saved to the database.
+                  Enter the writer details. This will be saved to the database.
                 </DialogDescription>
               </DialogHeader>
               
@@ -228,10 +237,10 @@ export default function StudentsPage() {
                 )}
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Student Name <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="name">Writer Name <span className="text-red-500">*</span></Label>
                   <Input 
                     id="name" 
-                    placeholder="e.g. Student name" 
+                    placeholder="e.g. Writer name" 
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                   />
@@ -250,21 +259,40 @@ export default function StudentsPage() {
 
                 <div className="grid gap-2">
                   <Label>Assigned Courses</Label>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {courses.map(course => (
+                  <select
+                    value=""
+                    onChange={(event) => addSelectedCourse(event.target.value)}
+                    className="flex h-10 w-full rounded-md border border-gray-300 bg-gray-100/50 px-3 py-2 text-sm text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
+                    disabled={courses.length === 0 || unassignedCourseRows.length === 0}
+                  >
+                    <option value="">
+                      {courses.length === 0
+                        ? "No courses available"
+                        : unassignedCourseRows.length === 0
+                          ? "All courses assigned"
+                          : "Select a course to assign"}
+                    </option>
+                    {unassignedCourseRows.map(course => (
+                      <option key={course.id} value={course.id}>
+                        {course.code} - {course.title}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex min-h-8 flex-wrap gap-2 pt-1">
+                    {selectedCourseRows.map(course => (
                       <button
                         type="button"
                         key={course.id}
                         onClick={() => toggleCourse(course.id)}
-                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 focus:ring-offset-slate-900 ${
-                          selectedCourses.includes(course.id)
-                            ? 'border-indigo-500/50 bg-indigo-500/20 text-indigo-300'
-                            : 'border-gray-300 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:border-gray-400 dark:hover:border-slate-500 hover:text-slate-200'
-                        }`}
+                        className="inline-flex items-center rounded-full border border-indigo-500/50 bg-indigo-500/20 px-2.5 py-0.5 text-xs font-semibold text-indigo-300 transition-colors hover:bg-indigo-500/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 focus:ring-offset-slate-900"
+                        title="Remove assigned course"
                       >
-                        {course.code}
+                        {course.code} x
                       </button>
                     ))}
+                    {selectedCourseRows.length === 0 && (
+                      <span className="text-xs text-gray-400 dark:text-slate-500">No courses assigned.</span>
+                    )}
                   </div>
                 </div>
 
@@ -279,11 +307,11 @@ export default function StudentsPage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="status">Initial Status</Label>
+                    <Label htmlFor="status">{editingStudentId ? "Status" : "Initial Status"}</Label>
                     <select
                       id="status"
                       value={newStatus}
-                      onChange={(e) => setNewStatus(e.target.value as "Active" | "Inactive")}
+                      onChange={(e) => setNewStatus(e.target.value as WriterStatus)}
                       className="flex h-10 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 px-3 py-2 text-sm text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                     >
                       <option value="Active">Active</option>
@@ -307,7 +335,7 @@ export default function StudentsPage() {
                 <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : editingStudentId ? "Save" : "Save Student"}</Button>
+                <Button type="submit" disabled={isSaving}>{isSaving ? "Saving..." : editingStudentId ? "Save" : "Save Writer"}</Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -321,7 +349,7 @@ export default function StudentsPage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 dark:text-slate-500" />
             <input 
               type="text" 
-              placeholder="Search students..." 
+              placeholder="Search writers..." 
               className="h-9 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 pl-9 pr-4 text-sm text-slate-200 placeholder:text-gray-400 dark:text-slate-500 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -330,7 +358,7 @@ export default function StudentsPage() {
 
         </CardHeader>
         <CardContent className="p-0">
-          {loading && <div className="p-6"><LoadingState label="Loading students..." /></div>}
+          {loading && <div className="p-6"><LoadingState label="Loading writers..." /></div>}
           {error && <div className="p-6"><ErrorState message={error} onRetry={refresh} /></div>}
           <Table>
             <TableHeader>
@@ -367,9 +395,15 @@ export default function StudentsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusVariant(student.overallStatus)}>
-                      {student.overallStatus}
-                    </Badge>
+                    {(() => {
+                      const writerStatus = writerStatusFromOverallStatus(student.overallStatus)
+
+                      return (
+                        <Badge variant={writerStatusBadgeVariant(writerStatus)}>
+                          {writerStatus}
+                        </Badge>
+                      )
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Badge variant={getPriorityVariant(student.priority)}>
@@ -380,13 +414,13 @@ export default function StudentsPage() {
                     <div className="flex justify-end gap-1">
                       {isAdmin && (
                         <>
-                          <Button type="button" variant="ghost" size="icon" title="Edit student" onClick={() => openEditDialog(student)}>
+                          <Button type="button" variant="ghost" size="icon" title="Edit writer" onClick={() => openEditDialog(student)}>
                             <Pencil className="h-4 w-4" aria-hidden="true" />
-                            <span className="sr-only">Edit student</span>
+                            <span className="sr-only">Edit writer</span>
                           </Button>
-                          <Button type="button" variant="ghost" size="icon" title="Delete student" onClick={() => setDeletingStudentId(student.id)}>
+                          <Button type="button" variant="ghost" size="icon" title="Delete writer" onClick={() => setDeletingStudentId(student.id)}>
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
-                            <span className="sr-only">Delete student</span>
+                            <span className="sr-only">Delete writer</span>
                           </Button>
                         </>
                       )}
@@ -397,7 +431,7 @@ export default function StudentsPage() {
               {!loading && !error && filteredStudents.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-gray-400 dark:text-slate-500">
-                    No students found.
+                    No writers found.
                   </TableCell>
                 </TableRow>
               )}
@@ -416,9 +450,9 @@ export default function StudentsPage() {
       <Dialog open={!!deletingStudentId} onOpenChange={(open) => !open && setDeletingStudentId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Student</DialogTitle>
+            <DialogTitle>Delete Writer</DialogTitle>
             <DialogDescription>
-              {deletingStudent ? `Remove "${deletingStudent.name}" and all related issues/comments?` : "Remove this student record?"}
+              {deletingStudent ? `Remove "${deletingStudent.name}" and all related issues/comments?` : "Remove this writer record?"}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

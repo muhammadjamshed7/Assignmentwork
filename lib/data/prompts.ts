@@ -17,6 +17,18 @@ export async function listPromptsPage(options: PaginationOptions = {}): Promise<
   return toPaginatedResult((data ?? []).map(mapPrompt), count, pagination);
 }
 
+export async function listPromptById(promptId: string): Promise<Prompt | null> {
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("prompts")
+    .select("id, title, category, content, related_course_id, tags, created_at, updated_at")
+    .eq("id", promptId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ? mapPrompt(data) : null;
+}
+
 export async function createPrompt(input: {
   title: string;
   category: string;

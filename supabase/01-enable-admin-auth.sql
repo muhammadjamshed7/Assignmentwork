@@ -6,7 +6,7 @@
 --
 -- Default admin login:
 --   Email:    admin@tds.com
---   Password: admin123
+--   Password: khan123office
 --
 -- Admin role:
 --   role = admin
@@ -221,7 +221,7 @@ using (public.is_approved_student());
 do $$
 declare
   admin_email text := 'admin@tds.com';
-  admin_password text := 'admin123';
+  admin_password text := 'khan123office';
   admin_id uuid := gen_random_uuid();
 begin
   if exists (select 1 from auth.users where lower(email) = lower(admin_email)) then
@@ -325,4 +325,4 @@ end $$;
 
 commit;
 
-select 'Admin enabled. Login with admin@tds.com / admin123' as result;
+select 'Admin enabled. Login with admin@tds.com / khan123office' as result;
