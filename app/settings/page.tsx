@@ -25,6 +25,7 @@ type ManagedUser = {
   studentId?: string | null
   createdAt?: string
   lastSignInAt?: string
+  needsRoleSync?: boolean
 }
 
 type UsersPayload = {
@@ -268,6 +269,7 @@ export default function SettingsPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <span>{user.email || user.id}</span>
                             {isOwnRow && <Badge variant="outline">Current admin</Badge>}
+                            {user.needsRoleSync && <Badge variant="pending">Needs approval sync</Badge>}
                           </div>
                         </TableCell>
                         <TableCell>

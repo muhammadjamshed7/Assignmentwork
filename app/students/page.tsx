@@ -307,7 +307,7 @@ export default function StudentsPage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="status">{editingStudentId ? "Status" : "Initial Status"}</Label>
+                    <Label htmlFor="status">{editingStudentId ? "Writer Work Status" : "Initial Work Status"}</Label>
                     <select
                       id="status"
                       value={newStatus}

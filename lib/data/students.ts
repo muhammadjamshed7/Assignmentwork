@@ -1,4 +1,4 @@
-import { requireSupabase, normalizeOptionalText } from "@/lib/data/client";
+import { requireSupabase, normalizeOptionalText, readJsonResponse } from "@/lib/data/client";
 import { mapIssue, mapStudent } from "@/lib/data/mappers";
 import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
 import { IssueStatus, PaginatedResult, PaginationOptions, PriorityLevel, Student } from "@/lib/data/types";
@@ -24,6 +24,31 @@ async function validateAssignedCourseIds(courseIds: string[]) {
 
   if (missingCourseIds.length > 0) {
     throw new Error("One or more selected courses no longer exist.");
+  }
+}
+
+async function approveLinkedUserIfActive(studentId: string, overallStatus?: IssueStatus) {
+  if (overallStatus !== "In Progress") return;
+
+  const supabase = requireSupabase();
+  const { data: student, error } = await supabase
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (typeof student?.user_id !== "string") return;
+
+  const response = await fetch(`/api/users/${student.user_id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "approved" }),
+  });
+  const payload = await readJsonResponse<{ error?: string }>(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Unable to approve the linked writer login.");
   }
 }
 
@@ -262,6 +287,8 @@ export async function updateStudent(studentId: string, input: {
     const { error: coursesError } = await supabase.from("student_courses").insert(courseRows);
     if (coursesError) throw coursesError;
   }
+
+  await approveLinkedUserIfActive(studentId, input.overallStatus);
 
   return listStudentById(studentId);
 }

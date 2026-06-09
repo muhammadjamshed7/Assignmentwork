@@ -24,17 +24,16 @@ export async function GET() {
       const roleRow = rolesByUserId.get(user.id);
       const role = roleRow?.role;
       const status = roleRow?.status;
-      const metadataRole = user.user_metadata?.role;
-      const metadataStatus = user.user_metadata?.status;
 
       return {
         id: user.id,
         email: roleRow?.email ?? user.email ?? "",
-        role: isUserRole(role) ? role : isUserRole(metadataRole) ? metadataRole : "student",
-        status: isUserStatus(status) ? status : isUserStatus(metadataStatus) ? metadataStatus : "pending",
+        role: isUserRole(role) ? role : "student",
+        status: isUserStatus(status) ? status : "pending",
         studentId: roleRow?.student_id ?? null,
         createdAt: user.created_at,
         lastSignInAt: user.last_sign_in_at,
+        needsRoleSync: !roleRow,
       };
     });
 
