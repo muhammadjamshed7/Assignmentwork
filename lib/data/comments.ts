@@ -44,29 +44,71 @@ export async function createComment(input: {
   text: string;
 }) {
   const profile = await getCurrentProfileFromApi();
-  const canCreateAsAdmin = isApprovedAdmin(profile);
-  const canCreateAsStudent = Boolean(
-    profile && isApprovedStudent(profile) && profile.studentId === input.studentId && input.role === "Student"
-  );
 
-  if (!canCreateAsAdmin && !canCreateAsStudent) {
-    throw new Error("You can only comment on your own approved ticket.");
+  if (!profile) {
+    throw new Error("Sign in with an approved account before commenting.");
   }
 
   const supabase = requireSupabase();
   const text = input.text.trim();
 
-  if (!input.studentId || !text) {
+  if (!text) {
+    throw new Error("Comment text is required.");
+  }
+
+  if (profile.status === "pending") {
+    throw new Error("Your account is still pending admin approval.");
+  }
+
+  if (profile.status === "rejected" || profile.status === "disabled") {
+    throw new Error("This account cannot add comments. Contact an administrator if this is unexpected.");
+  }
+
+  const canCreateAsAdmin = isApprovedAdmin(profile);
+  const canCreateAsStudent = isApprovedStudent(profile);
+  let studentId = input.studentId;
+  let role = input.role;
+  let authorName = input.authorName.trim() || input.role;
+
+  if (canCreateAsStudent) {
+    if (!profile.studentId) {
+      throw new Error("Your account is not linked to a writer profile.");
+    }
+
+    if (!input.issueId) {
+      throw new Error("Select one of your tickets before commenting.");
+    }
+
+    const { data: issue, error: issueError } = await supabase
+      .from("issues")
+      .select("id, student_id")
+      .eq("id", input.issueId)
+      .maybeSingle();
+
+    if (issueError) throw issueError;
+
+    if (!issue || issue.student_id !== profile.studentId) {
+      throw new Error("You can only comment on your own approved ticket.");
+    }
+
+    studentId = profile.studentId;
+    role = "Student";
+    authorName = input.authorName.trim() || "Writer";
+  } else if (!canCreateAsAdmin) {
+    throw new Error("You can only comment with an approved account.");
+  }
+
+  if (!studentId) {
     throw new Error("A writer and comment text are required.");
   }
 
   const { data, error } = await supabase
     .from("comments")
     .insert({
-      student_id: input.studentId,
+      student_id: studentId,
       issue_id: input.issueId ?? null,
-      author_name: input.authorName.trim() || input.role,
-      role: input.role,
+      author_name: authorName,
+      role,
       text,
     })
     .select("id, student_id, issue_id, author_name, role, text, created_at, updated_at")

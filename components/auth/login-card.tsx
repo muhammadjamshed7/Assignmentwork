@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createSupabaseClient } from "@/lib/supabase";
 import { getErrorMessage } from "@/lib/data/client";
-import { CurrentUserProfile, type UserRole } from "@/lib/auth/role-utils";
+import { isUserRole, isUserStatus, type CurrentUserProfile, type UserRole } from "@/lib/auth/role-utils";
 
 type LoginMode = {
   expectedRole: UserRole;
@@ -29,10 +29,52 @@ function redirectPathFor(profile: CurrentUserProfile) {
   return profile.role === "admin" ? "/" : "/workflow";
 }
 
-function getSafeNextPath(value: string | null) {
+const AUTH_PAGE_PATHS = new Set(["/login", "/admin/login", "/register", "/pending-approval", "/access-denied"]);
+const ADMIN_ONLY_PATH_PREFIXES = ["/students", "/reports", "/settings"];
+const STUDENT_ALLOWED_PATH_PREFIXES = ["/workflow", "/prompts", "/tools", "/courses", "/issues", "/comments"];
+
+function isAdminOnlyPath(pathname: string) {
+  return pathname === "/" || ADMIN_ONLY_PATH_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function isStudentAllowedPath(pathname: string) {
+  return STUDENT_ALLOWED_PATH_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function parseCurrentProfile(value: unknown): CurrentUserProfile | null {
+  if (!value || typeof value !== "object") return null;
+
+  const profile = value as Partial<CurrentUserProfile>;
+
+  if (
+    typeof profile.userId !== "string" ||
+    typeof profile.email !== "string" ||
+    !isUserRole(profile.role) ||
+    !isUserStatus(profile.status) ||
+    !(typeof profile.studentId === "string" || profile.studentId === null)
+  ) {
+    return null;
+  }
+
+  return {
+    userId: profile.userId,
+    email: profile.email,
+    role: profile.role,
+    status: profile.status,
+    studentId: profile.studentId,
+  };
+}
+
+function getSafeNextPath(value: string | null, profile: CurrentUserProfile) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return null;
-  if (["/login", "/admin/login", "/register"].includes(value)) return null;
-  return value;
+  const pathname = value.split(/[?#]/, 1)[0] || "/";
+
+  if (AUTH_PAGE_PATHS.has(pathname)) return null;
+  if (profile.status !== "approved") return null;
+  if (profile.role === "admin") return value;
+  if (isAdminOnlyPath(pathname)) return null;
+
+  return isStudentAllowedPath(pathname) ? value : null;
 }
 
 function LoginContent({ mode }: { mode: LoginMode }) {
@@ -54,6 +96,8 @@ function LoginContent({ mode }: { mode: LoginMode }) {
     try {
       if (!supabase) throw new Error("Supabase is not configured.");
 
+      await supabase.auth.signOut();
+
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
@@ -65,19 +109,24 @@ function LoginContent({ mode }: { mode: LoginMode }) {
       const contentType = response.headers.get("content-type") ?? "";
       const payload = contentType.includes("application/json") ? await response.json() : null;
 
-      if (!response.ok || !payload.user) {
+      if (!response.ok) {
         throw new Error(payload?.error ?? "Unable to verify this account.");
       }
 
-      const profile = payload.user as CurrentUserProfile;
+      const profile = parseCurrentProfile(payload?.user);
 
-      if (profile.status === "approved" && profile.role !== mode.expectedRole) {
+      if (!profile) {
+        await supabase.auth.signOut();
+        throw new Error("Unable to verify this account profile.");
+      }
+
+      if (profile.role !== mode.expectedRole) {
         await supabase.auth.signOut();
         throw new Error(mode.roleError);
       }
 
       const destination = redirectPathFor(profile);
-      const safeNext = profile.status === "approved" ? getSafeNextPath(next) : null;
+      const safeNext = getSafeNextPath(next, profile);
       router.replace(safeNext ?? destination);
       router.refresh();
     } catch (err) {

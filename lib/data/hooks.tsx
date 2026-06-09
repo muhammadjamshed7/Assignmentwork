@@ -23,30 +23,38 @@ export function useSupabaseQuery<T>(
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const loadRef = React.useRef(load);
+  const mountedRef = React.useRef(true);
   const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const realtimeKey = Array.from(new Set(realtimeTables.filter(Boolean))).join("|");
 
   loadRef.current = load;
 
   const refresh = React.useCallback(async () => {
+    if (!mountedRef.current) return;
+
     setLoading(true);
     setError(null);
 
     try {
-      setData(await loadRef.current());
+      const result = await loadRef.current();
+      if (mountedRef.current) setData(result);
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (mountedRef.current) setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, []);
 
   React.useEffect(() => {
+    mountedRef.current = true;
     void refresh();
   }, [refresh, reloadKey]);
 
   React.useEffect(() => {
+    mountedRef.current = true;
+
     return () => {
+      mountedRef.current = false;
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
@@ -60,7 +68,8 @@ export function useSupabaseQuery<T>(
     let client;
     try {
       client = requireSupabase();
-    } catch {
+    } catch (err) {
+      setError(getErrorMessage(err));
       return;
     }
 
@@ -82,6 +91,10 @@ export function useSupabaseQuery<T>(
     channel.subscribe();
 
     return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
       void client.removeChannel(channel);
     };
   }, [refresh, realtimeKey]);

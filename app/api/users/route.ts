@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { isUserRole, isUserStatus } from "@/lib/auth/role-utils";
-import { requireAdminRequest } from "@/lib/auth/server";
+import { AuthRequestError, requireAdminRequest } from "@/lib/auth/server";
 import { getErrorMessage } from "@/lib/data/client";
+
+function statusForError(error: unknown) {
+  return error instanceof AuthRequestError ? error.status : 500;
+}
 
 export async function GET() {
   try {
@@ -36,7 +40,7 @@ export async function GET() {
 
     return NextResponse.json({ users });
   } catch (error) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: statusForError(error) });
   }
 }
 
@@ -75,6 +79,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ user: data.user });
   } catch (error) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: statusForError(error) });
   }
 }

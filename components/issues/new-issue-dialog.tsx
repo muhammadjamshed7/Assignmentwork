@@ -292,7 +292,7 @@ function NewIssueDialogContent({ onIssueCreated, onSaved, externalStudents, isAd
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSaving || students.length === 0 || !description.trim()}>
+            <Button type="submit" disabled={isSaving || (isAdmin && students.length === 0) || !description.trim()}>
               {isSaving ? "Creating..." : "Create"}
             </Button>
           </DialogFooter>

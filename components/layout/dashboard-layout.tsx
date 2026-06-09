@@ -27,11 +27,8 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { PwaInstallButton } from "@/components/pwa-install-button"
 import { createSupabaseClient } from "@/lib/supabase"
-import { readJsonResponse } from "@/lib/data/client"
-
-type ProfilePayload = {
-  user?: { email: string; role: "admin" | "student" } | null
-}
+import { getCurrentProfileFromApi } from "@/lib/auth/roles"
+import type { CurrentUserProfile } from "@/lib/auth/role-utils"
 
 
 const navigation = [
@@ -62,16 +59,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 function DashboardShell({ children, pathname }: { children: React.ReactNode; pathname: string }) {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
-  const [profile, setProfile] = React.useState<{ email: string; role: "admin" | "student" } | null>(null)
+  const [profile, setProfile] = React.useState<CurrentUserProfile | null>(null)
 
   React.useEffect(() => {
     let mounted = true
 
     async function loadProfile() {
       try {
-        const response = await fetch("/api/auth/me", { cache: "no-store" })
-        const payload = await readJsonResponse<ProfilePayload>(response)
-        if (mounted && response.ok) setProfile(payload?.user ?? null)
+        const userProfile = await getCurrentProfileFromApi()
+        if (mounted) setProfile(userProfile)
       } catch {
         if (mounted) setProfile(null)
       }
@@ -90,8 +86,16 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
   })
 
   async function signOut() {
+    let role = profile?.role
+
+    if (!role) {
+      try {
+        role = (await getCurrentProfileFromApi())?.role
+      } catch {}
+    }
+
     await createSupabaseClient()?.auth.signOut()
-    window.location.href = profile?.role === "admin" ? "/admin/login" : "/login"
+    window.location.href = role === "admin" ? "/admin/login" : "/login"
   }
 
   function handleSidebarToggle() {
@@ -152,9 +156,9 @@ function DashboardShell({ children, pathname }: { children: React.ReactNode; pat
               </div>
               <div className="hidden sm:flex sm:flex-col sm:items-start sm:justify-center">
                 <span className="max-w-52 truncate text-sm font-medium text-gray-950 dark:text-white">
-                  Admin workspace
+                  {profile?.role === "admin" ? "Admin workspace" : profile?.role === "student" ? "Writer workspace" : "Workspace"}
                 </span>
-                <span className="text-xs text-gray-400 dark:text-slate-500">{profile?.role === "admin" ? "Admin access" : "Writer access"}</span>
+                <span className="text-xs text-gray-400 dark:text-slate-500">{profile?.role === "admin" ? "Admin access" : profile?.role === "student" ? "Writer access" : "Loading access"}</span>
               </div>
             </div>
             <Button type="button" variant="ghost" size="icon" title="Sign out" aria-label="Sign out" onClick={signOut}>

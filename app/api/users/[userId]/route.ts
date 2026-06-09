@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 
 import { isUserRole, isUserStatus } from "@/lib/auth/role-utils";
-import { requireAdminRequest } from "@/lib/auth/server";
+import { AuthRequestError, requireAdminRequest } from "@/lib/auth/server";
 import { getErrorMessage } from "@/lib/data/client";
 
 type UserRouteContext = {
   params: Promise<{ userId: string }>;
 };
+
+function statusForError(error: unknown) {
+  return error instanceof AuthRequestError ? error.status : 500;
+}
 
 export async function PATCH(request: Request, context: UserRouteContext) {
   try {
@@ -81,7 +85,7 @@ export async function PATCH(request: Request, context: UserRouteContext) {
       },
     });
   } catch (error) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 403 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: statusForError(error) });
   }
 }
 
@@ -101,6 +105,6 @@ export async function DELETE(_request: Request, context: UserRouteContext) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 403 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: statusForError(error) });
   }
 }

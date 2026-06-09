@@ -1,529 +1,611 @@
 # System Flow
 
-> Legacy note: this document still describes the pre-auth open-access flow. The current app requires Supabase Auth, approval status checks, and role-based route access. Use `README.md`, `supabase/schema.sql`, and the current `lib/auth/*` implementation as the source of truth until this document is rewritten.
-
-This document explains the current TDS Management academic services dashboard flow, including how pages, Supabase data modules, realtime refreshes, database triggers, and shared UI state connect.
+This document describes the current TDS Management system flow as implemented in the app. The current app is auth-enabled: Supabase Auth identifies users, `user_roles` stores role and approval state, `proxy.ts` protects routes, and Supabase RLS enforces data access.
 
 ## System Overview
 
-TDS Management is a Next.js App Router dashboard for tracking students, courses, issues, comments, prompts, reports, AI tool metrics, analytics shells, and platform settings in open-access mode.
+TDS Management is a Next.js 16 App Router dashboard for academic operations. Admin users manage writers, courses, issues, comments, prompts, reports, AI tools, and account approvals. Writer expert users register into a pending state, wait for admin approval, then access a limited workspace for workflows, prompts, courses, issues, comments, and AI tools.
 
-The active data layer is Supabase, accessed from client components through the modules in `lib/data/`. Pages use `useSupabaseQuery` from `lib/data/hooks.tsx` to load records, show loading and error states, and subscribe to Supabase Realtime table changes. Login and route protection are intentionally removed: every app route renders directly, role helpers return open admin access, and database policies allow anon/authenticated access to app tables. Zustand is still present, but it is no longer the primary app data store. The active Zustand usage is `store/useToastStore.ts` for notifications and `store/useSearchStore.ts` for the shared search input.
+The main runtime layers are:
+
+| Layer | Main Files | Role |
+| --- | --- | --- |
+| Route protection | `proxy.ts` | Redirects unauthenticated users, pending users, rejected users, and role-mismatched users. |
+| Auth profile | `lib/auth/server.ts`, `lib/auth/roles.ts`, `/api/auth/me` | Resolves the current Supabase user plus `user_roles` row. |
+| Client data | `lib/data/*`, `lib/supabase.ts` | Reads and mutates Supabase tables through the browser Supabase client. |
+| Server admin APIs | `app/api/users/*`, `app/api/report/[studentId]/pdf/route.ts` | Uses service-role access only where server-side privileged work is required. |
+| UI shell | `components/layout/dashboard-layout.tsx` | Shows role-aware navigation, profile state, theme, PWA, and sign out. |
+| Database | `supabase/schema.sql` | Tables, triggers, approval-aware RLS, and realtime publication. |
 
 ```mermaid
 flowchart TD
-  Root[app/layout.tsx] --> Shell[DashboardLayout]
-  Shell --> Dashboard[Route /]
-  Shell --> Students[Route /students]
-  Shell --> Reports[Routes /reports and /reports/:studentId]
-  Shell --> Courses[Route /courses]
-  Shell --> Prompts[Route /prompts]
-  Shell --> Issues[Route /issues]
-  Shell --> Comments[Route /comments]
-  Shell --> Tools[Route /tools]
-  Shell --> Workflow[Routes /workflow and /workflow/:slug]
-Shell --> Settings[Route /settings]
-
-  Dashboard --> Hook[useSupabaseQuery]
-  Students --> Hook
-  Reports --> Hook
-  Courses --> Hook
-  Prompts --> Hook
-  Issues --> Hook
-  Comments --> Hook
-  Tools --> Hook
-  Workflow --> StaticData[workflow-data.ts — no Supabase]
-  Shell --> Hook
-
-  Hook --> DataModules[lib/data modules]
-  DataModules --> Supabase[(Supabase)]
-  Supabase --> Realtime[Realtime postgres_changes]
-  Realtime --> Hook
-  Hook --> Pages[Refresh visible UI]
+  Request[Browser request] --> Proxy[proxy.ts]
+  Proxy --> Auth{Supabase session?}
+  Auth -- no --> Login[/login or /admin/login]
+  Auth -- yes --> RoleRow[user_roles lookup]
+  RoleRow --> Status{Approved?}
+  Status -- pending --> Pending[/pending-approval]
+  Status -- rejected/disabled --> Denied[/access-denied]
+  Status -- approved --> Role{Role}
+  Role -- admin --> AdminShell[Admin dashboard shell]
+  Role -- student --> StudentShell[Writer expert shell]
+  AdminShell --> Pages[App pages]
+  StudentShell --> AllowedPages[Student-allowed pages]
+  Pages --> Data[lib/data helpers]
+  AllowedPages --> Data
+  Data --> Supabase[(Supabase + RLS)]
 ```
+
+## Authentication And Approval Flow
+
+### Login Pages
+
+| Route | Purpose | Expected Role |
+| --- | --- | --- |
+| `/login` | Writer expert login | `student` |
+| `/admin/login` | Admin login | `admin` |
+| `/register` | Writer expert registration | Creates pending `student` account |
+| `/pending-approval` | Waiting room for pending accounts | Any pending user |
+| `/access-denied` | Rejected, disabled, or blocked account state | Any rejected/disabled user |
+
+`components/auth/login-card.tsx` is used by both login pages. On submit it:
+
+1. Creates a browser Supabase client.
+2. Signs out any existing browser session so account switching starts cleanly.
+3. Calls `supabase.auth.signInWithPassword()`.
+4. Calls `/api/auth/me` to read the current profile.
+5. Rejects the login if the resolved role does not match the page's expected role.
+6. Redirects approved admins to `/`, approved writer experts to `/workflow`, pending accounts to `/pending-approval`, and rejected or disabled accounts to `/access-denied`.
+
+```mermaid
+flowchart TD
+  Form[Login form submit] --> ClearSession[Sign out existing session]
+  ClearSession --> PasswordLogin[Supabase password login]
+  PasswordLogin --> Profile[/api/auth/me]
+  Profile --> RoleMatch{Role matches login page?}
+  RoleMatch -- no --> SignOut[Sign out and show role error]
+  RoleMatch -- yes --> Status{Profile status}
+  Status -- approved admin --> Dashboard[/]
+  Status -- approved student --> Workflow[/workflow]
+  Status -- pending --> Pending[/pending-approval]
+  Status -- rejected/disabled --> Denied[/access-denied]
+```
+
+### Registration
+
+`app/api/auth/register/route.ts` creates writer expert accounts with service-role privileges.
+
+Registration steps:
+
+1. Validate name, email, and password.
+2. Create a Supabase Auth user with confirmed email and metadata `{ role: "student", status: "pending", name }`.
+3. Insert a matching `students` row linked through `students.user_id`.
+4. Upsert a `user_roles` row with role `student`, status `pending`, and the new `student_id`.
+5. Roll back the student and auth user on failure where possible.
+
+```mermaid
+flowchart TD
+  RegisterForm[/register form] --> RegisterApi[/api/auth/register]
+  RegisterApi --> AuthUser[Create auth user]
+  AuthUser --> StudentRow[Insert students row]
+  StudentRow --> RoleRow[Upsert user_roles pending student]
+  RoleRow --> Pending[/pending-approval]
+```
+
+### Current Profile
+
+The app uses `/api/auth/me` as the client-safe source of truth for the current user.
+
+`lib/auth/server.ts#getCurrentUserProfile()`:
+
+1. Creates a server Supabase client from request cookies.
+2. Calls `supabase.auth.getUser()`.
+3. Reads `user_roles` for the auth user.
+4. Normalizes unknown or missing role/status to `student` and `pending`.
+5. Returns `{ userId, email, role, status, studentId }`.
+
+Client helpers:
+
+| Helper | Role |
+| --- | --- |
+| `getCurrentProfileFromApi()` | Fetches `/api/auth/me`, returns profile or null. |
+| `useCurrentUserRole()` | React hook exposing `profile`, `role`, `status`, `isAdmin`, and `isStudent`. |
+| `assertAdmin()` | Throws unless the current profile is an approved admin. |
+
+## Route Protection
+
+`proxy.ts` runs before page requests. It is based on the Next.js 16 Proxy convention.
+
+Public page routes:
+
+| Route | Behavior |
+| --- | --- |
+| `/login` | Always allowed so users can switch accounts. |
+| `/admin/login` | Always allowed so users can switch accounts. |
+| `/register` | Redirects signed-in users to their home state. |
+| `/pending-approval` | Allowed only when it matches the signed-in user's pending state. |
+| `/access-denied` | Allowed only when it matches rejected/disabled state. |
+
+Protected routing rules:
+
+| User State | Destination |
+| --- | --- |
+| No session, admin-only path | `/admin/login?next=...` |
+| No session, non-admin path | `/login?next=...` |
+| Pending | `/pending-approval` |
+| Rejected or disabled | `/access-denied` |
+| Approved admin | Any app route |
+| Approved student on admin-only route | `/workflow` |
+| Approved student on allowed route | Requested route |
+
+Admin-only path prefixes:
+
+```text
+/
+/students
+/reports
+/settings
+```
+
+Student-allowed path prefixes:
+
+```text
+/workflow
+/prompts
+/tools
+/courses
+/issues
+/comments
+/api/auth
+```
+
+## Authorization Model
+
+The app has two runtime roles and four approval states.
+
+| Role | Meaning |
+| --- | --- |
+| `admin` | Full operational access after approval. |
+| `student` | Writer expert access after approval. |
+
+| Status | Meaning |
+| --- | --- |
+| `pending` | Account exists but cannot access the app yet. |
+| `approved` | Account can use routes and data allowed by role. |
+| `rejected` | Account is blocked and sent to `/access-denied`. |
+| `disabled` | Account is blocked and sent to `/access-denied`. |
+
+Authorization happens at three levels:
+
+| Level | Mechanism |
+| --- | --- |
+| Navigation | `DashboardLayout` filters sidebar links by profile role. |
+| Client mutations | `assertAdmin()` blocks admin-only mutations; issue/comment creation allows approved students for their own writer record. |
+| Database | Supabase RLS functions and policies enforce approved admin or approved student access. |
+
+## Database Access And RLS
+
+Browser-side data modules use `requireSupabase()` from `lib/data/client.ts`. If Supabase public env vars are missing, it throws a configuration error and pages render an error state.
+
+Server-only service-role access is limited to:
+
+| API Route | Why Service Role Is Needed |
+| --- | --- |
+| `/api/auth/register` | Create auth user and initial role/student rows. |
+| `/api/users` | List and invite/manage Supabase Auth users. |
+| `/api/users/[userId]` | Patch/delete users and role rows. |
+| `/api/report/[studentId]/pdf` | Generate PDF after requiring an approved user. |
+
+`supabase/schema.sql` defines approval-aware helper functions:
+
+| Function | Purpose |
+| --- | --- |
+| `current_user_role()` | Reads `user_roles.role` for `auth.uid()`. |
+| `current_user_status()` | Reads `user_roles.status` for `auth.uid()`. |
+| `current_student_id()` | Reads linked writer record from `user_roles.student_id`. |
+| `is_approved_admin()` | True for approved admins. |
+| `is_approved_student()` | True for approved writer experts. |
+
+RLS policy summary:
+
+| Table Group | Admin Access | Student Access |
+| --- | --- | --- |
+| App tables | Approved admins can read, insert, update, and delete. | Approved students get scoped reads and limited inserts. |
+| `user_roles` | Approved admins can manage role rows. | Users can read their own role row. |
+| `courses` | All admin operations. | Read only courses assigned to the current writer. |
+| `students` | All admin operations. | Read only own writer record. |
+| `student_courses` | All admin operations. | Read own enrollments. |
+| `issues` | All admin operations. | Read and create own issues. |
+| `comments` | All admin operations. | Read and create own comments. |
+| `prompts` | All admin operations. | Read prompts. |
+| `ai_tools` | All admin operations. | Read AI tools. |
 
 ## Runtime Data Flow
 
-Most pages follow the same pattern:
+Most client pages follow the same pattern:
 
-1. A client page calls `useSupabaseQuery(load, initialData, realtimeTables)`.
-2. The hook calls a loader from `lib/data/`.
-3. The loader uses `requireSupabase()` from `lib/data/client.ts`.
-4. Supabase rows are converted to UI-friendly camelCase objects by `lib/data/mappers.ts`.
-5. The hook subscribes to each listed realtime table and debounces `refresh()` by 500ms when matching table changes arrive in quick succession.
-6. Mutations call `create*`, `update*`, or `delete*` helpers, then call `refresh()` and show a toast when appropriate.
+1. A page calls `useSupabaseQuery(load, initialData, realtimeTables, reloadKey?)`.
+2. The hook runs a loader from `lib/data/*`.
+3. The loader uses `requireSupabase()` and the browser user's session.
+4. Supabase RLS filters or blocks data based on the user.
+5. Rows are mapped into UI-friendly camelCase objects by `lib/data/mappers.ts`.
+6. The hook subscribes to configured realtime tables.
+7. Realtime changes debounce `refresh()` by 500ms.
+8. Mutations refresh the local view and show toast messages where implemented.
 
 ```mermaid
 flowchart LR
-  Page[Client page/component] --> QueryHook[useSupabaseQuery]
-  QueryHook --> Loader[list/create/update helpers]
-  Loader --> SupabaseClient[requireSupabase]
-  SupabaseClient --> DB[(Supabase tables)]
-  DB --> Mapper[map rows to UI types]
+  Page[Client page] --> Hook[useSupabaseQuery]
+  Hook --> Loader[lib/data loader]
+  Loader --> Client[Supabase browser client]
+  Client --> RLS[Supabase RLS]
+  RLS --> Tables[(Postgres tables)]
+  Tables --> Mapper[map rows]
   Mapper --> Page
-  DB -. realtime event .-> QueryHook
+  Tables -. postgres_changes .-> Hook
 ```
-
-If Supabase is not configured with `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `requireSupabase()` throws a configuration error and pages render `ErrorState`.
 
 ## Core Data Model
 
-| Entity | Purpose | Connected To |
+| Entity | Table | Purpose |
 | --- | --- | --- |
-| Student | Person being tracked for academic progress and support needs. | Courses, Issues, Comments, Reports |
-| Course | Academic course or curriculum item. | Students, Prompts |
-| Issue | Problem, ticket, or support item tied to a student. | Student, Comments, Dashboard, Reports |
-| Comment | Thread message on an issue or student record. | Student, Issue |
-| Prompt | Saved prompt/template for academic workflows. | Course optionally |
-| AI Tool | Optional directory entry for real AI resources. | AI Tools Directory |
-| User Role | Legacy compatibility role table. | Optional Supabase Auth user |
+| Writer | `students` | Writer expert profile, trainer, notes, progress, derived status and priority. |
+| Course | `courses` | Course code and title. |
+| Enrollment | `student_courses` | Many-to-many writer to course assignment. |
+| Issue | `issues` | Writer support ticket with category, status, and priority. |
+| Comment | `comments` | Thread message tied to a writer and optionally an issue. |
+| Prompt | `prompts` | Reusable prompt template with tags and optional course link. |
+| AI Tool | `ai_tools` | Approved AI resource directory entry. |
+| User Role | `user_roles` | Auth role, approval state, linked writer, and approval metadata. |
 
-## Open Access and Authorization
+## Feature Flows
 
-There is no login page, no proxy route guard, and no Supabase Auth session requirement for the dashboard. The app opens directly at `/`.
-
-Runtime route flow:
-
-```mermaid
-flowchart TD
-  Visitor[Visitor requests app route] --> App[Render dashboard route]
-  App --> Data[Load data through lib/data]
-  Data --> Supabase[(Supabase tables)]
-```
-
-Compatibility authorization helpers keep the UI in admin-capable mode:
-
-| Role | Access |
-| --- | --- |
-| `admin` | Open workspace mode: read data, use mutation buttons, manage users, and perform writes. |
-| `viewer` | Legacy role value kept for compatibility. |
-
-The UI reads role state through `lib/auth/roles.ts` and `lib/auth/use-current-user-role.ts`; both resolve to admin/open access. Data mutation helpers still call `assertAdmin()` for compatibility, but it allows mutations. Supabase RLS policies are open for app tables in this no-login workspace.
-
-## Feature Map
-
-### 1. Dashboard
+### Dashboard
 
 Route: `/`
 
-The dashboard loads `getDashboardData()` from `lib/data/dashboard.ts`, which fetches students, courses, and issues in parallel.
+Role: approved admin only.
 
-| Dashboard Block | Source |
+The dashboard loads `getDashboardData()` from `lib/data/dashboard.ts`, which fetches students, courses, issues, and AI tools.
+
+| Block | Source |
 | --- | --- |
-| Total students | `students.length` |
+| Total writers | `students.length` |
 | Active courses | `courses.length` |
-| Open issues | Issues where status is not `Resolved` |
-| Resolved issues | Issues where status is `Resolved` |
-| Pending reviews | Issues where status is `Pending` |
-| Issue category chart | Issues grouped by category |
-| Resolution progress chart | Issues grouped by status |
-| Recent students table | First five students from the loaded student list |
-
-Dashboard charts are dynamically imported with SSR disabled because they depend on Recharts browser rendering.
+| Open issues | Issues not marked `Resolved` |
+| Resolved issues | Issues marked `Resolved` |
+| Pending reviews | Issues marked `Pending` |
+| Charts | Issue category and status aggregates |
+| Recent writers | First entries from the writer list |
 
 ```mermaid
 flowchart TD
-  Dashboard --> GetDashboardData[getDashboardData]
-  GetDashboardData --> ListStudents[listStudents]
-  GetDashboardData --> ListCourses[listCourses]
-  GetDashboardData --> ListIssues[listIssues]
-  GetDashboardData --> ListAiTools[listAiTools]
-  ListStudents --> Metrics[Dashboard metrics and tables]
-  ListCourses --> Metrics
-  ListIssues --> Metrics
-  ListAiTools --> Metrics
+  Dashboard[/] --> GetData[getDashboardData]
+  GetData --> Students[listStudents]
+  GetData --> Courses[listCourses]
+  GetData --> Issues[listIssues]
+  GetData --> Tools[listAiTools]
+  Students --> Metrics[Metrics and tables]
+  Courses --> Metrics
+  Issues --> Metrics
+  Tools --> Metrics
 ```
 
-### 2. Students
+### Writers
 
 Route: `/students`
 
-The students page lets an admin:
+Role: approved admin only.
 
-- View students.
-- Search students by name or assigned course code.
-- Add a new student.
-- Edit an existing student.
-- Delete a student after confirmation.
-- Page through student records with limit/offset loading.
-- Assign courses by course ID.
-- Store email, assigned trainer, initial status, and notes.
-- See derived issue categories, priority, status, and trainer.
+Admins can view, search, create, edit, and delete writer records, assign courses, set trainer, status, progress, and notes.
 
-Create flow:
+Create/update flow:
 
 ```mermaid
 flowchart TD
-  Admin[Admin enters student details] --> ClientValidate[Validate name and duplicate email in current list]
-  ClientValidate --> CreateStudent[createStudent]
-  CreateStudent --> InsertStudent[Insert students row]
-  InsertStudent --> InsertCourses{Assigned courses?}
-  InsertCourses -- yes --> StudentCourses[Insert student_courses rows]
-  InsertCourses -- no --> Refresh
-  StudentCourses --> Refresh[refresh students and courses]
-  Refresh --> StudentsPage[Students table updates]
+  Admin[Admin enters writer details] --> Validate[Validate required fields and duplicate email]
+  Validate --> Save[createStudent or updateStudent]
+  Save --> Students[(students)]
+  Save --> Assignments[(student_courses)]
+  Students --> Refresh[Refresh writer list]
+  Assignments --> Refresh
 ```
 
-Student creation maps the UI's initial status to issue-status values:
+Student creation maps UI writer status into `overall_status`:
 
-| UI status | Stored `overall_status` |
+| UI Status | Stored `overall_status` |
 | --- | --- |
 | Active | `In Progress` |
 | Inactive | `Pending` |
 
-After issues are created or changed, database triggers keep the student's derived status, priority, and last update in sync.
+Issue triggers later recalculate derived writer status and priority.
 
-### 3. Courses
+### Courses
 
 Route: `/courses`
 
-The courses page lets an admin:
+Roles: approved admin and approved student.
 
-- View registered courses.
-- Add a course code and title.
-- Edit an existing course.
-- Delete a course after confirmation.
-- Page through course records with limit/offset loading.
-- Prevent duplicate course codes.
-- See enrollment count from `student_courses`.
-
-Create flow:
+Admins can create, edit, and delete courses. Students can read only assigned courses through RLS.
 
 ```mermaid
 flowchart TD
-  Admin[Admin enters course code and title] --> Validate[Validate required fields and duplicate code]
-  Validate --> CreateCourse[createCourse]
-  CreateCourse --> CoursesTable[(courses)]
-  CoursesTable --> Refresh[refresh courses with enrollment]
-  Refresh --> CourseSelectors[Student and Prompt course selectors update]
+  CoursePage[/courses] --> List[listCoursesWithEnrollmentPage]
+  List --> RLS[Supabase RLS]
+  RLS --> Courses[(courses)]
+  AdminForm[Admin form] --> CreateOrUpdate[createCourse/updateCourse/deleteCourse]
+  CreateOrUpdate --> Refresh[Refresh courses]
 ```
 
-Courses connect to students through `student_courses` and to prompts through `prompts.related_course_id`.
+Courses connect to writers through `student_courses` and to prompts through `prompts.related_course_id`.
 
-### 4. Issues
+### Issues
 
 Route: `/issues`
 
-The issues page displays all tracked student issues and includes the shared `NewIssueDialog`.
-The issues table is loaded with limit/offset pagination.
+Roles: approved admin and approved student.
 
-An issue has:
+Admins can view and manage all issues. Approved students can view their own issues and create issues for their own linked writer record.
 
-- Student
-- Category
-- Description
-- Status
-- Priority
-- Created date
-- Updated date
+Issue creation authorization:
 
-Create flow:
+| Actor | Allowed? |
+| --- | --- |
+| Approved admin | Can create for any writer. |
+| Approved student | Can create only when `profile.studentId === input.studentId`. |
+| Pending/rejected/disabled/no session | Blocked. |
 
 ```mermaid
 flowchart TD
-  Admin[Admin opens New Issue dialog] --> SelectStudent[Select student]
-  SelectStudent --> EnterIssue[Enter category, priority, status, description]
-  EnterIssue --> OptionalComment{Admin comment provided?}
-  OptionalComment --> CreateIssue[createIssue]
-  CreateIssue --> IssuesTable[(issues)]
-  IssuesTable --> IssueTrigger[issues_sync_student_insert trigger]
-  IssueTrigger --> StudentSummary[Student status, priority, last_update synced]
-  OptionalComment -- yes --> CreateComment[createComment as Admin]
-  CreateComment --> CommentsTable[(comments)]
-  StudentSummary --> Refresh[refresh page data]
-  CommentsTable --> Refresh
+  NewIssue[New issue dialog] --> Profile[/api/auth/me]
+  Profile --> Allowed{Admin or own approved writer?}
+  Allowed -- no --> Error[Show authorization error]
+  Allowed -- yes --> Insert[Insert issues row]
+  Insert --> Trigger[issues_sync_student_insert]
+  Trigger --> Summary[Update writer derived status/priority]
+  Summary --> Realtime[Realtime refresh]
 ```
 
-Issue status changes are handled by `updateIssueStatus()`. The database trigger recalculates the related student's summary after issue inserts, updates, and deletes.
+Issue status updates are admin-only and use `updateIssueStatus()`.
 
-### 5. Comments / Tickets
+### Comments And Tickets
 
 Route: `/comments`
 
-The comments page is the ticket-thread workspace. It lets an admin:
+Roles: approved admin and approved student.
 
-- Select an issue from the active issue list.
-- View the initial issue description and all related comments.
-- Reply as `Admin` or `Student`.
-- Optionally update issue status when replying as Admin.
-- Edit comments.
-- Delete comments.
-- Create a new issue through the shared `NewIssueDialog`.
-- Page through comments for the selected issue with limit/offset loading.
-
-Reply flow:
+Admins can reply as Admin or Student, update issue status, edit comments, delete comments, and create new issues. Approved students can comment on their own tickets only, and their inserted comments must use role `Student`.
 
 ```mermaid
 flowchart TD
-  SelectIssue[Select issue] --> WriteReply[Write reply]
-  WriteReply --> CreateComment[createComment]
-  CreateComment --> CommentsTable[(comments)]
-  CreateComment --> RoleCheck{Role is Student?}
-  RoleCheck -- yes --> Trigger[comments_student_pending trigger]
-  Trigger --> Pending[Set related issue to Pending]
-  Pending --> IssueTrigger[Issue update trigger syncs student]
-  RoleCheck -- no --> AdminStatus{Admin selected next status?}
-  AdminStatus -- yes --> UpdateStatus[updateIssueStatus]
-  AdminStatus -- no --> Refresh
-  UpdateStatus --> IssueTrigger
-  IssueTrigger --> Refresh[refresh tickets]
+  SelectIssue[Select issue] --> ListComments[listCommentsPage]
+  WriteReply[Write reply] --> Profile[/api/auth/me]
+  Profile --> Allowed{Admin or own approved writer?}
+  Allowed -- no --> Error[Show authorization error]
+  Allowed -- yes --> Insert[Insert comments row]
+  Insert --> RoleCheck{Comment role Student?}
+  RoleCheck -- yes --> PendingTrigger[comments_student_pending trigger]
+  PendingTrigger --> MarkPending[Set issue to Pending]
+  MarkPending --> SyncStudent[Sync writer last_update/status]
+  RoleCheck -- no --> Refresh[Refresh thread]
+  SyncStudent --> Refresh
 ```
 
-The key rule is database-enforced: a student-role comment on an issue marks that issue `Pending` and updates the related student timestamp.
+Database rule: when a comment is inserted with role `Student` and an `issue_id`, the related issue is marked `Pending`.
 
-### 6. Prompts
+### Prompts
 
 Route: `/prompts`
 
-The prompts page manages reusable prompt templates. It supports:
+Roles: approved admin and approved student.
 
-- Create prompt.
-- Edit prompt.
-- Delete prompt.
-- Copy prompt content to the clipboard.
-- Search by title, content, or tags.
-- Filter by category.
-- Page through prompts with limit/offset loading.
-- Link a prompt to a course or mark it as usable for any course.
-- Preview the selected prompt.
-
-Prompt flow:
+Admins can create, edit, and delete prompts. Approved students can read prompts. Prompt tags are entered as comma-separated text and stored as `text[]`.
 
 ```mermaid
 flowchart TD
-  PromptForm[Prompt form] --> Save{Editing existing?}
-  Save -- yes --> UpdatePrompt[updatePrompt]
-  Save -- no --> CreatePrompt[createPrompt]
-  UpdatePrompt --> PromptsTable[(prompts)]
-  CreatePrompt --> PromptsTable
-  PromptsTable --> Refresh[refresh prompts and courses]
-  Refresh --> SearchFilter[Search, filter, preview]
-  Courses[(courses)] --> RelatedCourse[Course label]
-  RelatedCourse --> Preview[Prompt preview]
+  PromptPage[/prompts] --> List[listPromptsPage]
+  List --> Search[Search/filter/preview]
+  AdminForm[Admin prompt form] --> Save{Editing?}
+  Save -- yes --> Update[updatePrompt]
+  Save -- no --> Create[createPrompt]
+  Update --> Refresh[Refresh prompts]
+  Create --> Refresh
+  Delete[deletePrompt] --> Refresh
 ```
 
-Tags are entered as comma-separated text in the UI and stored as a `text[]` array in Supabase.
-
-### 7. Reports
+### Reports
 
 Routes:
 
 - `/reports`
 - `/reports/[studentId]`
 
-The reports index loads students and issues, then lists each student with trainer, open issue count, status, and a link to the detailed report.
+Role: approved admin only.
 
-The individual student report loads students, issues, and comments, then aggregates:
-
-- Student profile.
-- Assigned courses.
-- Overall issue counts.
-- Open and resolved issue counts.
-- Issue category summary.
-- Full issue table.
-- Comment history.
-- Timeline-style activity composed from issues and comments.
-
-Report flow:
+The reports index lists writers with status and issue counts. The detail page loads writer, issue, comment, and course context, then renders profile, issue tables, comment history, and activity-style progress information.
 
 ```mermaid
 flowchart TD
-  ReportsIndex[Reports index] --> SelectStudent[View Report link]
-  SelectStudent --> StudentReport[Student report page]
-  StudentReport --> LoadData[listStudents + listIssues + listComments]
-  LoadData --> Aggregates[Issue and comment aggregates]
-  Aggregates --> Tabs[Overview, Issues, Comments, Progress]
-  Tabs --> ExportButton[Open /api/report/:studentId/pdf]
-  ExportButton --> PdfRoute[Server PDF route]
-  PdfRoute --> ReactPdf[@react-pdf/renderer]
-  ReactPdf --> Download[application/pdf attachment]
+  Reports[/reports] --> Select[Open writer report]
+  Select --> Detail[/reports/:studentId]
+  Detail --> Load[listStudents + listIssues + listComments]
+  Load --> Aggregates[Report aggregates]
+  Aggregates --> PdfLink[/api/report/:studentId/pdf]
+  PdfLink --> RequireUser[requireApprovedUser]
+  RequireUser --> ServiceClient[createServiceRoleClient]
+  ServiceClient --> RenderPdf[@react-pdf/renderer]
+  RenderPdf --> Download[PDF attachment]
 ```
 
-The dynamic report route receives `params` as a Promise and reads it with React `use(params)`, matching the current Next.js App Router route-props model.
+The PDF route requires an approved user before using service-role data loading.
 
-PDF export is handled by `app/api/report/[studentId]/pdf/route.ts`. The route loads students, issues, and comments server-side, renders a clean PDF with `@react-pdf/renderer`, and returns it as an attachment.
-
-### 8. AI Tools Directory
+### AI Tools
 
 Route: `/tools`
 
-This page loads real AI tool records from Supabase and shows:
+Roles: approved admin and approved student.
 
-- Tool directory cards.
-- Tool name and description.
-- Add tool dialog.
-- Edit action per card.
-- Delete confirmation per card.
-
-Flow:
+Admins can create, edit, and delete AI tool records. Approved students can read the tool directory.
 
 ```mermaid
 flowchart LR
-  ListAiTools[listAiTools] --> Cards[Tool directory cards]
-  ToolForm[Add/Edit dialog] --> SaveTool{Editing existing?}
-  SaveTool -- yes --> UpdateTool[updateAiTool]
-  SaveTool -- no --> CreateTool[createAiTool]
-  UpdateTool --> Refresh[refresh ai_tools]
-  CreateTool --> Refresh
-  DeleteAction[Delete confirmation] --> DeleteTool[deleteAiTool]
-  DeleteTool --> Refresh
+  ListAiTools[listAiTools] --> Cards[Tool cards]
+  SaveTool[Admin add/edit dialog] --> CreateOrUpdate[createAiTool/updateAiTool]
+  CreateOrUpdate --> Refresh[Refresh ai_tools]
+  DeleteTool[deleteAiTool] --> Refresh
 ```
 
-Successful create, update, and delete actions refresh the directory and show toast notifications.
-
-### 9. Workflow
+### Workflow
 
 Routes:
+
 - `/workflow`
 - `/workflow/[slug]`
 
-The workflow pages are **server components** that consume static data from `app/workflow/workflow-data.ts` — no Supabase queries or realtime subscriptions are involved.
+Roles: approved admin and approved student.
 
-The index page (`/workflow`) renders a 2-column card grid:
-
-- Each card shows an icon, category badge, title, description, and a CTA link.
-- Four workflow types exist: Unknown Assignment, Tools Installation, Standard Academic Assignment, Master Assignment Prompt.
-
-The detail page (`/workflow/[slug]`) uses `generateStaticParams` to pre-render all four workflow guides at build time. Each page renders:
-
-- Step-by-step instruction cards from `workflowSteps`.
-- Prompt block cards with copy-to-clipboard functionality via `CopyWorkflowButton`.
-- A template placeholder guide table with token descriptions.
-
-Flow:
+Workflow pages are server components using static data from `app/workflow/workflow-data.ts`. They do not query Supabase or subscribe to realtime changes.
 
 ```mermaid
 flowchart TD
-  WorkflowIndex[/workflow] --> Cards[Card grid from workflowCards]
+  WorkflowIndex[/workflow] --> Cards[workflowCards]
   Cards --> Detail[/workflow/:slug]
-  Detail --> WorkflowData[workflow-data.ts]
-  WorkflowData --> Steps[workflowSteps]
-  WorkflowData --> Prompts[Prompt blocks]
-  WorkflowData --> Placeholders[Placeholder guide table]
-  Steps --> CopyButton[CopyWorkflowButton]
-  Prompts --> CopyButton
-  CopyButton --> Clipboard[navigator.clipboard]
+  Detail --> Data[workflow-data.ts]
+  Data --> Steps[workflowSteps]
+  Data --> Prompts[Prompt blocks]
+  Prompts --> Copy[CopyWorkflowButton]
 ```
 
-The workflow module exports four main data structures: `workflowCards` (index cards), `workflowSteps` (step arrays per slug), `masterPrompt` / `placeholderGuide` (utility exports for the master prompt workflow), and individual prompt constants for each workflow type.
-
-### 10. Analytics
-
-Route: `/analytics`
-
-The analytics route remains hidden from the sidebar until it loads real Supabase aggregates.
-
-### 11. Settings
+### Settings And User Management
 
 Route: `/settings`
 
-The settings page currently displays read-only platform configuration sections:
+Role: approved admin only.
 
-- Organization settings.
-- Supabase integration status.
-- Optional user management tools.
+The settings page checks Supabase connectivity by selecting one course ID. It also lists user accounts and lets admins update role/status or remove users.
 
-The Supabase integration status is checked on mount by calling `requireSupabase()` and querying `courses` with `.select("id").limit(1)`. The UI shows a loading state while the check is running, a green connected state on success, or a red disconnected state with the returned error message on failure.
+User management API routes:
 
-User management runs through API routes that use `SUPABASE_SERVICE_ROLE_KEY` server-side. It is available as an operational tool, but the dashboard itself does not require a user login.
+| Route | Methods | Behavior |
+| --- | --- | --- |
+| `/api/users` | `GET` | Lists Supabase Auth users joined with `user_roles`. |
+| `/api/users` | `POST` | Invites a user and creates a role row. |
+| `/api/users/[userId]` | `PATCH` | Updates role/status and auth metadata. |
+| `/api/users/[userId]` | `DELETE` | Deletes role row and auth user. |
 
-### 12. Layout, Navigation, Theme, Toasts, and PWA
+`requireAdminRequest()` protects these routes and returns the current admin profile plus a service-role Supabase client.
 
-Shared layout:
-
-- `app/layout.tsx`
-- `components/layout/dashboard-layout.tsx`
-
-The root layout provides metadata, viewport configuration, theme bootstrapping, service worker registration, the dashboard shell, and the toaster.
-
-The dashboard layout provides:
-
-- Desktop and mobile sidebar navigation.
-- Active-route highlighting.
-- Global search input backed by `store/useSearchStore.ts`.
-- Notification dot based on open issue count.
-- Open issue badge in the sidebar.
-- Theme toggle.
-- PWA install button.
-- Open workspace status.
-
-Open issue notification flow:
+Self-protection rule: an admin cannot remove their own admin access or delete their own account.
 
 ```mermaid
-flowchart LR
-  Layout[DashboardLayout] --> ListIssues[listIssues]
-  ListIssues --> Count[status != Resolved]
-  Count --> HeaderDot[Notification dot]
-  Count --> SidebarBadge[Issues sidebar badge]
+flowchart TD
+  Settings[/settings] --> LoadUsers[/api/users GET]
+  LoadUsers --> RequireAdmin[requireAdminRequest]
+  RequireAdmin --> ListAuth[auth.admin.listUsers]
+  RequireAdmin --> ListRoles[user_roles select]
+  AdminAction[Approve/reject/disable/change role/delete] --> UserApi[/api/users/:userId]
+  UserApi --> ServiceRole[Service-role Supabase client]
+  ServiceRole --> UpdateRole[user_roles]
+  ServiceRole --> UpdateMetadata[Auth user metadata]
 ```
+
+## Layout, Navigation, Theme, PWA, And Toasts
+
+`app/layout.tsx` wraps the app with metadata, theme bootstrap, PWA registration, `DashboardLayout`, and the toaster.
+
+`DashboardLayout`:
+
+- Does not render the dashboard shell on public auth pages.
+- Fetches `/api/auth/me` for profile display and role-aware navigation.
+- Shows admin links only to admins.
+- Shows writer-safe links to both admins and students.
+- Signs users out through the browser Supabase client and redirects by role.
+- Provides theme toggle and PWA install UI.
 
 Toast flow:
 
 ```mermaid
 flowchart LR
-  Mutation[Successful or failed mutation] --> AddToast[useToastStore.addToast]
-  AddToast --> Toaster[components/ui/toaster.tsx]
-  Toaster --> AutoDismiss[Auto-remove after 5 seconds]
+  Mutation[Mutation result] --> ToastStore[useToastStore.addToast]
+  ToastStore --> Toaster[components/ui/toaster.tsx]
+  Toaster --> Dismiss[Auto dismiss]
 ```
 
-PWA flow:
-
-```mermaid
-flowchart LR
-  Manifest[app/manifest.ts] --> BrowserManifest[/manifest.webmanifest]
-  PwaRegister[PwaRegister] --> ProductionCheck{Production build?}
-  ProductionCheck -- yes --> ServiceWorker[Register /sw.js]
-  DashboardLayout --> InstallButton[PWA install button]
-```
+Global search state lives in `store/useSearchStore.ts` where used by page-level filtering.
 
 ## Data Access Modules
 
-The active data access functions live under `lib/data/`.
-
 | Module | Reads | Mutations |
 | --- | --- | --- |
-| `students.ts` | `listStudents`, `listStudentsPage` | `createStudent`, `updateStudent`, `deleteStudent` |
-| `courses.ts` | `listCourses`, `listCoursesWithEnrollment`, `listCoursesWithEnrollmentPage` | `createCourse`, `updateCourse`, `deleteCourse` |
-| `issues.ts` | `listIssues`, `listIssuesPage` | `createIssue`, `updateIssueStatus` |
-| `comments.ts` | `listComments`, `listCommentsPage` | `createComment`, `updateComment`, `deleteComment` |
-| `prompts.ts` | `listPrompts`, `listPromptsPage` | `createPrompt`, `updatePrompt`, `deletePrompt` |
-| `ai-tools.ts` | `listAiTools`, `listAiToolsPage` | `createAiTool`, `updateAiTool`, `deleteAiTool` |
-| `dashboard.ts` | Combined page loaders | None |
-| `workflow-data.ts` | Static data (`workflowCards`, `workflowSteps`, prompt constants) | None — server component, no Supabase |
+| `students.ts` | `listStudents`, `listStudentsPage`, `listStudentById` | `createStudent`, `updateStudent`, `deleteStudent` |
+| `courses.ts` | `listCourses`, `listCoursesWithEnrollmentPage` | `createCourse`, `updateCourse`, `deleteCourse` |
+| `issues.ts` | `listIssues`, `listIssuesByStudentId`, `listIssuesPage` | `createIssue`, `updateIssueStatus` |
+| `comments.ts` | `listCommentsByStudentId`, `listCommentsPage` | `createComment`, `updateComment`, `deleteComment` |
+| `prompts.ts` | `listPromptsPage`, `listPromptById` | `createPrompt`, `updatePrompt`, `deletePrompt` |
+| `ai-tools.ts` | `listAiTools` | `createAiTool`, `updateAiTool`, `deleteAiTool` |
+| `dashboard.ts` | `getDashboardData`, `getReportsIndexData` | None |
+| `workflow-data.ts` | Static workflow card, step, and prompt data | None |
 
 Shared helpers:
 
 | Helper | Role |
 | --- | --- |
-| `requireSupabase` | Ensures Supabase is configured before reads or writes. |
-| `getErrorMessage` | Normalizes unknown errors for UI display. |
-| `normalizeOptionalText` | Converts blank optional inputs to `null`. |
-| `mapCourse`, `mapStudent`, `mapIssue`, `mapComment`, `mapPrompt`, `mapAiTool` | Convert Supabase rows into UI types. |
-| `useSupabaseQuery` | Loads data, exposes `loading`, `error`, and `refresh`, and subscribes to realtime table changes. |
-| `getSession`, `getUser`, `signOut` | Open-access compatibility helpers; they do not call Supabase Auth. |
-| `getUserRole`, `assertAdmin` | Open admin role and mutation compatibility helpers. |
+| `requireSupabase()` | Ensures public Supabase config exists and returns the browser client. |
+| `getErrorMessage()` | Converts unknown errors to UI-safe strings. |
+| `readJsonResponse()` | Safely reads JSON API responses. |
+| `normalizeOptionalText()` | Converts blank optional strings to `null`. |
+| `mapCourse`, `mapStudent`, `mapIssue`, `mapComment`, `mapPrompt`, `mapAiTool` | Convert Supabase rows to app types. |
+| `getPaginationRange`, `toPaginatedResult` | Normalize paginated table reads. |
+| `useSupabaseQuery()` | Loads data, exposes loading/error/refresh, and subscribes to realtime. |
 
 ## Realtime Subscriptions
 
-Each page subscribes only to the tables that can affect its visible data.
+Pages subscribe only to tables that affect visible data.
 
 | UI Surface | Realtime Tables |
 | --- | --- |
-| Dashboard | `students`, `student_courses`, `courses`, `issues`, `comments` |
-| Students | `students`, `student_courses`, `courses`, `issues` |
+| Dashboard | `students`, `student_courses`, `courses`, `issues`, `comments`, `ai_tools` |
+| Writers | `students`, `student_courses`, `courses`, `issues` |
 | Courses | `courses`, `student_courses` |
 | Issues | `issues`, `students`, `comments` |
-| Comments / Tickets | `students`, `issues`, `comments` |
+| Comments and Tickets | `students`, `issues`, `comments` |
 | Prompts | `courses`, `prompts` |
 | Reports index | `students`, `student_courses`, `courses`, `issues` |
 | Student report | `students`, `student_courses`, `courses`, `issues`, `comments` |
-| AI Tools Directory | `ai_tools` |
-| Workflow index + detail | None (static server components) |
-| Dashboard layout notifications | `issues`, `comments` |
+| AI Tools | `ai_tools` |
+| Workflow | None |
+| Settings user table | Manual API reload after mutations |
 
-## Student Status Sync Logic
+Realtime publication includes:
 
-Student issue status and priority are derived in the database by `sync_student_issue_summary(target_student_id)`.
+```text
+courses
+students
+student_courses
+issues
+comments
+prompts
+ai_tools
+user_roles
+```
+
+## Database Automation
+
+### Updated Timestamps
+
+`set_updated_at()` runs before updates on:
+
+- `courses`
+- `students`
+- `issues`
+- `comments`
+- `prompts`
+- `ai_tools`
+- `user_roles`
+
+### Writer Status Sync
+
+`sync_student_issue_summary(target_student_id)` derives writer status and priority from all issues for a writer.
 
 Status precedence:
 
@@ -545,74 +627,91 @@ Priority precedence:
 
 ```mermaid
 flowchart TD
-  IssueMutation[Issue insert/update/delete] --> Trigger[issues_sync_student_* trigger]
+  IssueChange[Issue insert/update/delete] --> Trigger[issues_sync_student_*]
   Trigger --> SummaryFn[sync_student_issue_summary]
-  SummaryFn --> StudentIssues[Read all issues for student]
-  StudentIssues --> HighestStatus[Choose highest status precedence]
-  StudentIssues --> HighestPriority[Choose highest priority precedence]
-  HighestStatus --> UpdateStudent[Update students.overall_status]
-  HighestPriority --> UpdateStudent
-  UpdateStudent --> LastUpdate[Set last_update and updated_at]
+  SummaryFn --> ReadIssues[Read all writer issues]
+  ReadIssues --> PickStatus[Pick highest status precedence]
+  ReadIssues --> PickPriority[Pick highest priority precedence]
+  PickStatus --> UpdateStudent[Update students.overall_status]
+  PickPriority --> UpdateStudent
+  UpdateStudent --> LastUpdate[Update last_update and updated_at]
 ```
 
-When a student has no remaining issues, the summary function falls back to `Resolved` status and `Low` priority.
+If a writer has no remaining issues, the function falls back to `Resolved` status and `Low` priority.
 
-## Database Schema Alignment
+### Student Comment Pending Rule
 
-The SQL schema in `schema.sql` and `supabase/schema.sql` defines these Supabase tables:
+`mark_issue_pending_after_student_comment()` runs after comment inserts.
 
-| Table | Role |
-| --- | --- |
-| `courses` | Stores course catalog. |
-| `students` | Stores student records and derived status fields. |
-| `student_courses` | Many-to-many relationship between students and courses. |
-| `issues` | Stores student issues. |
-| `comments` | Stores issue/student thread messages. |
-| `prompts` | Stores prompt templates. |
-| `ai_tools` | Stores AI tool directory records and reserved metric fields. |
-| `user_roles` | Legacy role table retained for optional user-management compatibility. |
+If the new comment has role `Student` and an `issue_id`, it:
 
-Database-level automation:
+1. Updates the related issue status to `Pending`.
+2. Updates the writer's `last_update` and `updated_at`.
+3. Lets the issue update trigger refresh the writer summary.
 
-- `set_updated_at` keeps `updated_at` fresh on updates.
-- Issue insert/update/delete triggers sync the related student summary.
-- Student-role comments can mark a related issue as `Pending`.
-- Student comments update the student's `last_update`.
-- RLS allows anon/authenticated app access for `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on app tables.
-- Realtime publication includes the app tables.
-- Seed data lives in `supabase/seed.sql`.
-
-## End-to-End User Flow
-
-The normal operational flow looks like this:
+## End-To-End Operational Flow
 
 ```mermaid
 flowchart TD
-  ConfigureSupabase[Configure Supabase env vars] --> AddCourses[Create courses]
-  AddCourses --> AddStudents[Create students and assign courses]
-  AddStudents --> AddIssues[Create student issues]
-  AddIssues --> Triage[Track status and priority]
-  Triage --> Comments[Discuss in comments/tickets]
-  Comments --> StatusUpdates[Admin updates status or student replies]
-  StatusUpdates --> DbTriggers[Database triggers sync student summaries]
+  Setup[Configure env vars and Supabase schema] --> SeedAdmin[Create default admin]
+  SeedAdmin --> AdminLogin[Admin logs in at /admin/login]
+  AdminLogin --> UserMgmt[Approve or manage users in /settings]
+  UserMgmt --> WriterRegister[Writer registers at /register]
+  WriterRegister --> Pending[Pending approval]
+  Pending --> Approve[Admin approves writer]
+  Approve --> WriterLogin[Writer logs in at /login]
+  WriterLogin --> WriterWorkspace[Workflow, prompts, courses, issues, comments, tools]
+  AdminLogin --> AdminData[Admin manages writers, courses, prompts, tools]
+  AdminData --> Issues[Admin creates and triages issues]
+  WriterWorkspace --> StudentIssue[Writer creates own issue or comment]
+  StudentIssue --> DbTriggers[Database triggers sync status]
+  Issues --> DbTriggers
   DbTriggers --> Realtime[Realtime refreshes subscribed pages]
-  Realtime --> Dashboard[Dashboard metrics update]
-  Realtime --> Reports[Reports update]
-  AddCourses --> Prompts[Create course-related prompts]
-  Prompts --> Support[Use prompts in academic support workflows]
-  Support --> Workflow[Follow workflow guides in /workflow]
+  Realtime --> Dashboard[Dashboard and reports update]
+```
+
+## Environment And Setup Flow
+
+Required `.env.local` values:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+Setup steps:
+
+1. Install dependencies.
+2. Apply `supabase/schema.sql`.
+3. Apply `supabase/seed.sql` for baseline AI tools.
+4. For existing databases, apply `supabase/auth-approval-migration.sql` before relying on approval-aware auth.
+5. Run `npm run seed:admin` to create or repair the default admin.
+6. Start the app with `npm run dev`.
+
+Default admin, when seeded:
+
+```text
+admin@tds.com / khan123office
+```
+
+On Windows PowerShell, use `npm.cmd` if `.ps1` execution is blocked:
+
+```text
+npm.cmd run lint
+npm.cmd run build
 ```
 
 ## Current Implementation Notes
 
-- The active app data comes from Supabase through `lib/data` modules.
-- Most routes are client components because they use local UI state, event handlers, browser APIs, and `useSupabaseQuery`.
-- There is no sample data loaded by default; `supabase/schema.sql` explicitly omits seed data.
-- `store/useToastStore.ts` powers toast notifications.
-- `store/useAppStore.ts` has been removed; selected issue state lives locally in the comments page.
-- Analytics is present as a route shell but hidden from sidebar navigation until real aggregates are added; Settings is read-only apart from its live Supabase connection check.
-- AI tool metrics can be created, edited, and deleted from `/tools`.
-- The workflow pages (`/workflow`, `/workflow/[slug]`) are server components using static data from `workflow-data.ts` with no Supabase dependency.
-- The report PDF export is server-side through `app/api/report/[studentId]/pdf/route.ts` and `@react-pdf/renderer`.
-- The global search input filters Students, Issues, and Prompts client-side without navigation or reloads.
-- Dashboard routes are open-access; no login or Supabase Auth session is required.
+- The app is no longer open-access; Supabase Auth, `user_roles`, Proxy routing, and RLS are part of the normal flow.
+- Login pages remain accessible even when a session exists so users can switch between admin and writer accounts.
+- Writer registration always starts as `student` plus `pending`.
+- Admin approval is stored in `user_roles.status`; auth metadata is updated for managed users as a compatibility mirror.
+- Client data reads use the user's browser Supabase session, so RLS is the final access gate.
+- Admin-only mutations call `assertAdmin()`.
+- Student issue and comment creation checks both profile status and `studentId` ownership before inserting.
+- Service-role keys are used only in server route handlers.
+- Workflow pages are static server components and do not depend on Supabase.
+- Analytics is not part of the active navigation until real aggregates are implemented.
+- Seed data is intentionally limited to approved baseline AI tool records.

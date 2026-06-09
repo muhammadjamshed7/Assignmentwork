@@ -49,11 +49,24 @@ export async function createIssue(input: {
   priority: PriorityLevel;
 }) {
   const profile = await getCurrentProfileFromApi();
+
+  if (!profile) {
+    throw new Error("Sign in with an approved account before creating an issue.");
+  }
+
+  if (profile.status === "pending") {
+    throw new Error("Your account is still pending admin approval.");
+  }
+
+  if (profile.status === "rejected" || profile.status === "disabled") {
+    throw new Error("This account cannot create issues. Contact an administrator if this is unexpected.");
+  }
+
   const canCreateAsAdmin = isApprovedAdmin(profile);
-  const canCreateAsStudent = Boolean(profile && isApprovedStudent(profile) && profile.studentId === input.studentId);
+  const canCreateAsStudent = isApprovedStudent(profile) && profile.studentId === input.studentId;
 
   if (!canCreateAsAdmin && !canCreateAsStudent) {
-    throw new Error("You can only create issues for your own approved account.");
+    throw new Error("You can only create issues for your own writer account.");
   }
 
   const supabase = requireSupabase();
@@ -69,7 +82,7 @@ export async function createIssue(input: {
       student_id: input.studentId,
       category: input.category,
       description,
-      status: input.status,
+      status: canCreateAsStudent ? "Pending" : input.status,
       priority: input.priority,
     })
     .select("id, student_id, category, description, status, priority, created_at, updated_at, student:students(id, name)")

@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useCurrentUserRole } from "@/lib/auth/use-current-user-role"
 import { type UserRole, type UserStatus } from "@/lib/auth/role-utils"
 import { getErrorMessage, readJsonResponse, requireSupabase } from "@/lib/data/client"
+import { useToastStore } from "@/store/useToastStore"
 
 type SupabaseStatus =
   | { state: "loading"; message: string }
@@ -31,17 +32,13 @@ type UsersPayload = {
   error?: string
 }
 
-type UpdatedUserPayload = {
-  user?: Pick<ManagedUser, "role" | "status">
-  error?: string
-}
-
 type MutationPayload = {
   error?: string
 }
 
 export default function SettingsPage() {
-  const { isAdmin } = useCurrentUserRole()
+  const { profile, isAdmin } = useCurrentUserRole()
+  const { addToast } = useToastStore()
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseStatus>({
     state: "loading",
     message: "Checking connection...",
@@ -133,21 +130,26 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       })
-      const payload = await readJsonResponse<UpdatedUserPayload>(response)
+      const payload = await readJsonResponse<MutationPayload>(response)
 
       if (!response.ok) {
         throw new Error(payload?.error ?? "Unable to update user.")
       }
 
-      const updatedUser = payload?.user
-
-      if (!updatedUser) {
-        throw new Error("Unable to update user.")
-      }
-
-      setUsers(prev => prev.map(user => user.id === userId ? { ...user, role: updatedUser.role, status: updatedUser.status } : user))
+      await loadUsers()
+      addToast({
+        title: "User updated",
+        description: "The account access settings were saved.",
+        type: "success",
+      })
     } catch (error) {
-      setUsersError(getErrorMessage(error))
+      const message = getErrorMessage(error)
+      setUsersError(message)
+      addToast({
+        title: "Update failed",
+        description: message,
+        type: "error",
+      })
     } finally {
       setSavingUserId(null)
     }
@@ -156,6 +158,7 @@ export default function SettingsPage() {
   async function removeUser(userId: string) {
     if (!window.confirm("Remove this user?")) return
     setUsersError("")
+    setSavingUserId(userId)
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -167,10 +170,27 @@ export default function SettingsPage() {
         throw new Error(payload?.error ?? "Unable to remove user.")
       }
 
-      setUsers(prev => prev.filter(user => user.id !== userId))
+      await loadUsers()
+      addToast({
+        title: "User removed",
+        description: "The account was removed.",
+        type: "success",
+      })
     } catch (error) {
-      setUsersError(getErrorMessage(error))
+      const message = getErrorMessage(error)
+      setUsersError(message)
+      addToast({
+        title: "Delete failed",
+        description: message,
+        type: "error",
+      })
+    } finally {
+      setSavingUserId(null)
     }
+  }
+
+  function isCurrentAdminRow(user: ManagedUser) {
+    return user.id === profile?.userId
   }
 
   return (
@@ -238,14 +258,23 @@ export default function SettingsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map(user => (
+                    {users.map(user => {
+                      const isOwnRow = isCurrentAdminRow(user)
+                      const isSaving = savingUserId === user.id
+
+                      return (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.email || user.id}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{user.email || user.id}</span>
+                            {isOwnRow && <Badge variant="outline">Current admin</Badge>}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <select
                             value={user.role}
                             onChange={(event) => void updateUser(user.id, { role: event.target.value as UserRole })}
-                            disabled={savingUserId === user.id}
+                            disabled={isSaving || isOwnRow}
                             className="h-9 rounded-md border border-gray-300 bg-gray-100/50 px-2 text-sm text-gray-900 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
                           >
                             <option value="student">Writer Expert</option>
@@ -260,7 +289,7 @@ export default function SettingsPage() {
                             <select
                               value={user.status}
                               onChange={(event) => void updateUser(user.id, { status: event.target.value as UserStatus })}
-                              disabled={savingUserId === user.id}
+                              disabled={isSaving || isOwnRow}
                               className="h-9 rounded-md border border-gray-300 bg-gray-100/50 px-2 text-sm text-gray-900 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200"
                             >
                               <option value="pending">Pending</option>
@@ -273,33 +302,33 @@ export default function SettingsPage() {
                         <TableCell className="text-right">
                           <div className="flex flex-wrap justify-end gap-1">
                           {user.status === "pending" && (
-                            <Button type="button" size="sm" className="gap-2" disabled={savingUserId === user.id} onClick={() => void updateUser(user.id, { status: "approved" })}>
+                            <Button type="button" size="sm" className="gap-2" disabled={isSaving} onClick={() => void updateUser(user.id, { status: "approved" })}>
                               <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                               Approve
                             </Button>
                           )}
                           {user.status !== "pending" && (
-                            <Button type="button" variant="ghost" size="icon" title="Approve writer expert" disabled={savingUserId === user.id} onClick={() => void updateUser(user.id, { status: "approved" })}>
+                            <Button type="button" variant="ghost" size="icon" title="Approve writer expert" disabled={isSaving} onClick={() => void updateUser(user.id, { status: "approved" })}>
                               <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden="true" />
                               <span className="sr-only">Approve user</span>
                             </Button>
                           )}
-                          <Button type="button" variant="ghost" size="icon" title="Reject writer expert" disabled={savingUserId === user.id} onClick={() => void updateUser(user.id, { status: "rejected" })}>
+                          <Button type="button" variant="ghost" size="icon" title="Reject writer expert" disabled={isSaving || isOwnRow} onClick={() => void updateUser(user.id, { status: "rejected" })}>
                             <XCircle className="h-4 w-4 text-red-500" aria-hidden="true" />
                             <span className="sr-only">Reject user</span>
                           </Button>
-                          <Button type="button" variant="ghost" size="icon" title="Disable user" disabled={savingUserId === user.id} onClick={() => void updateUser(user.id, { status: "disabled" })}>
+                          <Button type="button" variant="ghost" size="icon" title="Disable user" disabled={isSaving || isOwnRow} onClick={() => void updateUser(user.id, { status: "disabled" })}>
                             <ShieldOff className="h-4 w-4 text-amber-500" aria-hidden="true" />
                             <span className="sr-only">Disable user</span>
                           </Button>
-                          <Button type="button" variant="ghost" size="icon" title="Remove user" disabled={savingUserId === user.id} onClick={() => void removeUser(user.id)}>
+                          <Button type="button" variant="ghost" size="icon" title={isOwnRow ? "You cannot remove your own account" : "Remove user"} disabled={isSaving || isOwnRow} onClick={() => void removeUser(user.id)}>
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
                             <span className="sr-only">Remove user</span>
                           </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )})}
                     {!usersLoading && users.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={4} className="h-20 text-center text-sm text-gray-400 dark:text-slate-500">

@@ -4,6 +4,29 @@ import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
 import { IssueStatus, PaginatedResult, PaginationOptions, PriorityLevel, Student } from "@/lib/data/types";
 import { assertAdmin } from "@/lib/auth/roles";
 
+function normalizeCourseIds(courseIds: string[]) {
+  return Array.from(new Set(courseIds.map(courseId => courseId.trim()).filter(Boolean)));
+}
+
+async function validateAssignedCourseIds(courseIds: string[]) {
+  if (courseIds.length === 0) return;
+
+  const supabase = requireSupabase();
+  const { data, error } = await supabase
+    .from("courses")
+    .select("id")
+    .in("id", courseIds);
+
+  if (error) throw error;
+
+  const existingCourseIds = new Set((data ?? []).map(course => course.id));
+  const missingCourseIds = courseIds.filter(courseId => !existingCourseIds.has(courseId));
+
+  if (missingCourseIds.length > 0) {
+    throw new Error("One or more selected courses no longer exist.");
+  }
+}
+
 export async function listStudents(): Promise<Student[]> {
   const supabase = requireSupabase();
   const [studentsResult, issuesResult] = await Promise.all([
@@ -115,6 +138,7 @@ export async function createStudent(input: {
   const supabase = requireSupabase();
   const name = input.name.trim();
   const email = normalizeOptionalText(input.email);
+  const assignedCourseIds = normalizeCourseIds(input.assignedCourseIds);
 
   if (!name) {
     throw new Error("Writer name is required.");
@@ -133,6 +157,8 @@ export async function createStudent(input: {
     }
   }
 
+  await validateAssignedCourseIds(assignedCourseIds);
+
   const { data: student, error: studentError } = await supabase
     .from("students")
     .insert({
@@ -149,14 +175,17 @@ export async function createStudent(input: {
 
   if (studentError) throw studentError;
 
-  const courseRows = input.assignedCourseIds.map(courseId => ({
+  const courseRows = assignedCourseIds.map(courseId => ({
     student_id: student.id,
     course_id: courseId,
   }));
 
   if (courseRows.length > 0) {
     const { error: coursesError } = await supabase.from("student_courses").insert(courseRows);
-    if (coursesError) throw coursesError;
+    if (coursesError) {
+      await supabase.from("students").delete().eq("id", student.id);
+      throw coursesError;
+    }
   }
 
   return listStudentById(student.id);
@@ -176,6 +205,7 @@ export async function updateStudent(studentId: string, input: {
   const supabase = requireSupabase();
   const name = input.name.trim();
   const email = normalizeOptionalText(input.email);
+  const assignedCourseIds = normalizeCourseIds(input.assignedCourseIds);
 
   if (!name) {
     throw new Error("Writer name is required.");
@@ -194,6 +224,8 @@ export async function updateStudent(studentId: string, input: {
       throw new Error("A writer with this email already exists.");
     }
   }
+
+  await validateAssignedCourseIds(assignedCourseIds);
 
   const updateFields: Record<string, unknown> = {
     name,
@@ -221,7 +253,7 @@ export async function updateStudent(studentId: string, input: {
 
   if (deleteCoursesError) throw deleteCoursesError;
 
-  const courseRows = input.assignedCourseIds.map(courseId => ({
+  const courseRows = assignedCourseIds.map(courseId => ({
     student_id: studentId,
     course_id: courseId,
   }));

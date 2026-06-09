@@ -276,11 +276,11 @@ begin
     update public.issues
     set status = 'Pending', updated_at = now()
     where id = new.issue_id;
-  end if;
 
-  update public.students
-  set last_update = now(), updated_at = now()
-  where id = new.student_id;
+    update public.students
+    set last_update = now(), updated_at = now()
+    where id = new.student_id;
+  end if;
 
   return new;
 end;
@@ -340,7 +340,9 @@ for each row execute function public.sync_student_after_issue_change();
 drop trigger if exists comments_student_pending on public.comments;
 create trigger comments_student_pending
 after insert on public.comments
-for each row execute function public.mark_issue_pending_after_student_comment();
+for each row
+when (new.role = 'Student' and new.issue_id is not null)
+execute function public.mark_issue_pending_after_student_comment();
 
 -- 7. Indexes
 create index if not exists idx_student_courses_student_id on public.student_courses(student_id);
@@ -406,20 +408,33 @@ drop policy if exists "Admin insert roles" on public.user_roles;
 drop policy if exists "Admin update roles" on public.user_roles;
 drop policy if exists "Admin delete roles" on public.user_roles;
 drop policy if exists "Users read own role or admin" on public.user_roles;
+drop policy if exists "Users read own role" on public.user_roles;
 drop policy if exists "Admin manage roles" on public.user_roles;
 
-create policy "Users read own role or admin"
+create policy "Users read own role"
 on public.user_roles
 for select
 to authenticated
-using (user_id = auth.uid() or public.is_approved_admin());
+using (user_id = auth.uid());
 
-create policy "Admin manage roles"
+create policy "Admin insert roles"
 on public.user_roles
-for all
+for insert
+to authenticated
+with check (public.is_approved_admin());
+
+create policy "Admin update roles"
+on public.user_roles
+for update
 to authenticated
 using (public.is_approved_admin())
 with check (public.is_approved_admin());
+
+create policy "Admin delete roles"
+on public.user_roles
+for delete
+to authenticated
+using (public.is_approved_admin());
 
 create policy "Approved admin all" on public.courses for all to authenticated using (public.is_approved_admin()) with check (public.is_approved_admin());
 create policy "Approved admin all" on public.students for all to authenticated using (public.is_approved_admin()) with check (public.is_approved_admin());
@@ -454,15 +469,40 @@ using (public.is_approved_student() and student_id = public.current_student_id()
 
 create policy "Approved student create own issues"
 on public.issues for insert to authenticated
-with check (public.is_approved_student() and student_id = public.current_student_id());
+with check (
+  public.is_approved_student()
+  and student_id = public.current_student_id()
+  and status = 'Pending'
+);
 
 create policy "Approved student read own comments"
 on public.comments for select to authenticated
-using (public.is_approved_student() and student_id = public.current_student_id());
+using (
+  public.is_approved_student()
+  and student_id = public.current_student_id()
+  and (
+    issue_id is null
+    or exists (
+      select 1 from public.issues i
+      where i.id = comments.issue_id
+      and i.student_id = public.current_student_id()
+    )
+  )
+);
 
 create policy "Approved student create own comments"
 on public.comments for insert to authenticated
-with check (public.is_approved_student() and student_id = public.current_student_id());
+with check (
+  public.is_approved_student()
+  and student_id = public.current_student_id()
+  and role = 'Student'
+  and issue_id is not null
+  and exists (
+    select 1 from public.issues i
+    where i.id = comments.issue_id
+    and i.student_id = public.current_student_id()
+  )
+);
 
 create policy "Approved students read prompts"
 on public.prompts for select to authenticated

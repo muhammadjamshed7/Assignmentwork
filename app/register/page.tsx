@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getErrorMessage, readJsonResponse } from "@/lib/data/client";
+import { createSupabaseClient } from "@/lib/supabase";
 
 type RegisterPayload = {
   error?: string;
@@ -38,6 +39,19 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         throw new Error(payload?.error ?? "Unable to create account.");
+      }
+
+      const supabase = createSupabaseClient();
+      if (!supabase) throw new Error("Account created, but Supabase is not configured for sign in.");
+
+      await supabase.auth.signOut();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (signInError) {
+        throw new Error("Account created, but automatic sign-in failed. Please sign in from the login page.");
       }
 
       router.replace("/pending-approval");

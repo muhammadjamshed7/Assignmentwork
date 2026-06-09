@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { isUserRole, isUserStatus, type UserRole, type UserStatus } from "@/lib/auth/role-utils";
 
+const LOGIN_PAGE_PATHS = new Set(["/login", "/admin/login"]);
+const SIGNED_IN_ONLY_PAGE_PATHS = new Set(["/pending-approval"]);
 const PUBLIC_PAGE_PATHS = new Set(["/login", "/admin/login", "/register", "/pending-approval", "/access-denied"]);
 const PUBLIC_API_PREFIXES = ["/api/auth"];
 const ADMIN_LOGIN_PATH = "/admin/login";
@@ -80,6 +82,12 @@ export async function proxy(request: NextRequest) {
     const user = userData.user;
 
     if (!user) {
+      if (SIGNED_IN_ONLY_PAGE_PATHS.has(pathname)) {
+        const loginUrl = getRedirectUrl(request, STUDENT_LOGIN_PATH);
+        loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+        return NextResponse.redirect(loginUrl);
+      }
+
       if (isPublicPath(pathname)) return response;
       const loginUrl = getRedirectUrl(request, loginPathFor(pathname));
       loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
@@ -98,6 +106,11 @@ export async function proxy(request: NextRequest) {
 
     if (isPublicPagePath(pathname)) {
       if (pathname === targetHome) return response;
+      if (status === "rejected" || status === "disabled") {
+        return NextResponse.redirect(getRedirectUrl(request, targetHome));
+      }
+
+      if (LOGIN_PAGE_PATHS.has(pathname)) return response;
       return NextResponse.redirect(getRedirectUrl(request, targetHome));
     }
 

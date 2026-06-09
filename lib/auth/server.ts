@@ -10,6 +10,16 @@ import {
   UNAUTHORIZED_MESSAGE,
 } from "@/lib/auth/role-utils";
 
+export class AuthRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "AuthRequestError";
+    this.status = status;
+  }
+}
+
 function getSupabaseUrl() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -113,8 +123,12 @@ export async function requireApprovedUser() {
 export async function requireAdminRequest() {
   const profile = await getCurrentUserProfile();
 
-  if (!profile || !isApprovedAdmin(profile)) {
-    throw new Error(UNAUTHORIZED_MESSAGE);
+  if (!profile) {
+    throw new AuthRequestError("Authentication is required.", 401);
+  }
+
+  if (!isApprovedAdmin(profile)) {
+    throw new AuthRequestError(UNAUTHORIZED_MESSAGE, 403);
   }
 
   return {

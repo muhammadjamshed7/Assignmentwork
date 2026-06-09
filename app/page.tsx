@@ -35,8 +35,8 @@ function ChartPlaceholder() {
 export default function DashboardPage() {
   const { data, loading, error, refresh } = useSupabaseQuery(
     getDashboardData,
-    { students: [], issues: [], courses: [] },
-    ["students", "student_courses", "courses", "issues", "comments"]
+    { students: [], issues: [], courses: [], aiTools: [] },
+    ["students", "student_courses", "courses", "issues", "comments", "ai_tools"]
   )
 
   const { students, issues, courses } = data

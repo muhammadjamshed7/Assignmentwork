@@ -13,7 +13,6 @@ export async function POST(request: Request) {
   let createdStudentId: string | null = null;
 
   try {
-    supabase = createServiceRoleClient();
     const body = await request.json();
     const name = asString(body.name);
     const email = asString(body.email).toLowerCase();
@@ -30,6 +29,8 @@ export async function POST(request: Request) {
     if (password.length < 6) {
       return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
     }
+
+    supabase = createServiceRoleClient();
 
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
