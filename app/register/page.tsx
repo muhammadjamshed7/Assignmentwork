@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { getErrorMessage, readJsonResponse } from "@/lib/data/client";
 import { createSupabaseClient } from "@/lib/supabase";
 
@@ -84,7 +85,7 @@ export default function RegisterPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={6} />
+              <PasswordInput id="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={6} />
             </div>
             {error && (
               <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-500 dark:text-red-300">
