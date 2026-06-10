@@ -929,11 +929,19 @@ export default function PromptsPage() {
   const [createdPrompts, setCreatedPrompts] = useState<Prompt[]>([])
 
   const visiblePrompts = useMemo(() => {
-    const existingIds = new Set(prompts.map(prompt => prompt.id))
-    return [
-      ...createdPrompts.filter(prompt => !existingIds.has(prompt.id)),
-      ...prompts,
-    ]
+    const promptMap = new Map<string, Prompt>()
+
+    prompts.forEach(prompt => {
+      promptMap.set(prompt.id, prompt)
+    })
+
+    createdPrompts.forEach(prompt => {
+      promptMap.set(prompt.id, prompt)
+    })
+
+    return Array.from(promptMap.values()).sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    )
   }, [createdPrompts, prompts])
 
   const filteredPrompts = useMemo(() => {
@@ -1079,22 +1087,16 @@ export default function PromptsPage() {
         })
       } else {
         const createdPrompt = await createPrompt(promptData)
-        const savedPrompt = await listPromptById(createdPrompt.id)
-
-        if (!savedPrompt) {
-          throw new Error("Prompt was created, but it could not be loaded back from the database.")
-        }
-
         setCreatedPrompts(prev => [
-          savedPrompt,
-          ...prev.filter(prompt => prompt.id !== savedPrompt.id),
+          createdPrompt,
+          ...prev.filter(prompt => prompt.id !== createdPrompt.id),
         ])
         setPage(1)
         setCategoryFilter("All")
         setSubjectPromptFilter("All")
         setSearchTerm("")
         setGlobalSearchQuery("")
-        setSelectedPromptId(savedPrompt.id)
+        setSelectedPromptId(createdPrompt.id)
         addToast({
           title: "Prompt Created",
           description: `${title} was added to the prompt library.`,
@@ -1102,9 +1104,9 @@ export default function PromptsPage() {
         })
       }
 
-      await refresh()
       setIsDialogOpen(false)
       resetForm()
+      void refresh()
     } catch (err) {
       setFormError(getErrorMessage(err))
     } finally {
