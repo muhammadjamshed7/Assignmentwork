@@ -253,6 +253,48 @@ Do not create the final slides yet. First give only the complete presentation pl
 BRIEF STARTS BELOW:`,
   },
   {
+    title: "Presentation PPT and Slide Content Prompt",
+    category: "Presentation Planning",
+    description:
+      "Use this staged prompt to analyze a presentation brief first, then build either downloadable PPT guidance or slide content after the user confirms.",
+    tags: ["presentation", "PPT", "slide content", "PowerPoint", "speaker notes", "READY workflow", "high marks"],
+    content: `You are a world-class presentation strategist and academic expert with 20+ years of experience helping students create top-grade academic presentations.
+
+I am going to paste my assignment brief below. Your job is to:
+
+STEP 1 — Read and scan the entire brief carefully.
+STEP 2 — Analyze it across these 8 dimensions:
+  1. What is exactly being asked?
+  2. Individual or group presentation?
+  3. Is there a time limit?
+  4. Required number of slides?
+  5. Is the topic given or do I choose?
+  6. What are the marking criteria?
+  7. What hidden requirements might students miss?
+  8. What academic level and tone are required?
+
+STEP 3 — After your analysis, do NOT generate slides yet.
+Instead, end your response with this exact line:
+"✅ Analysis complete. Type READY when you want me to build the full slide-by-slide presentation plan and generate your PPT."
+
+STEP 4 — Wait for me to type READY.
+
+STEP 5 — When I type READY, ask me ONE question first:
+"Do you want me to generate a downloadable PPT file, or just the slide content as text?"
+
+STEP 6 — Then generate the complete presentation based on my answer, including:
+  • Full slide-by-slide breakdown (title, content, visuals, speaker notes, time per slide)
+  • Design strategy (colors, fonts, layout)
+  • Content that wins marks (examples, frameworks, statistics, visuals)
+  • 90–95% marks game plan (steps, mistakes to avoid, delivery tips, final checklist)
+
+---
+
+MY ASSIGNMENT BRIEF STARTS BELOW:
+
+[PASTE YOUR BRIEF HERE]`,
+  },
+  {
     title: "Cybersecurity Academic Prompt",
     category: "Cybersecurity",
     description:
@@ -868,6 +910,7 @@ export default function PromptsPage() {
   const prompts = promptsPage.items
   const { addToast } = useToastStore()
   const globalSearchQuery = useSearchStore(state => state.searchQuery)
+  const setGlobalSearchQuery = useSearchStore(state => state.setSearchQuery)
   const { isAdmin } = useCurrentUserRole()
   const [initialSharedSubjectPrompt] = useState(() => getSharedSubjectPromptFromUrl())
   const [searchTerm, setSearchTerm] = useState("")
@@ -883,12 +926,21 @@ export default function PromptsPage() {
   const [form, setForm] = useState<PromptFormState>(EMPTY_PROMPT_FORM)
   const [formError, setFormError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const [createdPrompts, setCreatedPrompts] = useState<Prompt[]>([])
+
+  const visiblePrompts = useMemo(() => {
+    const existingIds = new Set(prompts.map(prompt => prompt.id))
+    return [
+      ...createdPrompts.filter(prompt => !existingIds.has(prompt.id)),
+      ...prompts,
+    ]
+  }, [createdPrompts, prompts])
 
   const filteredPrompts = useMemo(() => {
     const localQuery = searchTerm.trim().toLowerCase()
     const globalQuery = globalSearchQuery.trim().toLowerCase()
 
-    return prompts
+    return visiblePrompts
       .filter(prompt => categoryFilter === "All" || prompt.category === categoryFilter)
       .filter(prompt => {
         const relatedCourse = prompt.relatedCourseId
@@ -907,7 +959,7 @@ export default function PromptsPage() {
           (!globalQuery || searchableText.includes(globalQuery))
       })
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-  }, [categoryFilter, courses, globalSearchQuery, prompts, searchTerm])
+  }, [categoryFilter, courses, globalSearchQuery, searchTerm, visiblePrompts])
 
   const filteredSubjectPrompts = useMemo(() => {
     const localQuery = searchTerm.trim().toLowerCase()
@@ -934,12 +986,12 @@ export default function PromptsPage() {
     (sharedPrompt?.id === selectedPromptId ? sharedPrompt : null) ??
     filteredPrompts[0] ??
     null
-  const deletingPrompt = prompts.find(prompt => prompt.id === deletingPromptId)
+  const deletingPrompt = visiblePrompts.find(prompt => prompt.id === deletingPromptId)
 
   useEffect(() => {
     if (!selectedPromptId) return
 
-    if (prompts.some(prompt => prompt.id === selectedPromptId) || sharedPrompt?.id === selectedPromptId) {
+    if (visiblePrompts.some(prompt => prompt.id === selectedPromptId) || sharedPrompt?.id === selectedPromptId) {
       return
     }
 
@@ -962,7 +1014,7 @@ export default function PromptsPage() {
     return () => {
       isCancelled = true
     }
-  }, [addToast, prompts, selectedPromptId, sharedPrompt?.id])
+  }, [addToast, selectedPromptId, sharedPrompt?.id, visiblePrompts])
 
   function updateFormField(field: keyof PromptFormState, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -1018,14 +1070,31 @@ export default function PromptsPage() {
 
     try {
       if (editingPromptId) {
-        await updatePrompt(editingPromptId, promptData)
+        const updatedPrompt = await updatePrompt(editingPromptId, promptData)
+        setCreatedPrompts(prev => prev.map(prompt => prompt.id === updatedPrompt.id ? updatedPrompt : prompt))
         addToast({
           title: "Prompt Updated",
           description: `${title} was saved.`,
           type: "success",
         })
       } else {
-        await createPrompt(promptData)
+        const createdPrompt = await createPrompt(promptData)
+        const savedPrompt = await listPromptById(createdPrompt.id)
+
+        if (!savedPrompt) {
+          throw new Error("Prompt was created, but it could not be loaded back from the database.")
+        }
+
+        setCreatedPrompts(prev => [
+          savedPrompt,
+          ...prev.filter(prompt => prompt.id !== savedPrompt.id),
+        ])
+        setPage(1)
+        setCategoryFilter("All")
+        setSubjectPromptFilter("All")
+        setSearchTerm("")
+        setGlobalSearchQuery("")
+        setSelectedPromptId(savedPrompt.id)
         addToast({
           title: "Prompt Created",
           description: `${title} was added to the prompt library.`,
@@ -1146,6 +1215,7 @@ export default function PromptsPage() {
     try {
       await deletePrompt(deletingPromptId)
       await refresh()
+      setCreatedPrompts(prev => prev.filter(prompt => prompt.id !== deletingPromptId))
       setDeletingPromptId(null)
       addToast({
         title: "Prompt Deleted",
