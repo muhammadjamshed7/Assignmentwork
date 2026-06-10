@@ -453,3 +453,151 @@ on conflict (tool_name) do update
 set
   description = excluded.description,
   updated_at = now();
+
+insert into public.prompts (
+  id,
+  title,
+  category,
+  content,
+  tags
+)
+values
+  (
+    '80000000-0000-0000-0000-000000000001',
+    'General Assignment Prompt',
+    'Academic Writing',
+    $prompt$
+General Assignment Workflow - Brief to Completion
+
+I am going to share my assignment brief and marking criteria with you. Your job is to read everything carefully, build a proper outline based on the brief requirements, then write the assignment section by section - one section at a time. Do not write everything at once.
+
+My assignment brief and marking criteria:
+[PASTE YOUR FULL BRIEF AND MARKING CRITERIA HERE]
+
+Follow this exact process:
+
+STAGE 1 - ANALYSE THE BRIEF
+Read the full brief and identify:
+- Assignment type (essay, report, case study, dissertation chapter, reflection, etc.)
+- Word count and how it should be distributed across sections
+- Subject and academic level
+- Referencing style required
+- Key requirements from the marking criteria - what gets the most marks and why
+- Any specific instructions, restrictions, or formatting rules
+
+Present a brief summary of your understanding before moving to the outline. Ask me to confirm before continuing.
+
+STAGE 2 - BUILD THE OUTLINE
+Based on the brief and marking criteria, create a section-by-section outline:
+- List every section with its heading
+- Write one sentence describing what each section will argue or cover
+- Show the approximate word count for each section
+- Confirm which sections carry the most marks
+
+Do not start writing yet. Show me the outline and wait for my approval.
+
+STAGE 3 - WRITE SECTION BY SECTION
+After I approve the outline, write one section at a time.
+- Start with Section 1 only
+- End each section by asking: Section complete. Ready to move to [next section name]?
+- Wait for my confirmation before writing the next section
+- Follow the approved outline - do not change structure without asking
+- Match the academic tone and referencing style required
+- Hit the word count for each section
+
+STAGE 4 - REVIEW EACH SECTION
+After writing each section:
+- State the word count of that section
+- Confirm it addresses the marking criteria for that section
+- Flag anything that may need more detail or a source
+
+RULES:
+- Never write more than one section at a time without my confirmation
+- Always follow the brief requirements exactly
+- Use academic language throughout
+- Include in-text citations in the required referencing style
+- Do not add a reference list until I ask for it at the end
+$prompt$,
+    array[
+      'general',
+      'essay',
+      'report',
+      'case study',
+      'brief analysis',
+      'outline',
+      'section by section',
+      'academic writing',
+      'marking criteria'
+    ]
+  ),
+  (
+    '80000000-0000-0000-0000-000000000002',
+    'Specific Assignment Prompt',
+    'Academic Writing',
+    $prompt$
+Specific Assignment Workflow - Type-Based Brief to Completion
+
+I am going to share my assignment type, brief, and marking criteria. Your job is to first identify the assignment type, apply the correct structure for that type, build a detailed outline, then write it section by section - one section at a time. Do not write everything at once.
+
+My assignment type is:
+[WRITE TYPE HERE - e.g. Essay, Report, Case Study, Literature Review, Reflective Writing, Dissertation Chapter, Presentation Plan, Lab Report, Business Plan]
+
+My assignment brief and marking criteria:
+[PASTE YOUR FULL BRIEF AND MARKING CRITERIA HERE]
+
+Follow this exact process:
+
+STAGE 1 - IDENTIFY TYPE AND APPLY CORRECT STRUCTURE
+Based on the assignment type, apply the standard academic structure for that type.
+
+If Essay: Introduction -> Main Arguments (2-4 body paragraphs) -> Counter-argument -> Conclusion
+If Report: Executive Summary -> Introduction -> Findings -> Analysis -> Recommendations -> Conclusion -> References
+If Case Study: Introduction -> Background -> Problem Identification -> Analysis (frameworks) -> Recommendations -> Conclusion
+If Literature Review: Introduction -> Thematic Sections -> Gaps in Literature -> Conclusion
+If Reflective Writing: Description -> Feelings -> Evaluation -> Analysis -> Conclusion -> Action Plan (Gibbs or Kolb)
+If Dissertation Chapter: Follow the exact chapter structure from the brief
+If Presentation Plan: Slide-by-slide plan with title, key points, speaker notes, visual suggestion
+If Lab Report: Abstract -> Introduction -> Method -> Results -> Discussion -> Conclusion -> References
+If Business Plan: Executive Summary -> Market Analysis -> Products/Services -> Marketing Strategy -> Financial Plan -> Conclusion
+For any other type: apply the most appropriate academic structure based on the brief.
+
+STAGE 2 - ANALYSE THE BRIEF AGAINST THE STRUCTURE
+Read the marking criteria and confirm which sections carry the most marks, what the examiner is specifically looking for, word count distribution, referencing style, and any required frameworks or models. Present your understanding and wait for my confirmation.
+
+STAGE 3 - BUILD THE SECTION-BY-SECTION OUTLINE
+Create a detailed outline with every section heading, one sentence per section, approximate word count, and key frameworks or theories per section. Wait for my approval before writing.
+
+STAGE 4 - WRITE ONE SECTION AT A TIME
+Write Section 1 only. End with: Section complete. Ready to move to [next section name]? Wait for confirmation before the next section. Follow the approved outline. Use academic language and the required referencing style.
+
+STAGE 5 - AFTER EACH SECTION
+State the word count. Confirm it meets the marking criteria. Flag if any additional source or detail is needed.
+
+RULES:
+- Never write more than one section at a time without my confirmation
+- Always apply the correct structure for the assignment type
+- Follow the brief and marking criteria exactly
+- Use in-text citations in the required referencing style throughout
+- Do not produce the reference list until I ask for it at the end
+$prompt$,
+    array[
+      'essay',
+      'report',
+      'case study',
+      'reflection',
+      'literature review',
+      'dissertation',
+      'lab report',
+      'business plan',
+      'section by section',
+      'specific',
+      'marking criteria'
+    ]
+  )
+on conflict (id) do update
+set
+  title = excluded.title,
+  category = excluded.category,
+  content = excluded.content,
+  tags = excluded.tags,
+  updated_at = now();

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:admin": "node scripts/ensure-default-admin.mjs"
+    "seed:admin": "node scripts/ensure-default-admin.mjs",
+    "reset:writers-password": "node scripts/reset-writer-passwords.mjs"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",

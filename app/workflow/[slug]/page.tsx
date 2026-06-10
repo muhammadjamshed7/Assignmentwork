@@ -3,13 +3,9 @@ import { notFound } from "next/navigation"
 import {
   ArrowLeft,
   ArrowRight,
-  BookOpenCheck,
   CheckCircle2,
-  ClipboardCheck,
   FileText,
-  Layers3,
   ListChecks,
-  PenLine,
   ShieldCheck,
   Sparkles,
 } from "lucide-react"
@@ -20,12 +16,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CopyWorkflowButton } from "@/app/workflow/_components/copy-workflow-button"
 import {
   getWorkflowCard,
+  generalAssignmentWorkflowPrompt,
   masterPrompt,
   placeholderGuide,
+  specificAssignmentWorkflowPrompt,
   toolsInstallationPrompt,
   unknownAssignmentPrompt,
   workflowCards,
-  workflowSteps,
 } from "@/app/workflow/workflow-data"
 
 export function generateStaticParams() {
@@ -153,48 +150,6 @@ function PlaceholderGuide() {
   )
 }
 
-function WorkflowPhaseMap() {
-  const phases = [
-    {
-      title: "Understand",
-      description: "Read the brief, rubric, required format, word count, deadline, and marking criteria.",
-      icon: BookOpenCheck,
-    },
-    {
-      title: "Plan",
-      description: "Identify subject, academic level, assignment title, structure, and citation expectations.",
-      icon: Layers3,
-    },
-    {
-      title: "Draft",
-      description: "Create the outline, develop each section, support claims, and keep every paragraph aligned.",
-      icon: PenLine,
-    },
-    {
-      title: "Verify",
-      description: "Check citations, references, originality, rubric coverage, grammar, formatting, and final files.",
-      icon: ClipboardCheck,
-    },
-  ]
-
-  return (
-    <div className="grid gap-3 md:grid-cols-4">
-      {phases.map((phase, index) => (
-        <div key={phase.title} className="relative rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">Phase {index + 1}</span>
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
-              <phase.icon className="h-4 w-4" aria-hidden="true" />
-            </span>
-          </div>
-          <h3 className="mt-4 font-display text-base font-semibold text-gray-950 dark:text-white">{phase.title}</h3>
-          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-slate-400">{phase.description}</p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function UnknownAssignmentArticle() {
   return (
     <>
@@ -294,37 +249,116 @@ function ToolsInstallationArticle() {
 }
 
 function StandardAcademicArticle() {
+  const stages = [
+    {
+      title: "Analyse the Brief",
+      description:
+        "Identify the assignment type, word count, subject level, referencing style, marking priorities, and formatting rules before planning.",
+    },
+    {
+      title: "Build the Outline",
+      description:
+        "Create section headings, one-sentence section purposes, word-count allocation, and the sections carrying the highest marks.",
+    },
+    {
+      title: "Write Section by Section",
+      description:
+        "Write only one approved section at a time, then wait for confirmation before moving to the next section.",
+    },
+    {
+      title: "Review Each Section",
+      description:
+        "Confirm section word count, marking-criteria coverage, and any missing detail or source needs before continuing.",
+    },
+  ]
+
   return (
     <>
       <ArticleSection eyebrow="Setup" title="Workflow Control Panel">
-        <WorkflowOverview category="Academic Steps" steps={workflowSteps.length} checkpoints="4 phases" output="Word ready" />
+        <WorkflowOverview category="Guided Stages" steps={stages.length} checkpoints="Approval gates" output="Section by section" />
       </ArticleSection>
-      <ArticleSection eyebrow="Execution map" title="Four-Phase Academic Process">
-        <WorkflowPhaseMap />
-      </ArticleSection>
-      <ArticleSection eyebrow="Required inputs" title="Placeholder Guide">
-        <PlaceholderGuide />
-      </ArticleSection>
-      <ArticleSection eyebrow="Reusable prompts" title="Step-By-Step Academic Prompts">
-        <div className="grid gap-4">
-          {workflowSteps.map(step => (
-            <Card key={step.number} className="overflow-hidden">
-              <CardHeader className="gap-4 border-b border-gray-200 dark:border-white/5 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <Badge variant="secondary">Step {step.number}</Badge>
-                  <CardTitle className="mt-3">{step.title}</CardTitle>
-                  <CardDescription className="mt-2 leading-6">{step.explanation}</CardDescription>
-                </div>
-                <CopyWorkflowButton label={step.title} text={step.prompt} />
+      <ArticleSection eyebrow="Execution map" title="Brief-To-Completion Process">
+        <div className="grid gap-3 md:grid-cols-2">
+          {stages.map((stage, index) => (
+            <Card key={stage.title} className="overflow-hidden">
+              <CardHeader>
+                <Badge variant="secondary">Stage {index + 1}</Badge>
+                <CardTitle className="mt-3">{stage.title}</CardTitle>
+                <CardDescription className="mt-2 leading-6">{stage.description}</CardDescription>
               </CardHeader>
-              <CardContent className="pt-5 sm:pt-6">
-                <pre className="whitespace-pre-wrap rounded-lg border border-gray-300/50 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/60 p-4 text-sm leading-6 text-gray-700 dark:text-slate-300">
-                  {step.prompt}
-                </pre>
-              </CardContent>
             </Card>
           ))}
         </div>
+      </ArticleSection>
+      <ArticleSection eyebrow="Control rules" title="Section-By-Section Guardrails">
+        <WorkflowCodeBlock text={`1. Analyze the full brief before outlining.
+2. Ask for confirmation before building the outline.
+3. Wait for outline approval before writing.
+4. Write only one section at a time.
+5. End each section by asking whether to move to the next section.
+6. Do not add the reference list until requested at the end.`} />
+      </ArticleSection>
+      <ArticleSection eyebrow="Reusable prompt" title="Copy-Ready Workflow Prompt">
+        <PromptBlock label="General Assignment Workflow" text={generalAssignmentWorkflowPrompt} />
+      </ArticleSection>
+    </>
+  )
+}
+
+function SpecificAssignmentArticle() {
+  const structures = [
+    {
+      type: "Essay",
+      structure: "Introduction -> Main Arguments -> Counter-argument -> Conclusion",
+    },
+    {
+      type: "Report",
+      structure: "Title Page -> Executive Summary -> Table of Contents -> Introduction -> Findings -> Analysis -> Recommendations -> Conclusion",
+    },
+    {
+      type: "Case Study",
+      structure: "Introduction -> Background -> Problem Identification -> Framework Analysis -> Recommendations -> Conclusion",
+    },
+    {
+      type: "Literature Review",
+      structure: "Introduction -> Thematic Sections -> Gaps in Literature -> Conclusion",
+    },
+    {
+      type: "Reflective Writing",
+      structure: "Description -> Feelings -> Evaluation -> Analysis -> Conclusion -> Action Plan",
+    },
+    {
+      type: "Lab Report",
+      structure: "Title -> Abstract -> Introduction -> Method -> Results -> Discussion -> Conclusion -> References",
+    },
+  ]
+
+  return (
+    <>
+      <ArticleSection eyebrow="Setup" title="Workflow Control Panel">
+        <WorkflowOverview category="Type-Based Stages" steps={5} checkpoints="Structure approval" output="Section by section" />
+      </ArticleSection>
+      <ArticleSection eyebrow="Structure map" title="Assignment Type Structures">
+        <div className="grid gap-3 md:grid-cols-2">
+          {structures.map(item => (
+            <Card key={item.type} className="overflow-hidden">
+              <CardHeader>
+                <Badge variant="secondary">{item.type}</Badge>
+                <CardDescription className="mt-3 leading-6">{item.structure}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </ArticleSection>
+      <ArticleSection eyebrow="Workflow stages" title="Type-Based Brief-To-Completion Process">
+        <WorkflowCodeBlock text={`1. Identify the assignment type and apply the correct academic structure.
+2. Analyze the brief and marking criteria against that structure.
+3. Build a detailed section-by-section outline.
+4. Wait for outline approval before writing.
+5. Write and review one section at a time.`} />
+      </ArticleSection>
+      <ArticleSection eyebrow="Reusable prompt" title="Copy-Ready Type-Based Workflow Prompt">
+        <PromptBlock label="Specific Assignment Workflow" text={specificAssignmentWorkflowPrompt} />
       </ArticleSection>
     </>
   )
@@ -333,7 +367,7 @@ function StandardAcademicArticle() {
 function MasterPromptArticle() {
   return (
     <>
-      <ArticleSection title="Placeholder Explanation">
+      {/* <ArticleSection title="Placeholder Explanation">
         <PlaceholderGuide />
       </ArticleSection>
       <ArticleSection title="Ethical Academic Support Note">
@@ -342,7 +376,7 @@ function MasterPromptArticle() {
           citation checking, editing, and quality review. It must not be used to misrepresent authorship, fabricate
           sources, or bypass academic-integrity requirements.
         </div>
-      </ArticleSection>
+      </ArticleSection> */}
       <PromptBlock label="Master Assignment Prompt" text={masterPrompt} />
     </>
   )
@@ -354,6 +388,8 @@ function WorkflowArticle({ slug }: { slug: string }) {
       return <UnknownAssignmentArticle />
     case "tools-installation-workflow":
       return <ToolsInstallationArticle />
+    case "specific-assignment-workflow":
+      return <SpecificAssignmentArticle />
     case "standard-academic-assignment-workflow":
       return <StandardAcademicArticle />
     case "master-assignment-prompt":
@@ -373,12 +409,20 @@ function WorkflowSidePanel({
   promptItems: number
 }) {
   const isStandard = slug === "standard-academic-assignment-workflow"
+  const isSpecific = slug === "specific-assignment-workflow"
   const details = isStandard
     ? [
         "Criteria checked before writing",
-        "Reusable step prompts",
-        "Citation and reference gate",
-        "Final Word-document structure",
+        "Outline approval gate",
+        "One section at a time",
+        "Reference list only when requested",
+      ]
+    : isSpecific
+      ? [
+        "Assignment type identified first",
+        "Correct academic structure applied",
+        "Outline approval gate",
+        "One section at a time",
       ]
     : [
         "Planning before execution",
@@ -435,7 +479,9 @@ export default async function WorkflowDetailPage({
   const currentIndex = workflowCards.findIndex(card => card.slug === workflow.slug)
   const nextWorkflow = workflowCards[(currentIndex + 1) % workflowCards.length]
   const promptItems = workflow.slug === "standard-academic-assignment-workflow"
-    ? workflowSteps.length
+    ? 1
+    : workflow.slug === "specific-assignment-workflow"
+      ? 1
     : workflow.slug === "master-assignment-prompt"
       ? countNumberedItems(masterPrompt)
       : workflow.slug === "tools-installation-workflow"

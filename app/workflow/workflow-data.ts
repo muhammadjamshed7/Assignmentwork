@@ -569,6 +569,201 @@ Here is the assessment brief and marking criteria:
   },
 }
 
+const generalAssignmentWorkflowSteps = {
+  purpose:
+    "Use this workflow for any assignment where you have a brief and marking criteria. The AI reads the brief, builds a structured outline, gets your approval, then writes one section at a time - never all at once.",
+  whenToUse: [
+    "When you have received any assignment brief and need to start from scratch.",
+    "When you want the AI to follow the brief and marking criteria exactly before writing.",
+    "When you want full control - approving the outline before writing begins, and confirming each section before the next one starts.",
+    "Works for any assignment type: essay, report, case study, reflection, dissertation chapter, literature review, and more.",
+  ],
+  steps: [
+    {
+      number: 1,
+      title: "Analyse the Brief",
+      details:
+        "AI reads the full brief and marking criteria. Identifies assignment type, word count, subject, academic level, referencing style, and what scores highest in the marking criteria. Presents a summary and waits for confirmation before continuing.",
+    },
+    {
+      number: 2,
+      title: "Build the Outline",
+      details:
+        "AI creates a section-by-section outline with headings, one sentence per section describing what it covers, approximate word count per section, and which sections carry the most marks. Does not start writing until you approve the outline.",
+    },
+    {
+      number: 3,
+      title: "Write Section by Section",
+      details:
+        "After outline approval, AI writes one section at a time. After each section it states the word count, confirms it meets the marking criteria for that section, and asks for confirmation before moving to the next section.",
+    },
+    {
+      number: 4,
+      title: "Review and Complete",
+      details:
+        "After all sections are complete, AI asks if you want the full reference list added. Nothing is added without your instruction.",
+    },
+  ],
+  mandatoryOutputFormat: [
+    "Stage 1: Brief Analysis Summary",
+    "Stage 2: Section-by-Section Outline with word count per section",
+    "Stage 3: One section at a time with word count confirmation",
+    "Stage 4: Reference list on request only",
+  ],
+  promptBlock: {
+    title: "General Assignment Prompt",
+    subtitle: "Reusable prompt block. Paste your brief and marking criteria - works for any assignment type.",
+    content: `General Assignment Workflow - Brief to Completion
+
+I am going to share my assignment brief and marking criteria with you. Your job is to read everything carefully, build a proper outline based on the brief requirements, then write the assignment section by section - one section at a time. Do not write everything at once.
+
+My assignment brief and marking criteria:
+[PASTE YOUR FULL BRIEF AND MARKING CRITERIA HERE]
+
+Follow this exact process:
+
+STAGE 1 - ANALYSE THE BRIEF
+Read the full brief and identify:
+- Assignment type (essay, report, case study, dissertation chapter, reflection, etc.)
+- Word count and how it should be distributed across sections
+- Subject and academic level
+- Referencing style required
+- Key requirements from the marking criteria - what gets the most marks and why
+- Any specific instructions, restrictions, or formatting rules
+
+Present a brief summary of your understanding before moving to the outline. Ask me to confirm before continuing.
+
+STAGE 2 - BUILD THE OUTLINE
+Based on the brief and marking criteria, create a section-by-section outline:
+- List every section with its heading
+- Write one sentence describing what each section will argue or cover
+- Show the approximate word count for each section
+- Confirm which sections carry the most marks
+
+Do not start writing yet. Show me the outline and wait for my approval.
+
+STAGE 3 - WRITE SECTION BY SECTION
+After I approve the outline, write one section at a time.
+- Start with Section 1 only
+- End each section by asking: Section complete. Ready to move to [next section name]?
+- Wait for my confirmation before writing the next section
+- Follow the approved outline - do not change structure without asking
+- Match the academic tone and referencing style required
+- Hit the word count for each section
+
+STAGE 4 - REVIEW EACH SECTION
+After writing each section:
+- State the word count of that section
+- Confirm it addresses the marking criteria for that section
+- Flag anything that may need more detail or a source
+
+RULES:
+- Never write more than one section at a time without my confirmation
+- Always follow the brief requirements exactly
+- Use academic language throughout
+- Include in-text citations in the required referencing style
+- Do not add a reference list until I ask for it at the end`,
+  },
+}
+
+const specificAssignmentWorkflowSteps = {
+  purpose:
+    "Use this workflow when you know the assignment type. The AI applies the correct academic structure for that type (essay, report, case study, reflection, etc.), aligns it to the marking criteria, gets your outline approval, then writes one section at a time.",
+  whenToUse: [
+    "When you know the assignment type and want the AI to apply the correct structure automatically.",
+    "When the marking criteria specifies a particular structure, framework, or model.",
+    "When you want section-by-section writing with approval at each stage.",
+    "Use for: Essay, Report, Case Study, Literature Review, Reflective Writing, Dissertation Chapter, Presentation Plan, Lab Report, Business Plan.",
+  ],
+  steps: [
+    {
+      number: 1,
+      title: "Identify Type and Apply Correct Structure",
+      details:
+        "AI reads the assignment type and applies the standard academic structure for that type. Essay gets introduction, arguments, counter-argument, conclusion. Report gets executive summary through appendices. Case study gets background, problem identification, framework analysis, recommendations. Reflective writing uses Gibbs or Kolb model. Dissertation chapters follow the brief structure exactly.",
+    },
+    {
+      number: 2,
+      title: "Analyse Brief Against the Structure",
+      details:
+        "AI reads the marking criteria against the structure. Identifies which sections carry most marks, what frameworks or theories are required, word count distribution, and referencing style. Presents understanding and waits for confirmation.",
+    },
+    {
+      number: 3,
+      title: "Build the Section-by-Section Outline",
+      details:
+        "AI creates a detailed outline: every section heading, one sentence per section, approximate word count, and key frameworks or theories per section. Waits for approval before writing.",
+    },
+    {
+      number: 4,
+      title: "Write One Section at a Time",
+      details:
+        "After outline approval, AI writes one section only. After each section it states the word count, confirms it meets the marking criteria, flags anything needing more evidence, and asks for confirmation before the next section.",
+    },
+    {
+      number: 5,
+      title: "Complete and Reference",
+      details:
+        "After all sections are done, AI asks if you want the full reference list. Nothing added without your instruction.",
+    },
+  ],
+  mandatoryOutputFormat: [
+    "Stage 1: Assignment Type and Structure Applied",
+    "Stage 2: Brief Analysis Against Marking Criteria",
+    "Stage 3: Section-by-Section Outline with word counts",
+    "Stage 4: One section at a time with word count and criteria confirmation",
+    "Stage 5: Reference list on request only",
+  ],
+  promptBlock: {
+    title: "Specific Assignment Prompt",
+    subtitle: "Reusable prompt block. Tell AI your assignment type, paste your brief - it applies the right structure and writes section by section.",
+    content: `Specific Assignment Workflow - Type-Based Brief to Completion
+
+I am going to share my assignment type, brief, and marking criteria. Your job is to first identify the assignment type, apply the correct structure for that type, build a detailed outline, then write it section by section - one section at a time. Do not write everything at once.
+
+My assignment type is:
+[WRITE TYPE HERE - e.g. Essay, Report, Case Study, Literature Review, Reflective Writing, Dissertation Chapter, Presentation Plan, Lab Report, Business Plan]
+
+My assignment brief and marking criteria:
+[PASTE YOUR FULL BRIEF AND MARKING CRITERIA HERE]
+
+Follow this exact process:
+
+STAGE 1 - IDENTIFY TYPE AND APPLY CORRECT STRUCTURE
+Based on the assignment type, apply the standard academic structure for that type.
+
+If Essay: Introduction -> Main Arguments (2-4 body paragraphs) -> Counter-argument -> Conclusion
+If Report: Executive Summary -> Introduction -> Findings -> Analysis -> Recommendations -> Conclusion -> References
+If Case Study: Introduction -> Background -> Problem Identification -> Analysis (frameworks) -> Recommendations -> Conclusion
+If Literature Review: Introduction -> Thematic Sections -> Gaps in Literature -> Conclusion
+If Reflective Writing: Description -> Feelings -> Evaluation -> Analysis -> Conclusion -> Action Plan (Gibbs or Kolb)
+If Dissertation Chapter: Follow the exact chapter structure from the brief
+If Presentation Plan: Slide-by-slide plan with title, key points, speaker notes, visual suggestion
+If Lab Report: Abstract -> Introduction -> Method -> Results -> Discussion -> Conclusion -> References
+If Business Plan: Executive Summary -> Market Analysis -> Products/Services -> Marketing Strategy -> Financial Plan -> Conclusion
+For any other type: apply the most appropriate academic structure based on the brief.
+
+STAGE 2 - ANALYSE THE BRIEF AGAINST THE STRUCTURE
+Read the marking criteria and confirm which sections carry the most marks, what the examiner is specifically looking for, word count distribution, referencing style, and any required frameworks or models. Present your understanding and wait for my confirmation.
+
+STAGE 3 - BUILD THE SECTION-BY-SECTION OUTLINE
+Create a detailed outline with every section heading, one sentence per section, approximate word count, and key frameworks or theories per section. Wait for my approval before writing.
+
+STAGE 4 - WRITE ONE SECTION AT A TIME
+Write Section 1 only. End with: Section complete. Ready to move to [next section name]? Wait for confirmation before the next section. Follow the approved outline. Use academic language and the required referencing style.
+
+STAGE 5 - AFTER EACH SECTION
+State the word count. Confirm it meets the marking criteria. Flag if any additional source or detail is needed.
+
+RULES:
+- Never write more than one section at a time without my confirmation
+- Always apply the correct structure for the assignment type
+- Follow the brief and marking criteria exactly
+- Use in-text citations in the required referencing style throughout
+- Do not produce the reference list until I ask for it at the end`,
+  },
+}
+
 export const workflowSteps = Object.assign([
   {
     number: 1,
@@ -636,6 +831,8 @@ export const workflowSteps = Object.assign([
 ], {
   "essay-topic-selection": essayTopicSelectionSteps,
   "dissertation-topic-selection": dissertationTopicSelectionSteps,
+  "general-assignment-workflow": generalAssignmentWorkflowSteps,
+  "specific-assignment-workflow": specificAssignmentWorkflowSteps,
 })
 
 export const masterPrompt = `You are a professor-level academic expert in [SUBJECT] with 15+ years of academic, research, and professional experience.
@@ -659,6 +856,10 @@ Follow this workflow:
 12. Prepare the final response in a Word-document-ready academic format.
 
 The final assignment must be clear, structured, evidence-based, properly referenced, academically rigorous, and suitable for submission.`
+
+export const generalAssignmentWorkflowPrompt = generalAssignmentWorkflowSteps.promptBlock.content
+
+export const specificAssignmentWorkflowPrompt = specificAssignmentWorkflowSteps.promptBlock.content
 
 export const workflowCards = [
   {
@@ -704,12 +905,36 @@ export const workflowCards = [
     buttonText: "View Workflow",
   },
   {
-    title: "Standard Academic Assignment Workflow",
+    title: "Specific Assignment Workflow",
+    slug: "specific-assignment-workflow",
+    category: "Academic Writing",
+    badge: "Academic Writing",
+    icon: "GraduationCap",
+    promptCount: 5,
+    subtitle: "For a known assignment type with the correct structure applied first.",
+    description:
+      "For a known assignment type - essay, report, case study, reflection, literature review, dissertation chapter, and more. AI applies the correct structure for the type, builds the outline, then writes section by section.",
+    buttonText: "View Workflow",
+  },
+  {
+    title: "General Assignment Workflow",
+    slug: "general-assignment-workflow",
+    category: "Academic Writing",
+    badge: "Academic Writing",
+    icon: "GraduationCap",
+    promptCount: 4,
+    subtitle: "For any assignment type, from brief analysis to section-by-section completion.",
+    description:
+      "For any assignment type. Paste your brief and marking criteria - AI analyses it, builds the outline, then writes section by section with your approval at each stage.",
+    buttonText: "View Workflow",
+  },
+  {
+    title: "General Assignment Workflow",
     slug: "standard-academic-assignment-workflow",
     category: "Academic Writing",
-    subtitle: "For normal academic assignments, essays, reports, and structured submissions.",
+    subtitle: "Brief to completion, written one approved section at a time.",
     description:
-      "Prepare academic work from criteria reading to final Word-document-ready submission.",
+      "Analyze the brief, build an approved outline, then write and review each assignment section step by step.",
     buttonText: "View Workflow",
   },
   {
