@@ -764,6 +764,260 @@ RULES:
   },
 }
 
+const assignmentIntelligenceWorkflowSteps = {
+  purpose:
+    "Use this workflow to extract every important detail from an assignment brief, confirm or suggest the topic, build a word count plan and perfect outline, then wait for approval before writing anything.",
+  whenToUse: [
+    "When you have an assignment brief and marking criteria but need the requirements extracted clearly first.",
+    "When the topic may be unclear, open, missing, or needs academic refinement.",
+    "When you need a word count distribution and outline before drafting begins.",
+    "When you want the AI to stop before writing until you approve the outline.",
+  ],
+  steps: [
+    {
+      number: 1,
+      title: "Full Brief Extraction",
+      details:
+        "AI reads the full brief and extracts assignment type, subject/module, academic level, word count, referencing style, submission format, deadline, marking criteria, specific instructions, what is present, and what is missing.",
+    },
+    {
+      number: 2,
+      title: "Topic Identification or Suggestion",
+      details:
+        "If the topic is given, AI states it and refines the academic title if needed. If the topic is open, AI suggests three topic options with title, marking-criteria fit, feasibility, and a strongest recommendation.",
+    },
+    {
+      number: 3,
+      title: "Word Count Distribution Plan",
+      details:
+        "After topic confirmation, AI creates a section-by-section word count table that matches the required total and highlights which sections carry the most marks.",
+    },
+    {
+      number: 4,
+      title: "Perfect Outline",
+      details:
+        "AI builds a complete outline with headings, 2 to 4 bullet points per section, required frameworks or source types, and the correct academic structure for the assignment type.",
+    },
+    {
+      number: 5,
+      title: "Approval Before Writing",
+      details:
+        "AI asks whether the outline is correct and waits for approval before writing a single word of the assignment.",
+    },
+  ],
+  mandatoryOutputFormat: [
+    "Stage 1: Full Brief Extraction numbered list",
+    "Stage 2: Topic confirmation or three topic options",
+    "Stage 3: Word count distribution table",
+    "Stage 4: Perfect section-by-section outline",
+    "Stage 5: Approval required before writing",
+  ],
+  promptBlock: {
+    title: "Assignment Intelligence Prompt",
+    subtitle: "Reusable prompt block. Paste the full brief and marking criteria to extract requirements, confirm the topic, and build the outline first.",
+    content: `Assignment Intelligence Prompt
+
+I am going to paste my assignment brief below. Your job is to read it completely, extract every important detail from it, suggest or confirm the topic, build a perfect outline, and then wait for my approval before writing anything.
+
+My assignment brief:
+[PASTE YOUR FULL ASSIGNMENT BRIEF AND MARKING CRITERIA HERE]
+
+---
+
+STAGE 1 - FULL BRIEF EXTRACTION
+Read the entire brief carefully and extract the following. Present everything in a clean numbered list:
+
+1. Assignment Type
+   What kind of assignment is this? (Essay, Report, Case Study, Literature Review, Reflective Writing, Dissertation, Presentation, Lab Report, Business Plan, or other)
+
+2. Subject and Module
+   What is the subject, course, or module name?
+
+3. Academic Level
+   What level is this? (Undergraduate Year 1/2/3, Postgraduate, Masters, PhD, or not specified)
+
+4. Total Word Count
+   What is the total word count required?
+
+5. Referencing Style
+   What referencing style is required? (Harvard, APA, Chicago, Vancouver, or not specified)
+
+6. Submission Format
+   What format is required? (Word document, PDF, slides, report, portfolio, or not specified)
+
+7. Deadline or Submission Date
+   Is a deadline mentioned? If yes, state it. If not, write "Not specified."
+
+8. Key Requirements from the Marking Criteria
+   List every criterion being marked and its weighting or importance if stated.
+
+9. Specific Instructions
+   List any specific rules, restrictions, models, frameworks, or theories the brief requires.
+
+10. What Is Present in the Brief
+    List everything that is clearly given - topic, data, case, scenario, question, or any content already provided.
+
+11. What Is Missing from the Brief
+    List anything important that is NOT stated - topic, dataset, specific question, framework, or any detail that is unclear or absent.
+
+---
+
+STAGE 2 - TOPIC IDENTIFICATION OR SUGGESTION
+Based on what you extracted:
+
+If the topic is clearly given in the brief:
+- State the exact topic
+- Confirm the essay question or research question if present
+- Suggest a refined academic title if the brief does not provide one
+
+If the topic is open or not given:
+- Suggest 3 strong topic options relevant to the subject and assignment type
+- For each topic suggestion provide:
+  a. Topic name
+  b. Suggested academic title (10 to 15 words)
+  c. One sentence explaining why this topic scores well against the marking criteria
+  d. Feasibility note - are sources easily available for this topic?
+- After listing all 3 options, recommend the strongest one with a clear reason
+
+End Stage 2 by asking: "Which topic would you like to proceed with? Please confirm or choose an option."
+
+Wait for my confirmation before continuing.
+
+---
+
+STAGE 3 - WORD COUNT DISTRIBUTION PLAN
+After topic is confirmed, create a word count plan:
+- List every section of the assignment
+- Assign an approximate word count to each section
+- Total must match the required word count
+- Show which sections carry the most marks and deserve more words
+- Present as a table: Section | Word Count | Marks Focus
+
+---
+
+STAGE 4 - PERFECT OUTLINE
+Build a complete section-by-section outline:
+- Every section heading
+- Under each heading: 2 to 4 bullet points describing exactly what that section will cover
+- Any specific framework, model, theory, or source type required in that section
+- Based on what was given in the brief - do not invent requirements not in the brief
+- If the brief does not specify structure, apply the standard academic structure for the assignment type
+
+Present the full outline and ask: "Does this outline look correct? Should I adjust anything before I start writing?"
+
+Wait for my approval before writing a single word of the assignment.
+
+---
+
+RULES:
+- Do not start writing the assignment until I have approved the outline
+- Do not assume a topic without offering options if the topic is open
+- Do not skip the extraction stage - it must always come first
+- Always base the outline on what the brief actually requires
+- If anything in the brief is unclear, flag it in Stage 1 under "What Is Missing"
+- Never produce a reference list unless I ask for it`,
+  },
+}
+
+const assignmentIntelligenceSteps = {
+  purpose:
+    "Use this workflow before starting any assignment. Paste the brief and the AI will extract all details, flag what is missing, suggest or confirm the topic, distribute the word count, and build a complete outline - all before writing a single word.",
+  whenToUse: [
+    "When you have just received an assignment brief and do not know where to start.",
+    "When the topic is open and you need strong topic options with academic titles.",
+    "When you want to know exactly what the brief requires before writing.",
+    "When you want a perfect section-by-section outline approved before the AI starts writing.",
+    "Works for any assignment type at any academic level.",
+  ],
+  steps: [
+    {
+      number: 1,
+      title: "Full Brief Extraction",
+      details:
+        "AI reads the entire brief and extracts: assignment type, subject, academic level, word count, referencing style, submission format, deadline, marking criteria and weightings, specific instructions, what is present in the brief, and what is missing or unclear.",
+    },
+    {
+      number: 2,
+      title: "Topic Identification or Suggestion",
+      details:
+        "If the topic is given, AI confirms it and suggests a refined academic title. If the topic is open, AI suggests 3 strong topic options - each with a topic name, academic title, reason it scores well against the criteria, and a feasibility note on source availability. AI recommends the strongest option and waits for confirmation.",
+    },
+    {
+      number: 3,
+      title: "Word Count Distribution Plan",
+      details:
+        "After topic is confirmed, AI creates a table showing every section, its approximate word count, and its marks focus. Total must match the required word count. Sections worth more marks receive more words.",
+    },
+    {
+      number: 4,
+      title: "Perfect Outline",
+      details:
+        "AI builds a complete section-by-section outline based strictly on what the brief requires. Every section has a heading and 2 to 4 bullet points describing exactly what it will cover. AI waits for outline approval before writing a single word.",
+    },
+  ],
+  mandatoryOutputFormat: [
+    "Stage 1: Full Brief Extraction (11 points)",
+    "Stage 2: Topic confirmation or 3 topic options with academic titles",
+    "Stage 3: Word Count Distribution Table (Section | Word Count | Marks Focus)",
+    "Stage 4: Complete Section-by-Section Outline",
+    "Writing begins only after outline approval",
+  ],
+  promptBlock: {
+    title: "Assignment Intelligence Prompt",
+    subtitle:
+      "Reusable prompt block. Paste any brief - AI extracts everything, suggests the topic, plans word count, and builds the outline.",
+    content: `Assignment Intelligence Prompt
+
+I am going to paste my assignment brief below. Your job is to read it completely, extract every important detail from it, suggest or confirm the topic, build a perfect outline, and then wait for my approval before writing anything.
+
+My assignment brief:
+[PASTE YOUR FULL ASSIGNMENT BRIEF AND MARKING CRITERIA HERE]
+
+STAGE 1 - FULL BRIEF EXTRACTION
+Read the entire brief and extract:
+1. Assignment Type
+2. Subject and Module
+3. Academic Level
+4. Total Word Count
+5. Referencing Style
+6. Submission Format
+7. Deadline or Submission Date
+8. Key Requirements from the Marking Criteria (with weightings if stated)
+9. Specific Instructions (models, frameworks, theories required)
+10. What Is Present in the Brief (topic, data, case, scenario, question)
+11. What Is Missing from the Brief (anything unclear or not stated)
+
+STAGE 2 - TOPIC IDENTIFICATION OR SUGGESTION
+If topic is given: confirm it and suggest a refined academic title.
+If topic is open: suggest 3 strong topic options each with:
+a. Topic name
+b. Suggested academic title (10 to 15 words)
+c. Why it scores well against the marking criteria
+d. Feasibility note on source availability
+Recommend the strongest option. Wait for my confirmation before continuing.
+
+STAGE 3 - WORD COUNT DISTRIBUTION PLAN
+After topic confirmed, create a table:
+Section | Word Count | Marks Focus
+Total must match the required word count.
+
+STAGE 4 - PERFECT OUTLINE
+Build a complete section-by-section outline:
+- Every section heading
+- 2 to 4 bullet points per section describing exactly what it will cover
+- Any framework, model, or theory required in that section
+- Based strictly on the brief - do not invent requirements
+Wait for my approval before writing anything.
+
+RULES:
+- Do not start writing until outline is approved
+- Do not assume a topic if it is open - always offer options
+- Always extract the brief fully in Stage 1 first
+- Flag anything missing or unclear in Stage 1 Point 11
+- Never produce a reference list unless I ask for it`,
+  },
+}
+
 export const workflowSteps = Object.assign([
   {
     number: 1,
@@ -833,6 +1087,8 @@ export const workflowSteps = Object.assign([
   "dissertation-topic-selection": dissertationTopicSelectionSteps,
   "general-assignment-workflow": generalAssignmentWorkflowSteps,
   "specific-assignment-workflow": specificAssignmentWorkflowSteps,
+  "assignment-intelligence-workflow": assignmentIntelligenceWorkflowSteps,
+  "assignment-intelligence": assignmentIntelligenceSteps,
 })
 
 export const masterPrompt = `You are a professor-level academic expert in [SUBJECT] with 15+ years of academic, research, and professional experience.
@@ -860,6 +1116,8 @@ The final assignment must be clear, structured, evidence-based, properly referen
 export const generalAssignmentWorkflowPrompt = generalAssignmentWorkflowSteps.promptBlock.content
 
 export const specificAssignmentWorkflowPrompt = specificAssignmentWorkflowSteps.promptBlock.content
+
+export const assignmentIntelligenceWorkflowPrompt = assignmentIntelligenceWorkflowSteps.promptBlock.content
 
 export const workflowCards = [
   {
@@ -902,6 +1160,30 @@ export const workflowCards = [
     subtitle: "For selecting a viable, well-scoped dissertation topic before research begins.",
     description:
       "For selecting a viable, well-scoped dissertation topic aligned to assessment criteria and research feasibility.",
+    buttonText: "View Workflow",
+  },
+  {
+    title: "Assignment Intelligence",
+    slug: "assignment-intelligence",
+    category: "Academic Planning",
+    badge: "Planning First",
+    icon: "GraduationCap",
+    promptCount: 4,
+    subtitle: "Extract every brief detail and build a perfect outline before writing.",
+    description:
+      "Paste any assignment brief - AI extracts every detail, identifies what is present and what is missing, suggests or confirms the topic with academic title and word count plan, then builds a perfect outline before writing begins.",
+    buttonText: "View Workflow",
+  },
+  {
+    title: "Assignment Intelligence Prompt",
+    slug: "assignment-intelligence-workflow",
+    category: "Academic Planning",
+    badge: "Brief Analysis",
+    icon: "GraduationCap",
+    promptCount: 5,
+    subtitle: "Extract the brief, confirm the topic, plan word count, and build the outline before writing.",
+    description:
+      "Reads the full assignment brief and marking criteria, identifies missing details, suggests or confirms the topic, builds a word count plan, and waits for outline approval.",
     buttonText: "View Workflow",
   },
   {

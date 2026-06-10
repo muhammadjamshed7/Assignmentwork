@@ -18,11 +18,11 @@ import {
   getWorkflowCard,
   generalAssignmentWorkflowPrompt,
   masterPrompt,
-  placeholderGuide,
   specificAssignmentWorkflowPrompt,
   toolsInstallationPrompt,
   unknownAssignmentPrompt,
   workflowCards,
+  workflowSteps,
 } from "@/app/workflow/workflow-data"
 
 export function generateStaticParams() {
@@ -129,24 +129,99 @@ function PromptBlock({
   )
 }
 
+type StructuredWorkflow = {
+  purpose: string
+  whenToUse: string[]
+  steps: Array<{
+    number: number
+    title: string
+    details: string
+  }>
+  mandatoryOutputFormat: string[]
+  promptBlock: {
+    title: string
+    subtitle: string
+    content: string
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object"
+}
+
+function isStructuredWorkflow(value: unknown): value is StructuredWorkflow {
+  if (!isRecord(value)) return false
+
+  const promptBlock = value.promptBlock
+
+  return (
+    typeof value.purpose === "string" &&
+    Array.isArray(value.whenToUse) &&
+    value.whenToUse.every(item => typeof item === "string") &&
+    Array.isArray(value.steps) &&
+    value.steps.every(step =>
+      isRecord(step) &&
+      typeof step.number === "number" &&
+      typeof step.title === "string" &&
+      typeof step.details === "string"
+    ) &&
+    Array.isArray(value.mandatoryOutputFormat) &&
+    value.mandatoryOutputFormat.every(item => typeof item === "string") &&
+    isRecord(promptBlock) &&
+    typeof promptBlock.title === "string" &&
+    typeof promptBlock.subtitle === "string" &&
+    typeof promptBlock.content === "string"
+  )
+}
+
+function getStructuredWorkflow(slug: string) {
+  const workflow = (workflowSteps as unknown as Record<string, unknown>)[slug]
+  return isStructuredWorkflow(workflow) ? workflow : null
+}
+
+function StructuredWorkflowArticle({ workflow }: { workflow: StructuredWorkflow }) {
+  return (
+    <>
+      <ArticleSection title="Purpose">
+        <p className="leading-7 text-gray-500 dark:text-slate-400">{workflow.purpose}</p>
+      </ArticleSection>
+      <ArticleSection title="When To Use">
+        <ul className="grid gap-2 text-sm leading-6 text-gray-500 dark:text-slate-400">
+          {workflow.whenToUse.map(item => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </ArticleSection>
+      <ArticleSection title={`Full ${workflow.steps.length}-Step Process`}>
+        <div className="grid gap-4">
+          {workflow.steps.map(step => (
+            <Card key={step.number} className="overflow-hidden">
+              <CardHeader>
+                <Badge variant="secondary">Step {step.number}</Badge>
+                <CardTitle className="mt-3">{step.title}</CardTitle>
+                <CardDescription className="mt-2 leading-6">{step.details}</CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+      </ArticleSection>
+      <ArticleSection title="Mandatory Output Format">
+        <WorkflowCodeBlock text={workflow.mandatoryOutputFormat.map((item, index) => `${index + 1}. ${item}`).join("\n")} />
+      </ArticleSection>
+      <PromptBlock
+        label={workflow.promptBlock.title}
+        text={workflow.promptBlock.content}
+        description={workflow.promptBlock.subtitle}
+      />
+    </>
+  )
+}
+
 function WorkflowCodeBlock({ text }: { text: string }) {
   return (
     <pre className="overflow-x-auto whitespace-pre rounded-lg border border-gray-300/50 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/60 p-4 text-sm leading-6 text-gray-700 dark:text-slate-300">
       {text}
     </pre>
-  )
-}
-
-function PlaceholderGuide() {
-  return (
-    <dl className="grid gap-3 sm:grid-cols-2">
-      {placeholderGuide.map(item => (
-        <div key={item.token} className="rounded-lg border border-gray-200 bg-white/80 p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-          <dt className="font-mono text-sm font-semibold text-gray-950 dark:text-slate-100">{item.token}</dt>
-          <dd className="mt-1 text-sm leading-6 text-gray-500 dark:text-slate-400">{item.description}</dd>
-        </div>
-      ))}
-    </dl>
   )
 }
 
@@ -395,7 +470,10 @@ function WorkflowArticle({ slug }: { slug: string }) {
     case "master-assignment-prompt":
       return <MasterPromptArticle />
     default:
-      return null
+      {
+        const structuredWorkflow = getStructuredWorkflow(slug)
+        return structuredWorkflow ? <StructuredWorkflowArticle workflow={structuredWorkflow} /> : null
+      }
   }
 }
 
@@ -478,9 +556,12 @@ export default async function WorkflowDetailPage({
 
   const currentIndex = workflowCards.findIndex(card => card.slug === workflow.slug)
   const nextWorkflow = workflowCards[(currentIndex + 1) % workflowCards.length]
+  const structuredWorkflow = getStructuredWorkflow(workflow.slug)
   const promptItems = workflow.slug === "standard-academic-assignment-workflow"
     ? 1
     : workflow.slug === "specific-assignment-workflow"
+      ? 1
+    : structuredWorkflow?.promptBlock
       ? 1
     : workflow.slug === "master-assignment-prompt"
       ? countNumberedItems(masterPrompt)

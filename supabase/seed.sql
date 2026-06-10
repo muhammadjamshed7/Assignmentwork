@@ -593,6 +593,194 @@ $prompt$,
       'specific',
       'marking criteria'
     ]
+  ),
+  (
+    '80000000-0000-0000-0000-000000000003',
+    'Assignment Intelligence Prompt',
+    'Academic Planning',
+    $prompt$
+Assignment Intelligence Prompt
+
+I am going to paste my assignment brief below. Your job is to read it completely, extract every important detail from it, suggest or confirm the topic, build a perfect outline, and then wait for my approval before writing anything.
+
+My assignment brief:
+[PASTE YOUR FULL ASSIGNMENT BRIEF AND MARKING CRITERIA HERE]
+
+---
+
+STAGE 1 - FULL BRIEF EXTRACTION
+Read the entire brief carefully and extract the following. Present everything in a clean numbered list:
+
+1. Assignment Type
+   What kind of assignment is this? (Essay, Report, Case Study, Literature Review, Reflective Writing, Dissertation, Presentation, Lab Report, Business Plan, or other)
+
+2. Subject and Module
+   What is the subject, course, or module name?
+
+3. Academic Level
+   What level is this? (Undergraduate Year 1/2/3, Postgraduate, Masters, PhD, or not specified)
+
+4. Total Word Count
+   What is the total word count required?
+
+5. Referencing Style
+   What referencing style is required? (Harvard, APA, Chicago, Vancouver, or not specified)
+
+6. Submission Format
+   What format is required? (Word document, PDF, slides, report, portfolio, or not specified)
+
+7. Deadline or Submission Date
+   Is a deadline mentioned? If yes, state it. If not, write "Not specified."
+
+8. Key Requirements from the Marking Criteria
+   List every criterion being marked and its weighting or importance if stated.
+
+9. Specific Instructions
+   List any specific rules, restrictions, models, frameworks, or theories the brief requires.
+
+10. What Is Present in the Brief
+    List everything that is clearly given - topic, data, case, scenario, question, or any content already provided.
+
+11. What Is Missing from the Brief
+    List anything important that is NOT stated - topic, dataset, specific question, framework, or any detail that is unclear or absent.
+
+---
+
+STAGE 2 - TOPIC IDENTIFICATION OR SUGGESTION
+Based on what you extracted:
+
+If the topic is clearly given in the brief:
+- State the exact topic
+- Confirm the essay question or research question if present
+- Suggest a refined academic title if the brief does not provide one
+
+If the topic is open or not given:
+- Suggest 3 strong topic options relevant to the subject and assignment type
+- For each topic suggestion provide:
+  a. Topic name
+  b. Suggested academic title (10 to 15 words)
+  c. One sentence explaining why this topic scores well against the marking criteria
+  d. Feasibility note - are sources easily available for this topic?
+- After listing all 3 options, recommend the strongest one with a clear reason
+
+End Stage 2 by asking: "Which topic would you like to proceed with? Please confirm or choose an option."
+
+Wait for my confirmation before continuing.
+
+---
+
+STAGE 3 - WORD COUNT DISTRIBUTION PLAN
+After topic is confirmed, create a word count plan:
+- List every section of the assignment
+- Assign an approximate word count to each section
+- Total must match the required word count
+- Show which sections carry the most marks and deserve more words
+- Present as a table: Section | Word Count | Marks Focus
+
+---
+
+STAGE 4 - PERFECT OUTLINE
+Build a complete section-by-section outline:
+- Every section heading
+- Under each heading: 2 to 4 bullet points describing exactly what that section will cover
+- Any specific framework, model, theory, or source type required in that section
+- Based on what was given in the brief - do not invent requirements not in the brief
+- If the brief does not specify structure, apply the standard academic structure for the assignment type
+
+Present the full outline and ask: "Does this outline look correct? Should I adjust anything before I start writing?"
+
+Wait for my approval before writing a single word of the assignment.
+
+---
+
+RULES:
+- Do not start writing the assignment until I have approved the outline
+- Do not assume a topic without offering options if the topic is open
+- Do not skip the extraction stage - it must always come first
+- Always base the outline on what the brief actually requires
+- If anything in the brief is unclear, flag it in Stage 1 under "What Is Missing"
+- Never produce a reference list unless I ask for it
+$prompt$,
+    array[
+      'assignment intelligence',
+      'brief analysis',
+      'topic selection',
+      'outline',
+      'word count',
+      'marking criteria',
+      'academic planning',
+      'requirements extraction'
+    ]
+  ),
+  (
+    '80000000-0000-0000-0000-000000000004',
+    'Assignment Intelligence Prompt',
+    'Academic Planning',
+    $prompt$
+Assignment Intelligence Prompt
+
+I am going to paste my assignment brief below. Your job is to read it completely, extract every important detail from it, suggest or confirm the topic, build a perfect outline, and then wait for my approval before writing anything.
+
+My assignment brief:
+[PASTE YOUR FULL ASSIGNMENT BRIEF AND MARKING CRITERIA HERE]
+
+STAGE 1 - FULL BRIEF EXTRACTION
+Read the entire brief and extract:
+1. Assignment Type
+2. Subject and Module
+3. Academic Level
+4. Total Word Count
+5. Referencing Style
+6. Submission Format
+7. Deadline or Submission Date
+8. Key Requirements from the Marking Criteria (with weightings if stated)
+9. Specific Instructions (models, frameworks, theories required)
+10. What Is Present in the Brief (topic, data, case, scenario, question)
+11. What Is Missing from the Brief (anything unclear or not stated)
+
+STAGE 2 - TOPIC IDENTIFICATION OR SUGGESTION
+If topic is given: confirm it and suggest a refined academic title.
+If topic is open: suggest 3 strong topic options each with:
+a. Topic name
+b. Suggested academic title (10 to 15 words)
+c. Why it scores well against the marking criteria
+d. Feasibility note on source availability
+Recommend the strongest option. Wait for my confirmation before continuing.
+
+STAGE 3 - WORD COUNT DISTRIBUTION PLAN
+After topic confirmed, create a table:
+Section | Word Count | Marks Focus
+Total must match the required word count.
+
+STAGE 4 - PERFECT OUTLINE
+Build a complete section-by-section outline:
+- Every section heading
+- 2 to 4 bullet points per section describing exactly what it will cover
+- Any framework, model, or theory required in that section
+- Based strictly on the brief - do not invent requirements
+Wait for my approval before writing anything.
+
+RULES:
+- Do not start writing until outline is approved
+- Do not assume a topic if it is open - always offer options
+- Always extract the brief fully in Stage 1 first
+- Flag anything missing or unclear in Stage 1 Point 11
+- Never produce a reference list unless I ask for it
+$prompt$,
+    array[
+      'brief analysis',
+      'topic suggestion',
+      'word count',
+      'outline',
+      'academic planning',
+      'all rounder',
+      'essay',
+      'report',
+      'dissertation',
+      'case study',
+      'marking criteria',
+      'planning first'
+    ]
   )
 on conflict (id) do update
 set

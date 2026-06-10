@@ -9,6 +9,8 @@ import { workflowCards } from "@/app/workflow/workflow-data"
 const workflowIcons: Record<string, LucideIcon> = {
   "unknown-assignment-workflow": HelpCircle,
   "tools-installation-workflow": Wrench,
+  "assignment-intelligence-workflow": GraduationCap,
+  "general-assignment-workflow": GraduationCap,
   "specific-assignment-workflow": GraduationCap,
   "standard-academic-assignment-workflow": GraduationCap,
   "master-assignment-prompt": Sparkles,
