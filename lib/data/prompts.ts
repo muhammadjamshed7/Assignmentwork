@@ -1,105 +1,108 @@
-import { normalizeOptionalText, requireSupabase } from "@/lib/data/client";
-import { mapPrompt } from "@/lib/data/mappers";
-import { getPaginationRange, toPaginatedResult } from "@/lib/data/pagination";
-import { PaginatedResult, PaginationOptions, Prompt } from "@/lib/data/types";
-import { assertAdmin } from "@/lib/auth/roles";
+import { readJsonResponse } from "@/lib/data/client"
+import { PaginatedResult, PaginationOptions, Prompt } from "@/lib/data/types"
+
+type PromptListPayload = {
+  promptsPage?: PaginatedResult<Prompt>
+  error?: string
+}
+
+type PromptPayload = {
+  prompt?: Prompt | null
+  error?: string
+}
+
+function promptRequestInit(init: RequestInit = {}): RequestInit {
+  return {
+    ...init,
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
+  }
+}
+
+async function readPromptResponse<T extends { error?: string }>(response: Response): Promise<T> {
+  const payload = await readJsonResponse<T>(response)
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Unable to save prompt.")
+  }
+
+  if (!payload) {
+    throw new Error("Prompt request returned an invalid response.")
+  }
+
+  return payload
+}
 
 export async function listPromptsPage(options: PaginationOptions = {}): Promise<PaginatedResult<Prompt>> {
-  const supabase = requireSupabase();
-  const pagination = getPaginationRange(options);
-  const { data, error, count } = await supabase
-    .from("prompts")
-    .select("id, title, category, content, related_course_id, tags, created_at, updated_at", { count: "exact" })
-    .order("updated_at", { ascending: false })
-    .range(pagination.from, pagination.to);
+  const searchParams = new URLSearchParams()
 
-  if (error) throw error;
-  return toPaginatedResult((data ?? []).map(mapPrompt), count, pagination);
+  if (options.page) searchParams.set("page", String(options.page))
+  if (options.pageSize) searchParams.set("pageSize", String(options.pageSize))
+
+  const response = await fetch(`/api/prompts?${searchParams.toString()}`, promptRequestInit())
+  const payload = await readPromptResponse<PromptListPayload>(response)
+
+  if (!payload.promptsPage) {
+    throw new Error("Prompt list response was missing data.")
+  }
+
+  return payload.promptsPage
 }
 
 export async function listPromptById(promptId: string): Promise<Prompt | null> {
-  const supabase = requireSupabase();
-  const { data, error } = await supabase
-    .from("prompts")
-    .select("id, title, category, content, related_course_id, tags, created_at, updated_at")
-    .eq("id", promptId)
-    .maybeSingle();
+  const response = await fetch(`/api/prompts/${encodeURIComponent(promptId)}`, promptRequestInit())
+  const payload = await readPromptResponse<PromptPayload>(response)
 
-  if (error) throw error;
-  return data ? mapPrompt(data) : null;
+  return payload.prompt ?? null
 }
 
 export async function createPrompt(input: {
-  title: string;
-  category: string;
-  content: string;
-  relatedCourseId?: string;
-  tags: string[];
+  title: string
+  category: string
+  content: string
+  relatedCourseId?: string
+  tags: string[]
 }) {
-  await assertAdmin();
+  const response = await fetch("/api/prompts", promptRequestInit({
+    method: "POST",
+    body: JSON.stringify(input),
+  }))
+  const payload = await readPromptResponse<PromptPayload>(response)
 
-  const supabase = requireSupabase();
-  const title = input.title.trim();
-  const content = input.content.trim();
-
-  if (!title || !content) {
-    throw new Error("Title and prompt content are required.");
+  if (!payload.prompt) {
+    throw new Error("Prompt was not returned after creation.")
   }
 
-  const { data, error } = await supabase
-    .from("prompts")
-    .insert({
-      title,
-      category: input.category || "General",
-      content,
-      related_course_id: normalizeOptionalText(input.relatedCourseId),
-      tags: input.tags,
-    })
-    .select("id, title, category, content, related_course_id, tags, created_at, updated_at")
-    .single();
-
-  if (error) throw error;
-  return mapPrompt(data);
+  return payload.prompt
 }
 
 export async function updatePrompt(promptId: string, input: {
-  title: string;
-  category: string;
-  content: string;
-  relatedCourseId?: string;
-  tags: string[];
+  title: string
+  category: string
+  content: string
+  relatedCourseId?: string
+  tags: string[]
 }) {
-  await assertAdmin();
+  const response = await fetch(`/api/prompts/${encodeURIComponent(promptId)}`, promptRequestInit({
+    method: "PATCH",
+    body: JSON.stringify(input),
+  }))
+  const payload = await readPromptResponse<PromptPayload>(response)
 
-  const supabase = requireSupabase();
-  const title = input.title.trim();
-  const content = input.content.trim();
-
-  if (!title || !content) {
-    throw new Error("Title and prompt content are required.");
+  if (!payload.prompt) {
+    throw new Error("Prompt was not returned after update.")
   }
 
-  const { data, error } = await supabase
-    .from("prompts")
-    .update({
-      title,
-      category: input.category || "General",
-      content,
-      related_course_id: normalizeOptionalText(input.relatedCourseId),
-      tags: input.tags,
-    })
-    .eq("id", promptId)
-    .select("id, title, category, content, related_course_id, tags, created_at, updated_at")
-    .single();
-
-  if (error) throw error;
-  return mapPrompt(data);
+  return payload.prompt
 }
 
 export async function deletePrompt(promptId: string) {
-  await assertAdmin();
+  const response = await fetch(`/api/prompts/${encodeURIComponent(promptId)}`, promptRequestInit({
+    method: "DELETE",
+  }))
 
-  const supabase = requireSupabase();
-  const { error } = await supabase.from("prompts").delete().eq("id", promptId);
-  if (error) throw error;
+  await readPromptResponse<{ ok?: boolean; error?: string }>(response)
 }
