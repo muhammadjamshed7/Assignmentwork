@@ -132,6 +132,60 @@ $description$,
     100
   ),
   (
+    '70000000-0000-0000-0000-000000000020',
+    'Google NotebookLM',
+    $description$
+Official link: https://notebooklm.google
+
+Category: AI Research Tool & Thinking Partner
+
+Benefits:
+- Helps turn uploaded sources into study notes, summaries, outlines, FAQs, and research-friendly explanations.
+- Useful for working with lecture notes, PDFs, articles, reports, and source collections in one grounded notebook.
+- Good fit for academic research, assignment planning, source understanding, and revision support.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000021',
+    'Napkin AI',
+    $description$
+Official link: https://www.napkin.ai
+
+Category: Visual AI for Business Storytelling
+
+Benefits:
+- Turns business ideas, notes, and written concepts into clear visuals for storytelling and presentations.
+- Useful for diagrams, frameworks, process visuals, strategy explanations, and slide-ready communication.
+- Good fit for business, MBA/BBA, marketing, strategy, and presentation planning tasks.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
+    '70000000-0000-0000-0000-000000000022',
+    'NoteGPT',
+    $description$
+Official link: https://notegpt.io
+
+Category: All-in-One AI Learning Assistant
+
+Benefits:
+- Helps summarize lectures, videos, PDFs, and study materials into clearer notes and deep summaries.
+- Useful for listening on the go, translating PDFs, creating visuals for notes, and getting instant AI help.
+- Good fit for studying smarter, reviewing academic material, and turning learning content into reusable notes.
+$description$,
+    0,
+    0,
+    0,
+    100
+  ),
+  (
     '70000000-0000-0000-0000-000000000008',
     'Custom GPT AI Humanizer',
     $description$

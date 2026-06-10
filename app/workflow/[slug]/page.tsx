@@ -253,7 +253,7 @@ function ToolsInstallationArticle() {
           submission workflow.
         </p>
       </ArticleSection>
-      <ArticleSection title="Tool Category Decision Flow">
+      {/* <ArticleSection title="Tool Category Decision Flow">
         <WorkflowCodeBlock text={`Assignment Received
 -> Is it Data Analysis?
    -> Use Excel / Power BI / Tableau / R / Python / SPSS
@@ -271,8 +271,8 @@ function ToolsInstallationArticle() {
    -> Use MySQL / PostgreSQL / MongoDB / Supabase
 -> Is it Visualization?
    -> Use Power BI / Tableau / Excel / Python Libraries`} />
-      </ArticleSection>
-      <ArticleSection title="General Arrow-Based Workflow">
+      </ArticleSection> */}
+      {/* <ArticleSection title="General Arrow-Based Workflow">
         <WorkflowCodeBlock text={`Receive Assignment
 -> Identify Assignment Type
 -> Identify Required Tool
@@ -287,7 +287,7 @@ function ToolsInstallationArticle() {
 -> Export Final Files
 -> Add Results to Assignment Document
 -> Submit Assignment`} />
-      </ArticleSection>
+      </ArticleSection> */}
       <PromptBlock label="Tools Installation Workflow" text={toolsInstallationPrompt} />
     </>
   )

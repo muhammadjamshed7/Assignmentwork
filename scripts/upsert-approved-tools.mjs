@@ -88,6 +88,42 @@ Benefits:
 - Privacy note: do not submit sensitive, private, or client data because arena conversations may be processed by third-party AI providers.`,
   },
   {
+    id: "70000000-0000-0000-0000-000000000020",
+    tool_name: "Google NotebookLM",
+    description: `Official link: https://notebooklm.google
+
+Category: AI Research Tool & Thinking Partner
+
+Benefits:
+- Helps turn uploaded sources into study notes, summaries, outlines, FAQs, and research-friendly explanations.
+- Useful for working with lecture notes, PDFs, articles, reports, and source collections in one grounded notebook.
+- Good fit for academic research, assignment planning, source understanding, and revision support.`,
+  },
+  {
+    id: "70000000-0000-0000-0000-000000000021",
+    tool_name: "Napkin AI",
+    description: `Official link: https://www.napkin.ai
+
+Category: Visual AI for Business Storytelling
+
+Benefits:
+- Turns business ideas, notes, and written concepts into clear visuals for storytelling and presentations.
+- Useful for diagrams, frameworks, process visuals, strategy explanations, and slide-ready communication.
+- Good fit for business, MBA/BBA, marketing, strategy, and presentation planning tasks.`,
+  },
+  {
+    id: "70000000-0000-0000-0000-000000000022",
+    tool_name: "NoteGPT",
+    description: `Official link: https://notegpt.io
+
+Category: All-in-One AI Learning Assistant
+
+Benefits:
+- Helps summarize lectures, videos, PDFs, and study materials into clearer notes and deep summaries.
+- Useful for listening on the go, translating PDFs, creating visuals for notes, and getting instant AI help.
+- Good fit for studying smarter, reviewing academic material, and turning learning content into reusable notes.`,
+  },
+  {
     id: "70000000-0000-0000-0000-000000000008",
     tool_name: "Custom GPT AI Humanizer",
     description: `Alternative Name: Custom GPT AI Humanizer

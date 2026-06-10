@@ -36,6 +36,9 @@ const GENERAL_TOOL_ORDER = [
   "Grok",
   "Perplexity",
   "Google AI Studio",
+  "Google NotebookLM",
+  "Napkin AI",
+  "NoteGPT",
   "LMArena",
 ]
 
