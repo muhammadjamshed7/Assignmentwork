@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { useToastStore } from "@/store/useToastStore"
 import { Prompt } from "@/lib/data/types"
@@ -927,22 +926,29 @@ export default function PromptsPage() {
   const [formError, setFormError] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [createdPrompts, setCreatedPrompts] = useState<Prompt[]>([])
+  const [deletedPromptIds, setDeletedPromptIds] = useState<Set<string>>(() => new Set())
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const visiblePrompts = useMemo(() => {
     const promptMap = new Map<string, Prompt>()
 
     prompts.forEach(prompt => {
-      promptMap.set(prompt.id, prompt)
+      if (!deletedPromptIds.has(prompt.id)) {
+        promptMap.set(prompt.id, prompt)
+      }
     })
 
     createdPrompts.forEach(prompt => {
-      promptMap.set(prompt.id, prompt)
+      if (!deletedPromptIds.has(prompt.id)) {
+        promptMap.set(prompt.id, prompt)
+      }
     })
 
     return Array.from(promptMap.values()).sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
-  }, [createdPrompts, prompts])
+  }, [createdPrompts, deletedPromptIds, prompts])
 
   const filteredPrompts = useMemo(() => {
     const localQuery = searchTerm.trim().toLowerCase()
@@ -1079,6 +1085,12 @@ export default function PromptsPage() {
     try {
       if (editingPromptId) {
         const updatedPrompt = await updatePrompt(editingPromptId, promptData)
+        setDeletedPromptIds(prev => {
+          if (!prev.has(updatedPrompt.id)) return prev
+          const next = new Set(prev)
+          next.delete(updatedPrompt.id)
+          return next
+        })
         setCreatedPrompts(prev => prev.map(prompt => prompt.id === updatedPrompt.id ? updatedPrompt : prompt))
         addToast({
           title: "Prompt Updated",
@@ -1087,6 +1099,12 @@ export default function PromptsPage() {
         })
       } else {
         const createdPrompt = await createPrompt(promptData)
+        setDeletedPromptIds(prev => {
+          if (!prev.has(createdPrompt.id)) return prev
+          const next = new Set(prev)
+          next.delete(createdPrompt.id)
+          return next
+        })
         setCreatedPrompts(prev => [
           createdPrompt,
           ...prev.filter(prompt => prompt.id !== createdPrompt.id),
@@ -1117,6 +1135,10 @@ export default function PromptsPage() {
   async function handleCopy(prompt: Prompt) {
     try {
       await navigator.clipboard.writeText(prompt.content)
+      setCopiedPromptId(prompt.id)
+      window.setTimeout(() => {
+        setCopiedPromptId(current => current === prompt.id ? null : current)
+      }, 1500)
       addToast({
         title: "Prompt Copied",
         description: `${prompt.title} is ready to paste.`,
@@ -1214,11 +1236,21 @@ export default function PromptsPage() {
   async function handleDeletePrompt() {
     if (!deletingPromptId) return
 
+    const promptId = deletingPromptId
+    setIsDeleting(true)
+
     try {
-      await deletePrompt(deletingPromptId)
-      await refresh()
-      setCreatedPrompts(prev => prev.filter(prompt => prompt.id !== deletingPromptId))
+      await deletePrompt(promptId)
+      setDeletedPromptIds(prev => {
+        const next = new Set(prev)
+        next.add(promptId)
+        return next
+      })
+      setCreatedPrompts(prev => prev.filter(prompt => prompt.id !== promptId))
+      setSharedPrompt(current => current?.id === promptId ? null : current)
+      setSelectedPromptId(current => current === promptId ? null : current)
       setDeletingPromptId(null)
+      void refresh()
       addToast({
         title: "Prompt Deleted",
         description: "The prompt was removed from the library.",
@@ -1230,6 +1262,8 @@ export default function PromptsPage() {
         description: getErrorMessage(err),
         type: "error",
       })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -1515,105 +1549,158 @@ export default function PromptsPage() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <Card>
-          <CardHeader className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 dark:text-slate-500" aria-hidden="true" />
-              <input
-                type="text"
-                placeholder="Search prompts..."
-                className="h-9 w-full rounded-md border border-gray-300 dark:border-slate-700 bg-gray-100/50 dark:bg-slate-800/50 pl-9 pr-4 text-sm text-slate-200 placeholder:text-gray-400 dark:text-slate-500 shadow-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
+          <CardHeader className="gap-4 border-b pb-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base font-medium">All prompts</CardTitle>
+                <Badge variant="secondary" className="text-[11px]">
+                  {filteredPrompts.length}
+                </Badge>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Saved prompts from the database appear here as cards.
+              </p>
             </div>
-            <select
-              value={categoryFilter}
-              onChange={(event) => setCategoryFilter(event.target.value)}
-              className={`${selectClassName} sm:w-[180px]`}
-            >
-              <option value="All">All categories</option>
-              {PROMPT_CATEGORIES.map(category => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400 dark:text-slate-500" aria-hidden="true" />
+                <input
+                  type="text"
+                  placeholder="Search prompts..."
+                  className="h-9 w-full rounded-md border border-gray-300 bg-gray-100/50 pl-9 pr-4 text-sm text-gray-900 shadow-sm outline-none placeholder:text-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-200 dark:placeholder:text-slate-500"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                />
+              </div>
+              <select
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                className={`${selectClassName} sm:w-[220px]`}
+              >
+                <option value="All">All categories</option>
+                {PROMPT_CATEGORIES.map(category => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {loading && <div className="p-6"><LoadingState label="Loading prompts..." /></div>}
             {error && <div className="p-6"><ErrorState message={error} onRetry={refresh} /></div>}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Prompt</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPrompts.map(prompt => (
-                  <TableRow
-                    key={prompt.id}
-                    className={`cursor-pointer ${selectedPromptId === prompt.id || (!selectedPromptId && filteredPrompts[0]?.id === prompt.id) ? 'bg-indigo-500/5' : ''}`}
-                    onClick={() => setSelectedPromptId(prompt.id)}
-                  >
-                    <TableCell className="max-w-sm">
-                      <div className="font-medium text-gray-700 dark:text-slate-300">{prompt.title}</div>
-                      <div className="mt-1 line-clamp-2 text-xs text-gray-400 dark:text-slate-500">{prompt.content}</div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {prompt.tags.map(tag => (
-                          <Badge key={tag} variant="outline" className="text-[10px]">
-                            {tag}
+            {!loading && !error && filteredPrompts.length > 0 && (
+              <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
+                {filteredPrompts.map(prompt => {
+                  const isSelected = selectedPromptId === prompt.id || (!selectedPromptId && filteredPrompts[0]?.id === prompt.id)
+                  const visibleTags = prompt.tags.slice(0, 3)
+                  const hiddenTagCount = Math.max(prompt.tags.length - visibleTags.length, 0)
+
+                  return (
+                    <Card
+                      key={prompt.id}
+                      className={`flex min-h-[260px] cursor-pointer flex-col transition-colors hover:border-indigo-400/70 dark:hover:border-indigo-500/70 ${isSelected ? "border-indigo-500/70 bg-indigo-500/5" : ""}`}
+                      onClick={() => setSelectedPromptId(prompt.id)}
+                    >
+                      <CardHeader className="gap-3 border-b border-gray-200 dark:border-white/5">
+                        <div className="flex items-start justify-between gap-3">
+                          <Badge variant="secondary" className="max-w-[170px] truncate text-[11px]">
+                            {prompt.category}
                           </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{prompt.category}</Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[190px] truncate text-gray-400 dark:text-slate-500">
-                      {getCourseLabel(prompt.relatedCourseId)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-xs text-gray-400 dark:text-slate-500">
-                      {formatDistanceToNow(new Date(prompt.updatedAt), { addSuffix: true })}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-1">
-                        <Button type="button" variant="ghost" size="icon" title="Copy prompt" onClick={() => handleCopy(prompt)}>
-                          <Copy className="h-4 w-4" aria-hidden="true" />
-                          <span className="sr-only">Copy prompt</span>
-                        </Button>
-                        <PromptShareMenu
-                          menuId={`saved-prompt-share-${prompt.id}`}
-                          onShare={() => handleSharePrompt(prompt)}
-                        />
-                        {isAdmin && (
-                          <>
-                            <Button type="button" variant="ghost" size="icon" title="Edit prompt" onClick={() => openEditDialog(prompt)}>
-                              <Pencil className="h-4 w-4" aria-hidden="true" />
-                              <span className="sr-only">Edit prompt</span>
-                            </Button>
-                            <Button type="button" variant="ghost" size="icon" title="Delete prompt" onClick={() => setDeletingPromptId(prompt.id)}>
+                          <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+                            {isAdmin && (
+                              <>
+                                <Button type="button" variant="ghost" size="icon" title="Edit prompt" onClick={() => openEditDialog(prompt)}>
+                                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                                  <span className="sr-only">Edit prompt</span>
+                                </Button>
+                                <PromptShareMenu
+                                  menuId={`saved-prompt-share-${prompt.id}`}
+                                  onShare={() => handleSharePrompt(prompt)}
+                                />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm font-medium leading-5">{prompt.title}</CardTitle>
+                          <CardDescription className="mt-2 line-clamp-3 text-xs leading-5">
+                            {prompt.content}
+                          </CardDescription>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="flex flex-1 flex-col justify-between gap-4 pt-4">
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            {visibleTags.map(tag => (
+                              <Badge key={tag} variant="outline" className="text-[10px]">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {hiddenTagCount > 0 && (
+                              <Badge variant="outline" className="text-[10px]">
+                                +{hiddenTagCount} more
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-[11px] text-gray-500 dark:text-slate-400">
+                            <span className="max-w-full truncate">{getCourseLabel(prompt.relatedCourseId)}</span>
+                            <span aria-hidden="true">.</span>
+                            <span>{formatDistanceToNow(new Date(prompt.updatedAt), { addSuffix: true })}</span>
+                          </div>
+                        </div>
+                        <div className="grid gap-2 border-t border-gray-200 pt-4 dark:border-white/5 sm:grid-cols-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="gap-2"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              void handleCopy(prompt)
+                            }}
+                          >
+                            <Copy className="h-4 w-4" aria-hidden="true" />
+                            {copiedPromptId === prompt.id ? "Copied" : "Copy"}
+                          </Button>
+                          <Button
+                            type="button"
+                            className="gap-2"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setSelectedPromptId(prompt.id)
+                            }}
+                          >
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                            View Details
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              className="gap-2 sm:col-span-2"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setDeletingPromptId(prompt.id)
+                              }}
+                            >
                               <Trash2 className="h-4 w-4" aria-hidden="true" />
-                              <span className="sr-only">Delete prompt</span>
+                              Delete
                             </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!loading && !error && filteredPrompts.length === 0 && (
-                  <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-gray-400 dark:text-slate-500">
-                    No prompts found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            )}
+            {!loading && !error && filteredPrompts.length === 0 && (
+              <div className="p-5">
+                <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-400 dark:border-slate-700 dark:text-slate-500">
+                  No prompts match your filter.
+                </div>
+              </div>
+            )}
             <PaginationControls
               page={promptsPage.page}
               pageSize={promptsPage.pageSize}
@@ -1669,8 +1756,8 @@ export default function PromptsPage() {
             <Button type="button" variant="outline" onClick={() => setDeletingPromptId(null)}>
               Cancel
             </Button>
-            <Button type="button" variant="destructive" onClick={handleDeletePrompt}>
-              Delete
+            <Button type="button" variant="destructive" onClick={handleDeletePrompt} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

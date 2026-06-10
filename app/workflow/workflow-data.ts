@@ -343,171 +343,231 @@ Present the output in this format:
 Here is the assessment brief and marking criteria:
 [PASTE BRIEF AND CRITERIA HERE]`
 
-const essayTopicSelectionSteps = [
-  {
-    number: 1,
-    title: "Read the Assessment Brief",
-    explanation:
-      "Purpose: Understand the full scope before anything else. Details: Identify module name, word count, submission format, referencing style, and whether the topic is fixed or open.",
-    prompt:
-      "Read the full essay assessment brief. Identify the module name, word count, submission format, referencing style, and whether the essay topic is fixed or open. Do not suggest topics until the brief is fully understood.",
-  },
-  {
-    number: 2,
-    title: "Extract the Marking Criteria",
-    explanation:
-      "Purpose: Know exactly what is being marked and at what weighting. Details: Note the weighting percentage for each criterion: critical analysis, argument structure, referencing, research depth, originality, presentation.",
-    prompt:
-      "Extract the marking criteria from the essay brief. Note each criterion and weighting percentage, including critical analysis, argument structure, referencing, research depth, originality, and presentation.",
-  },
-  {
-    number: 3,
-    title: "Identify Topic Freedom Level",
-    explanation:
-      "Purpose: Decide whether topic selection is needed. Details: If the topic is fixed by the brief, skip to Step 5. If the topic is open, continue to Step 4.",
-    prompt:
-      "Decide whether the essay topic is fixed or open. If the topic is fixed, explain that topic selection is not needed and move to evaluating scope. If the topic is open, prepare to generate topic options.",
-  },
-  {
-    number: 4,
-    title: "Generate 3 to 5 Topic Options",
-    explanation:
-      "Purpose: Create a shortlist of viable essay topics. Details: Each topic must be specific, researchable, and aligned to the module learning outcomes.",
-    prompt:
-      "Generate 3 to 5 essay topic options. Each option must be specific rather than broad, researchable through academic sources, and aligned with the module learning outcomes.",
-  },
-  {
-    number: 5,
-    title: "Evaluate Each Topic Against Marking Criteria",
-    explanation:
-      "Purpose: Score each topic option objectively. Details: Ask whether each topic can score high on critical analysis, argument structure, source availability, and word-count scope.",
-    prompt:
-      "Evaluate each essay topic against the marking criteria. For each topic, assess critical analysis potential, argument structure, academic source availability, and whether the topic fits within the word count.",
-  },
-  {
-    number: 6,
-    title: "Select the Strongest Topic",
-    explanation:
-      "Purpose: Commit to one topic with clear justification. Details: Choose the topic with the highest alignment to the marking criteria weightings and the best source availability.",
-    prompt:
-      "Select the strongest essay topic. Justify the choice using marking criteria alignment, source availability, scope control, originality, and expected high-mark potential.",
-  },
-  {
-    number: 7,
-    title: "Write a Focused Essay Question",
-    explanation:
-      "Purpose: Turn the topic into a precise academic question. Details: Use academic stems such as To what extent, Critically analyse, Evaluate the impact of, or Discuss the relationship between.",
-    prompt:
-      "Turn the selected essay topic into a focused academic question. Use an academic stem such as To what extent, Critically analyse, Evaluate the impact of, or Discuss the relationship between.",
-  },
-  {
-    number: 8,
-    title: "Confirm Scope and Angle",
-    explanation:
-      "Purpose: Define the exact boundaries of the essay before writing begins. Details: State what the essay will cover, what it will exclude, the main argument or position, and the referencing style required.",
-    prompt:
-      "Confirm the essay scope and angle. State what the essay will cover, what it will exclude, the main argument or position, and the required referencing style.",
-  },
-  {
-    number: 9,
-    title: "Identify Key Starting Sources",
-    explanation:
-      "Purpose: Ensure research is possible before committing to the topic. Details: Find 3 to 5 academic sources directly relevant to the selected topic and essay question.",
-    prompt:
-      "Identify 3 to 5 key starting sources for the selected essay topic. Prioritize peer-reviewed journal articles, academic books, and credible reports directly relevant to the essay question.",
-  },
-]
+const essayTopicSelectionSteps = {
+  purpose:
+    "Use this workflow before starting any essay assignment. It forces topic selection and planning based on the assessment brief and marking criteria before any writing begins.",
+  whenToUse: [
+    "When the essay topic is open and needs to be selected.",
+    "When the brief includes marking criteria that must be aligned to the topic.",
+    "When the writer needs to confirm scope and angle before starting.",
+  ],
+  steps: [
+    {
+      number: 1,
+      title: "Read the Assessment Brief",
+      details: "Identify the module name, word count, submission format, referencing style, and whether the topic is fixed or open.",
+    },
+    {
+      number: 2,
+      title: "Extract the Marking Criteria",
+      details:
+        "Note the weighting percentage for each criterion: critical analysis, argument structure, referencing, research depth, originality, and presentation.",
+    },
+    {
+      number: 3,
+      title: "Identify Topic Freedom Level",
+      details: "If the topic is fixed by the brief, skip to Step 5. If the topic is open, continue to Step 4.",
+    },
+    {
+      number: 4,
+      title: "Generate 3 to 5 Topic Options",
+      details:
+        "Each topic must be specific (not too broad), researchable (academic sources exist), and aligned to the module learning outcomes.",
+    },
+    {
+      number: 5,
+      title: "Evaluate Each Topic Against Marking Criteria",
+      details:
+        "For each topic ask: Can this topic score high on critical analysis? Does it allow a strong argument structure? Are enough academic sources available? Is it within scope for the word count?",
+    },
+    {
+      number: 6,
+      title: "Select the Strongest Topic",
+      details:
+        "Choose the topic with the highest alignment to the marking criteria weightings and the best source availability.",
+    },
+    {
+      number: 7,
+      title: "Write a Focused Essay Question",
+      details:
+        "Use academic question stems: To what extent..., Critically analyse..., Evaluate the impact of..., Discuss the relationship between...",
+    },
+    {
+      number: 8,
+      title: "Confirm Scope and Angle",
+      details:
+        "State what the essay will cover, what it will exclude, the main argument or position, and the referencing style required.",
+    },
+    {
+      number: 9,
+      title: "Identify Key Starting Sources",
+      details:
+        "Find 3 to 5 academic sources - journal articles, books, or reports - directly relevant to the selected topic and essay question.",
+    },
+  ],
+  mandatoryOutputFormat: [
+    "Selected Topic",
+    "Essay Question",
+    "Marking Criteria Alignment (table: criterion | how this topic addresses it)",
+    "Scope and Boundaries",
+    "Suggested Starting Sources",
+  ],
+  promptBlock: {
+    title: "Essay Topic Selection Prompt",
+    subtitle: "Reusable prompt block. Copy it when you need this workflow.",
+    content: `I have received an essay assignment. I will share the assessment brief and marking criteria with you.
 
-const dissertationTopicSelectionSteps = [
-  {
-    number: 1,
-    title: "Read the Dissertation Brief",
-    explanation:
-      "Purpose: Understand the full project scope before anything else. Details: Identify degree subject, word count, required chapter structure, research type, submission deadline, and supervisor requirements.",
-    prompt:
-      "Read the full dissertation brief. Identify the degree subject, word count, required chapter structure, research type, submission deadline, and any supervisor requirements before suggesting topics.",
+Your task is to help me select the strongest essay topic based on the brief and criteria - do not start writing the essay yet.
+
+Step 1: Read the brief and identify: module name, word count, submission format, and whether the topic is fixed or open.
+
+Step 2: Extract the marking criteria and note the weighting of each component (critical analysis, argument, referencing, research depth, etc.).
+
+Step 3: If the topic is open, generate 3 to 5 specific and researchable topic options relevant to the module.
+
+Step 4: Evaluate each topic option against the marking criteria. Score each one based on how well it allows high marks in each criterion.
+
+Step 5: Recommend the strongest topic with a clear justification.
+
+Step 6: Write a focused academic essay question for the selected topic.
+
+Step 7: Confirm the scope - what the essay will cover, what it will exclude, the main argument, the required referencing style, and 3 to 5 suggested academic sources to begin with.
+
+Present the output in this format:
+1. Selected Topic
+2. Essay Question
+3. Marking Criteria Alignment (table: criterion | how this topic addresses it)
+4. Scope and Boundaries
+5. Suggested Starting Sources
+
+Here is the assessment brief and marking criteria:
+[PASTE BRIEF AND CRITERIA HERE]`,
   },
-  {
-    number: 2,
-    title: "Extract Marking Criteria and Weightings",
-    explanation:
-      "Purpose: Know exactly what the examiner is looking for. Details: Note the weighting for literature review, methodology, critical analysis, originality, argument, presentation, and referencing.",
-    prompt:
-      "Extract the dissertation marking criteria and weightings. Note how literature review, methodology, critical analysis, originality, argument, presentation, and referencing are assessed.",
+}
+
+const dissertationTopicSelectionSteps = {
+  purpose:
+    "Use this workflow before starting any dissertation. It forces topic selection, feasibility checking, and full research planning based on the assessment brief and marking criteria before any chapter is written.",
+  whenToUse: [
+    "When the dissertation topic needs to be selected or confirmed.",
+    "When the brief includes marking criteria that must be aligned to the research.",
+    "When the writer needs a chapter outline, research questions, and methodology decided before starting.",
+  ],
+  steps: [
+    {
+      number: 1,
+      title: "Read the Dissertation Brief",
+      details:
+        "Identify the degree subject, word count, required chapter structure, research type (primary, secondary, or mixed), submission deadline, and any supervisor requirements.",
+    },
+    {
+      number: 2,
+      title: "Extract Marking Criteria and Weightings",
+      details:
+        "Note the weighting for each criterion: literature review, methodology, critical analysis, originality, argument, presentation, and referencing.",
+    },
+    {
+      number: 3,
+      title: "Identify Required Research Type",
+      details:
+        "Primary research (surveys, interviews) requires ethics approval time and participant access. Secondary research (existing literature and data) is faster and lower risk. Mixed methods combines both.",
+    },
+    {
+      number: 4,
+      title: "Run a Feasibility Check on Research Type",
+      details:
+        "Flag risks - does primary research require ethics approval? Are participants accessible? Is there enough academic literature for a secondary approach? Is the timeline realistic?",
+    },
+    {
+      number: 5,
+      title: "Generate 3 to 5 Dissertation Topic Options",
+      details:
+        "Each topic must be specific, researchable, original enough to contribute to the field, and relevant to the degree subject.",
+    },
+    {
+      number: 6,
+      title: "Evaluate Each Topic for Feasibility",
+      details:
+        "For each topic assess: Are academic sources available? Is the research method practical within the time frame? Is the scope manageable within the word count? Is there a risk of topic overlap with common submissions?",
+    },
+    {
+      number: 7,
+      title: "Select the Strongest Topic",
+      details:
+        "Choose the topic with the highest combination of feasibility score and marking criteria alignment.",
+    },
+    {
+      number: 8,
+      title: "Write the Dissertation Title and Research Questions",
+      details:
+        "Title should be 10 to 15 words, specific, and academic in tone. Write one main research question and 2 to 3 sub-questions that together cover the full scope.",
+    },
+    {
+      number: 9,
+      title: "Produce the Chapter Outline",
+      details:
+        "Write one sentence describing the purpose of each chapter: Introduction, Literature Review, Methodology, Findings, Discussion, Conclusion.",
+    },
+    {
+      number: 10,
+      title: "Confirm Research Methodology",
+      details:
+        "Decide between qualitative, quantitative, or mixed methods. Decide between primary and secondary. Justify the choice based on the research question and brief requirements.",
+    },
+    {
+      number: 11,
+      title: "Identify Key Starting Sources",
+      details:
+        "Find 5 to 8 peer-reviewed academic sources directly relevant to the selected topic and research questions.",
+    },
+  ],
+  mandatoryOutputFormat: [
+    "Selected Topic and Justification",
+    "Dissertation Title",
+    "Research Questions (main + sub-questions)",
+    "Marking Criteria Alignment (table: criterion | how this topic addresses it)",
+    "Chapter Outline",
+    "Research Methodology Recommendation",
+    "Key Starting Sources (5 to 8 academic references)",
+  ],
+  promptBlock: {
+    title: "Dissertation Topic Selection Prompt",
+    subtitle: "Reusable prompt block. Copy it when you need this workflow.",
+    content: `I have received a dissertation assignment. I will share the assessment brief and marking criteria with you.
+
+Your task is to help me select the strongest dissertation topic and plan the research - do not start writing any chapter yet.
+
+Step 1: Read the brief and identify: degree subject, word count, required chapter structure, research type (primary, secondary, or mixed), and deadline pressure.
+
+Step 2: Extract the marking criteria and note the weighting of each component (literature review, methodology, critical analysis, originality, presentation, etc.).
+
+Step 3: Identify the required research type and flag any feasibility risks such as ethics approval requirements or limited source availability.
+
+Step 4: Generate 3 to 5 specific dissertation topic options relevant to the degree subject.
+
+Step 5: Run a feasibility check on each topic - assess available academic sources, practical research method, scope manageability within the word count, and originality.
+
+Step 6: Recommend the strongest topic with full justification.
+
+Step 7: Write a formal dissertation title (10 to 15 words, academic tone) and one main research question with 2 to 3 sub-questions.
+
+Step 8: Produce a chapter outline - one sentence describing the purpose of each chapter: Introduction, Literature Review, Methodology, Findings, Discussion, Conclusion.
+
+Step 9: Recommend the research methodology (qualitative, quantitative, or mixed; primary or secondary) and justify the choice based on the brief requirements.
+
+Present the output in this format:
+1. Selected Topic and Justification
+2. Dissertation Title
+3. Research Questions (main + sub-questions)
+4. Marking Criteria Alignment (table: criterion | how this topic addresses it)
+5. Chapter Outline
+6. Research Methodology Recommendation
+7. Key Starting Sources (5 to 8 academic references)
+
+Here is the assessment brief and marking criteria:
+[PASTE BRIEF AND CRITERIA HERE]`,
   },
-  {
-    number: 3,
-    title: "Identify Required Research Type",
-    explanation:
-      "Purpose: Understand what kind of research the brief expects. Details: Primary research requires ethics approval and participants, secondary research is faster and lower risk, and mixed methods combines both.",
-    prompt:
-      "Identify whether the dissertation requires primary research, secondary research, or mixed methods. Explain the practical implications of that research type.",
-  },
-  {
-    number: 4,
-    title: "Run a Feasibility Check on Research Type",
-    explanation:
-      "Purpose: Avoid choosing a path that cannot be completed in time. Details: Flag risks around ethics approval, participant access, literature availability, and timeline realism.",
-    prompt:
-      "Run a feasibility check on the required research type. Flag risks involving ethics approval, participant access, source availability, data access, and the available timeline.",
-  },
-  {
-    number: 5,
-    title: "Generate 3 to 5 Dissertation Topic Options",
-    explanation:
-      "Purpose: Build a shortlist of viable topics. Details: Each topic must be specific, researchable, original enough to contribute to the field, and relevant to the degree subject.",
-    prompt:
-      "Generate 3 to 5 dissertation topic options. Each topic must be specific, researchable, original enough for the field, and clearly relevant to the degree subject.",
-  },
-  {
-    number: 6,
-    title: "Evaluate Each Topic for Feasibility",
-    explanation:
-      "Purpose: Score each topic before committing. Details: Assess source availability, method practicality, word-count scope, and risk of overlap with common submissions.",
-    prompt:
-      "Evaluate each dissertation topic for feasibility. Assess academic source availability, practical research method, manageable scope within the word count, originality, and risk of overlap with common submissions.",
-  },
-  {
-    number: 7,
-    title: "Select the Strongest Topic",
-    explanation:
-      "Purpose: Commit to one topic with full justification. Details: Choose the topic with the highest combination of feasibility score and marking criteria alignment.",
-    prompt:
-      "Select the strongest dissertation topic. Justify it using feasibility, marking criteria alignment, originality, method practicality, source availability, and scope control.",
-  },
-  {
-    number: 8,
-    title: "Write the Dissertation Title and Research Questions",
-    explanation:
-      "Purpose: Lock in the academic framing of the research. Details: Title should be 10 to 15 words, specific, and academic. Write one main question and 2 to 3 sub-questions.",
-    prompt:
-      "Write a formal dissertation title of 10 to 15 words. Then write one main research question and 2 to 3 sub-questions that together cover the full research scope.",
-  },
-  {
-    number: 9,
-    title: "Produce the Chapter Outline",
-    explanation:
-      "Purpose: Plan the full dissertation structure before writing begins. Details: Write one sentence describing each chapter: Introduction, Literature Review, Methodology, Findings, Discussion, Conclusion.",
-    prompt:
-      "Produce a dissertation chapter outline. Write one sentence describing the purpose of each chapter: Introduction, Literature Review, Methodology, Findings, Discussion, and Conclusion.",
-  },
-  {
-    number: 10,
-    title: "Confirm Research Methodology",
-    explanation:
-      "Purpose: Justify the approach before data collection or literature review begins. Details: Decide between qualitative, quantitative, or mixed methods and primary or secondary research.",
-    prompt:
-      "Confirm the dissertation methodology. Decide whether the study should be qualitative, quantitative, or mixed methods, and whether it should use primary or secondary research. Justify the choice.",
-  },
-  {
-    number: 11,
-    title: "Identify Key Starting Sources",
-    explanation:
-      "Purpose: Confirm the topic is researchable before fully committing. Details: Find 5 to 8 peer-reviewed academic sources directly relevant to the selected topic and research questions.",
-    prompt:
-      "Identify 5 to 8 key starting sources for the dissertation topic. Prioritize peer-reviewed journal articles, academic books, and high-quality reports directly relevant to the research questions.",
-  },
-]
+}
 
 export const workflowSteps = Object.assign([
   {
