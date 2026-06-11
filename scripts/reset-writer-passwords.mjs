@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises"
 import { createClient } from "@supabase/supabase-js"
 
-const DEFAULT_WRITER_PASSWORD = process.env.WRITER_DEFAULT_PASSWORD ?? "12345678"
+const DEFAULT_WRITER_PASSWORD = "12345678"
 const PAGE_SIZE = 1000
 
 const envText = await readFile(".env.local", "utf8")

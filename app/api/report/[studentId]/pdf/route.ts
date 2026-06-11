@@ -11,7 +11,7 @@ import { format } from "date-fns"
 
 import { mapComment, mapIssue, mapStudent } from "@/lib/data/mappers"
 import { Comment, Issue, Student } from "@/lib/data/types"
-import { createServiceRoleClient, requireApprovedUser } from "@/lib/auth/server"
+import { AuthRequestError, createServiceRoleClient, requireApprovedUser } from "@/lib/auth/server"
 import { writerStatusFromOverallStatus } from "@/lib/data/writer-status"
 
 export const runtime = "nodejs"
@@ -418,6 +418,7 @@ export async function GET(
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to generate report PDF."
-    return Response.json({ error: message }, { status: 500 })
+    const status = error instanceof AuthRequestError ? error.status : 500
+    return Response.json({ error: message }, { status })
   }
 }

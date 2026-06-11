@@ -1,104 +1,18 @@
 import { NextResponse } from "next/server";
-import type { User } from "@supabase/supabase-js";
 
 import { isUserRole, isUserStatus } from "@/lib/auth/role-utils";
 import { AuthRequestError, requireAdminRequest } from "@/lib/auth/server";
+import {
+  ensureWriterStudent,
+  findAuthUserByEmail,
+  isGmailAddress,
+  listAllAuthUsers,
+  WRITER_DEFAULT_PASSWORD,
+} from "@/lib/auth/writers";
 import { getErrorMessage } from "@/lib/data/client";
-
-const WRITER_DEFAULT_PASSWORD = process.env.WRITER_DEFAULT_PASSWORD ?? "12345678";
-const AUTH_USERS_PAGE_SIZE = 1000;
 
 function statusForError(error: unknown) {
   return error instanceof AuthRequestError ? error.status : 500;
-}
-
-function writerNameFromEmail(email: string) {
-  return email.split("@", 1)[0] || "Writer";
-}
-
-function isGmailAddress(email: string) {
-  return email.endsWith("@gmail.com");
-}
-
-async function listAllAuthUsers(supabase: Awaited<ReturnType<typeof requireAdminRequest>>["supabase"]) {
-  const users: User[] = [];
-  let page = 1;
-
-  while (true) {
-    const { data, error } = await supabase.auth.admin.listUsers({
-      page,
-      perPage: AUTH_USERS_PAGE_SIZE,
-    });
-
-    if (error) throw error;
-    users.push(...data.users);
-
-    if (data.users.length < AUTH_USERS_PAGE_SIZE) break;
-    page += 1;
-  }
-
-  return users;
-}
-
-async function findAuthUserByEmail(
-  supabase: Awaited<ReturnType<typeof requireAdminRequest>>["supabase"],
-  email: string,
-) {
-  const users = await listAllAuthUsers(supabase);
-  return users.find(user => user.email?.toLowerCase() === email.toLowerCase()) ?? null;
-}
-
-async function ensureWriterStudent(
-  supabase: Awaited<ReturnType<typeof requireAdminRequest>>["supabase"],
-  input: { userId: string; email: string },
-) {
-  const { data: studentByUserId, error: studentByUserIdError } = await supabase
-    .from("students")
-    .select("id")
-    .eq("user_id", input.userId)
-    .maybeSingle();
-
-  if (studentByUserIdError) throw studentByUserIdError;
-  if (studentByUserId) return studentByUserId.id;
-
-  const { data: studentByEmail, error: studentByEmailError } = await supabase
-    .from("students")
-    .select("id, user_id")
-    .ilike("email", input.email)
-    .maybeSingle();
-
-  if (studentByEmailError) throw studentByEmailError;
-
-  if (studentByEmail) {
-    if (studentByEmail.user_id && studentByEmail.user_id !== input.userId) {
-      throw new Error("This writer email is already linked to another login.");
-    }
-
-    const { error: linkError } = await supabase
-      .from("students")
-      .update({ user_id: input.userId, email: input.email })
-      .eq("id", studentByEmail.id);
-
-    if (linkError) throw linkError;
-    return studentByEmail.id;
-  }
-
-  const { data: createdStudent, error: createStudentError } = await supabase
-    .from("students")
-    .insert({
-      user_id: input.userId,
-      name: writerNameFromEmail(input.email),
-      email: input.email,
-      assigned_trainer: "Unassigned",
-      overall_status: "Pending",
-      priority: "Medium",
-      progress: 0,
-    })
-    .select("id")
-    .single();
-
-  if (createStudentError) throw createStudentError;
-  return createdStudent.id;
 }
 
 export async function GET() {
@@ -178,8 +92,8 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     if (data.user) {
-      const studentId = role === "student"
-        ? await ensureWriterStudent(supabase, { userId: data.user.id, email })
+      const writerStudent = role === "student"
+        ? await ensureWriterStudent(supabase, { userId: data.user.id, email, authUser: data.user })
         : null;
 
       const { error: roleError } = await supabase
@@ -189,7 +103,7 @@ export async function POST(request: Request) {
           email,
           role,
           status,
-          student_id: studentId,
+          student_id: writerStudent?.studentId ?? null,
           approved_by: status === "approved" ? user.id : null,
           approved_at: status === "approved" ? new Date().toISOString() : null,
         }, { onConflict: "user_id" });

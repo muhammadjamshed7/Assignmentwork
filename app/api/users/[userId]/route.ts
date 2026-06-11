@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import type { User } from "@supabase/supabase-js";
 
 import { isUserRole, isUserStatus } from "@/lib/auth/role-utils";
 import { AuthRequestError, requireAdminRequest } from "@/lib/auth/server";
+import {
+  ensureWriterStudent,
+  isGmailAddress,
+  WRITER_DEFAULT_PASSWORD,
+} from "@/lib/auth/writers";
 import { getErrorMessage } from "@/lib/data/client";
-
-const WRITER_DEFAULT_PASSWORD = process.env.WRITER_DEFAULT_PASSWORD ?? "12345678";
 
 type UserRouteContext = {
   params: Promise<{ userId: string }>;
@@ -17,86 +19,6 @@ function statusForError(error: unknown) {
 
 function asEmail(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
-
-function isGmailAddress(email: string) {
-  return email.endsWith("@gmail.com");
-}
-
-function writerNameFromAuthUser(authUser: User | null | undefined, email: string) {
-  const metadataName = authUser?.user_metadata?.name;
-  if (typeof metadataName === "string" && metadataName.trim()) return metadataName.trim();
-
-  return email.split("@", 1)[0] || "Writer";
-}
-
-async function ensureWriterStudent(
-  supabase: Awaited<ReturnType<typeof requireAdminRequest>>["supabase"],
-  input: {
-    userId: string;
-    email: string;
-    authUser: User | null | undefined;
-    existingStudentId?: string | null;
-  },
-) {
-  if (input.existingStudentId) {
-    const { data: existingLinkedStudent, error: existingLinkedStudentError } = await supabase
-      .from("students")
-      .select("id, user_id")
-      .eq("id", input.existingStudentId)
-      .maybeSingle();
-
-    if (existingLinkedStudentError) throw existingLinkedStudentError;
-    if (existingLinkedStudent?.user_id === input.userId) return existingLinkedStudent.id;
-  }
-
-  const { data: studentByUserId, error: studentByUserIdError } = await supabase
-    .from("students")
-    .select("id")
-    .eq("user_id", input.userId)
-    .maybeSingle();
-
-  if (studentByUserIdError) throw studentByUserIdError;
-  if (studentByUserId) return studentByUserId.id;
-
-  const { data: studentByEmail, error: studentByEmailError } = await supabase
-    .from("students")
-    .select("id, user_id")
-    .ilike("email", input.email)
-    .maybeSingle();
-
-  if (studentByEmailError) throw studentByEmailError;
-
-  if (studentByEmail) {
-    if (studentByEmail.user_id && studentByEmail.user_id !== input.userId) {
-      throw new Error("This writer email is already linked to another login.");
-    }
-
-    const { error: linkError } = await supabase
-      .from("students")
-      .update({ user_id: input.userId, email: input.email })
-      .eq("id", studentByEmail.id);
-
-    if (linkError) throw linkError;
-    return studentByEmail.id;
-  }
-
-  const { data: createdStudent, error: createStudentError } = await supabase
-    .from("students")
-    .insert({
-      user_id: input.userId,
-      name: writerNameFromAuthUser(input.authUser, input.email),
-      email: input.email,
-      assigned_trainer: "Unassigned",
-      overall_status: "Pending",
-      priority: "Medium",
-      progress: 0,
-    })
-    .select("id")
-    .single();
-
-  if (createStudentError) throw createStudentError;
-  return createdStudent.id;
 }
 
 export async function PATCH(request: Request, context: UserRouteContext) {
@@ -141,7 +63,7 @@ export async function PATCH(request: Request, context: UserRouteContext) {
       return NextResponse.json({ error: "Writer email must be a Gmail address." }, { status: 400 });
     }
 
-    const nextStudentId = nextRole === "student"
+    const writerStudent = nextRole === "student"
       ? await ensureWriterStudent(supabase, {
           userId,
           email,
@@ -149,6 +71,7 @@ export async function PATCH(request: Request, context: UserRouteContext) {
           existingStudentId: existing?.student_id,
         })
       : null;
+    const nextStudentId = writerStudent?.studentId ?? null;
     const approvalFields = status === "approved"
       ? { approved_by: user.id, approved_at: new Date().toISOString() }
       : status

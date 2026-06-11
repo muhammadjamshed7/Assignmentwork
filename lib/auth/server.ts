@@ -143,8 +143,12 @@ export async function getCurrentUserProfileFromAccessToken(accessToken: string):
 export async function requireApprovedUser() {
   const profile = await getCurrentUserProfile();
 
-  if (!profile || profile.status !== "approved") {
-    throw new Error("Approved login is required.");
+  if (!profile) {
+    throw new AuthRequestError("Authentication is required.", 401);
+  }
+
+  if (profile.status !== "approved") {
+    throw new AuthRequestError("Approved login is required.", 403);
   }
 
   return profile;

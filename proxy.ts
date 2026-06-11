@@ -6,7 +6,6 @@ import { isUserRole, isUserStatus, type UserRole, type UserStatus } from "@/lib/
 const LOGIN_PAGE_PATHS = new Set(["/login", "/admin/login"]);
 const SIGNED_IN_ONLY_PAGE_PATHS = new Set(["/pending-approval"]);
 const PUBLIC_PAGE_PATHS = new Set(["/login", "/admin/login", "/register", "/pending-approval", "/access-denied"]);
-const PUBLIC_API_PREFIXES = ["/api/auth"];
 const ADMIN_LOGIN_PATH = "/admin/login";
 const STUDENT_LOGIN_PATH = "/login";
 const ADMIN_ONLY_PREFIXES = ["/students", "/reports", "/settings"];
@@ -17,15 +16,18 @@ const STUDENT_ALLOWED_PREFIXES = [
   "/courses",
   "/issues",
   "/comments",
-  "/api/auth",
 ];
 
 function getRedirectUrl(request: NextRequest, pathname: string) {
   return new URL(pathname, request.url);
 }
 
+function isApiPath(pathname: string) {
+  return pathname === "/api" || pathname.startsWith("/api/");
+}
+
 function isPublicPath(pathname: string) {
-  return PUBLIC_PAGE_PATHS.has(pathname) || PUBLIC_API_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  return PUBLIC_PAGE_PATHS.has(pathname);
 }
 
 function isPublicPagePath(pathname: string) {
@@ -54,7 +56,7 @@ export async function proxy(request: NextRequest) {
   try {
     let response = NextResponse.next();
 
-    if (PUBLIC_API_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    if (isApiPath(pathname)) {
       return response;
     }
 

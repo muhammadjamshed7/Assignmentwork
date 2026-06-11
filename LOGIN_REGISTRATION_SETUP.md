@@ -125,7 +125,7 @@ Flow:
 2. The writer enters full name and Gmail address.
 3. `app/register/page.tsx` sends a `POST` request to `/api/auth/register`.
 4. `app/api/auth/register/route.ts` validates the input.
-5. The server creates or updates a Supabase Auth user using the service-role client.
+5. The server creates a new Supabase Auth user using the service-role client. If that Gmail already has a login, registration stops and the writer must sign in or ask an admin for approval.
 6. The server links an existing matching `students` row by Gmail, or creates a new `students` row if one does not exist.
 7. The server creates or updates a `user_roles` row:
 
@@ -164,7 +164,7 @@ Flow:
 2. `app/admin/login/page.tsx` renders `LoginCard` with `expectedRole: "admin"`.
 3. `LoginCard` signs in with `supabase.auth.signInWithPassword`.
 4. After sign-in, it calls `/api/auth/me`.
-5. `/api/auth/me` calls `getCurrentUserProfile()`.
+5. `/api/auth/me` verifies the access token from the new Supabase session, then falls back to cookie-based profile lookup when no bearer token is supplied.
 6. `getCurrentUserProfile()` reads the authenticated Supabase user and their `user_roles` row.
 7. `LoginCard` confirms the returned profile has `role = admin`.
 8. If the admin is approved, the user is redirected to `/`.
@@ -198,8 +198,8 @@ Flow:
 1. The writer opens `/login`.
 2. `app/login/page.tsx` renders `LoginCard` with `expectedRole: "student"`.
 3. `LoginCard` signs in with `supabase.auth.signInWithPassword`.
-4. After sign-in, it calls `/api/auth/me`.
-5. `/api/auth/me` returns the current role and approval status.
+4. After sign-in, it calls `/api/auth/me` with the new session access token.
+5. `/api/auth/me` returns the current role and approval status for that exact signed-in writer.
 6. `LoginCard` confirms the account has `role = student`.
 7. Redirect depends on status:
 
@@ -391,6 +391,7 @@ lib/
     roles.ts                  # Client current-profile helper
     server.ts                 # Server auth helpers and guards
     use-current-user-role.ts  # Client hook for role/status
+    writers.ts                # Shared writer password, Gmail, lookup, and profile-link helpers
   supabase.ts                 # Browser Supabase client
 
 scripts/
