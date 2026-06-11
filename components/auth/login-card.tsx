@@ -78,6 +78,16 @@ function getSafeNextPath(value: string | null, profile: CurrentUserProfile) {
   return isStudentAllowedPath(pathname) ? value : null;
 }
 
+function getLoginErrorMessage(error: unknown) {
+  const message = getErrorMessage(error);
+
+  if (message === "Failed to fetch") {
+    return "Unable to reach Supabase. Check your internet connection, Supabase project URL, and whether the Supabase project is running.";
+  }
+
+  return message;
+}
+
 function LoginContent({ mode }: { mode: LoginMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -126,12 +136,17 @@ function LoginContent({ mode }: { mode: LoginMode }) {
         throw new Error(mode.roleError);
       }
 
+      if (profile.role === "student" && profile.status === "approved" && !profile.studentId) {
+        await supabase.auth.signOut();
+        throw new Error("This writer login is not linked to a writer profile. Ask an admin to open Settings and approve this writer again.");
+      }
+
       const destination = redirectPathFor(profile);
       const safeNext = getSafeNextPath(next, profile);
       router.replace(safeNext ?? destination);
       router.refresh();
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getLoginErrorMessage(err));
     } finally {
       setLoading(false);
     }

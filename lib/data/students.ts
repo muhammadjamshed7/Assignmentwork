@@ -8,6 +8,23 @@ function normalizeCourseIds(courseIds: string[]) {
   return Array.from(new Set(courseIds.map(courseId => courseId.trim()).filter(Boolean)));
 }
 
+function isGmailAddress(email: string) {
+  return email.toLowerCase().endsWith("@gmail.com");
+}
+
+async function ensureWriterLogin(input: { name: string; email: string }) {
+  const response = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const payload = await readJsonResponse<{ error?: string }>(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Unable to create the writer login.");
+  }
+}
+
 async function validateAssignedCourseIds(courseIds: string[]) {
   if (courseIds.length === 0) return;
 
@@ -49,6 +66,22 @@ async function approveLinkedUserIfActive(studentId: string, overallStatus?: Issu
 
   if (!response.ok) {
     throw new Error(payload?.error ?? "Unable to approve the linked writer login.");
+  }
+}
+
+async function syncLinkedWriterLogin(userId: string, input: { email: string; overallStatus?: IssueStatus }) {
+  const body: { email: string; status?: "approved" } = { email: input.email };
+  if (input.overallStatus === "In Progress") body.status = "approved";
+
+  const response = await fetch(`/api/users/${userId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await readJsonResponse<{ error?: string }>(response);
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Unable to update the linked writer login.");
   }
 }
 
@@ -169,6 +202,14 @@ export async function createStudent(input: {
     throw new Error("Writer name is required.");
   }
 
+  if (!email) {
+    throw new Error("Writer Gmail address is required.");
+  }
+
+  if (!isGmailAddress(email)) {
+    throw new Error("Writer email must be a Gmail address.");
+  }
+
   if (email) {
     const duplicate = await supabase
       .from("students")
@@ -213,6 +254,14 @@ export async function createStudent(input: {
     }
   }
 
+  try {
+    await ensureWriterLogin({ name, email });
+    await approveLinkedUserIfActive(student.id, input.overallStatus);
+  } catch (error) {
+    await supabase.from("students").delete().eq("id", student.id);
+    throw error;
+  }
+
   return listStudentById(student.id);
 }
 
@@ -236,6 +285,14 @@ export async function updateStudent(studentId: string, input: {
     throw new Error("Writer name is required.");
   }
 
+  if (!email) {
+    throw new Error("Writer Gmail address is required.");
+  }
+
+  if (!isGmailAddress(email)) {
+    throw new Error("Writer email must be a Gmail address.");
+  }
+
   if (email) {
     const duplicate = await supabase
       .from("students")
@@ -249,6 +306,14 @@ export async function updateStudent(studentId: string, input: {
       throw new Error("A writer with this email already exists.");
     }
   }
+
+  const { data: currentStudent, error: currentStudentError } = await supabase
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  if (currentStudentError) throw currentStudentError;
 
   await validateAssignedCourseIds(assignedCourseIds);
 
@@ -288,7 +353,12 @@ export async function updateStudent(studentId: string, input: {
     if (coursesError) throw coursesError;
   }
 
-  await approveLinkedUserIfActive(studentId, input.overallStatus);
+  if (typeof currentStudent?.user_id === "string") {
+    await syncLinkedWriterLogin(currentStudent.user_id, { email, overallStatus: input.overallStatus });
+  } else {
+    await ensureWriterLogin({ name, email });
+    await approveLinkedUserIfActive(studentId, input.overallStatus);
+  }
 
   return listStudentById(studentId);
 }
@@ -297,6 +367,27 @@ export async function deleteStudent(studentId: string) {
   await assertAdmin();
 
   const supabase = requireSupabase();
+  const { data: student, error: studentError } = await supabase
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  if (studentError) throw studentError;
+
+  if (typeof student?.user_id === "string") {
+    const response = await fetch(`/api/users/${student.user_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "disabled" }),
+    });
+    const payload = await readJsonResponse<{ error?: string }>(response);
+
+    if (!response.ok) {
+      throw new Error(payload?.error ?? "Unable to disable the linked writer login.");
+    }
+  }
+
   const { error } = await supabase.from("students").delete().eq("id", studentId);
   if (error) throw error;
 }

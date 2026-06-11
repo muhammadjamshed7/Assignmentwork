@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PasswordInput } from "@/components/ui/password-input";
 import { getErrorMessage, readJsonResponse } from "@/lib/data/client";
 import { createSupabaseClient } from "@/lib/supabase";
+
+const WRITER_DEFAULT_PASSWORD = "12345678";
 
 type RegisterPayload = {
   error?: string;
@@ -21,7 +22,6 @@ export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +34,7 @@ export default function RegisterPage() {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email }),
       });
       const payload = await readJsonResponse<RegisterPayload>(response);
 
@@ -48,7 +48,7 @@ export default function RegisterPage() {
       await supabase.auth.signOut();
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
-        password,
+        password: WRITER_DEFAULT_PASSWORD,
       });
 
       if (signInError) {
@@ -71,7 +71,7 @@ export default function RegisterPage() {
             <UserPlus className="h-5 w-5" aria-hidden="true" />
           </div>
           <CardTitle>Writer Expert Registration</CardTitle>
-          <CardDescription>Create a writer expert account. Access starts after admin approval.</CardDescription>
+          <CardDescription>Register your Gmail writer account. The default writer password is 12345678.</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="grid gap-4">
@@ -81,11 +81,7 @@ export default function RegisterPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-              <PasswordInput id="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={6} />
+              <Input id="email" type="email" inputMode="email" placeholder="writer@gmail.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
             </div>
             {error && (
               <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-500 dark:text-red-300">

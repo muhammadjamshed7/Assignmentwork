@@ -247,13 +247,14 @@ export default function StudentsPage() {
                 </div>
                 
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email Address <span className="text-zinc-400 text-xs font-normal ml-1">(Optional)</span></Label>
+                  <Label htmlFor="email">Gmail Address <span className="text-red-500">*</span></Label>
                   <Input 
                     id="email" 
                     type="email" 
-                    placeholder="e.g. john@example.com" 
+                    placeholder="e.g. writer@gmail.com" 
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
+                    required
                   />
                 </div>
 
