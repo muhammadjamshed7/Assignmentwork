@@ -1,13 +1,23 @@
 import { NextResponse } from "next/server";
 
-import { getCurrentUserProfile } from "@/lib/auth/server";
+import { getCurrentUserProfile, getCurrentUserProfileFromAccessToken } from "@/lib/auth/server";
 import { getErrorMessage } from "@/lib/data/client";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+function getBearerToken(request: Request) {
+  const header = request.headers.get("authorization") ?? "";
+  const [scheme, token] = header.split(" ");
+
+  return scheme.toLowerCase() === "bearer" && token ? token : "";
+}
+
+export async function GET(request: Request) {
   try {
-    const user = await getCurrentUserProfile();
+    const bearerToken = getBearerToken(request);
+    const user = bearerToken
+      ? await getCurrentUserProfileFromAccessToken(bearerToken)
+      : await getCurrentUserProfile();
 
     if (!user) {
       return NextResponse.json({ user: null }, { status: 401, headers: { "Cache-Control": "no-store" } });

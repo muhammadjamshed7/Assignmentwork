@@ -10,6 +10,11 @@ import {
   UNAUTHORIZED_MESSAGE,
 } from "@/lib/auth/role-utils";
 
+type AuthUser = {
+  id: string;
+  email?: string | null;
+};
+
 export class AuthRequestError extends Error {
   status: number;
 
@@ -80,18 +85,12 @@ export function createServiceRoleClient() {
   });
 }
 
-export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null> {
-  const supabase = await createServerSupabaseClient();
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !userData.user) {
-    return null;
-  }
-
+async function getProfileForAuthUser(user: AuthUser): Promise<CurrentUserProfile> {
+  const supabase = createServiceRoleClient();
   const { data: roleRow, error: roleError } = await supabase
     .from("user_roles")
     .select("user_id, email, role, status, student_id")
-    .eq("user_id", userData.user.id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (roleError) {
@@ -102,12 +101,43 @@ export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null
   const status = isUserStatus(roleRow?.status) ? roleRow.status : "pending";
 
   return {
-    userId: userData.user.id,
-    email: roleRow?.email || userData.user.email || "",
+    userId: user.id,
+    email: roleRow?.email || user.email || "",
     role,
     status,
     studentId: typeof roleRow?.student_id === "string" ? roleRow.student_id : null,
   };
+}
+
+export async function getCurrentUserProfile(): Promise<CurrentUserProfile | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !userData.user) {
+    return null;
+  }
+
+  return getProfileForAuthUser(userData.user);
+}
+
+export async function getCurrentUserProfileFromAccessToken(accessToken: string): Promise<CurrentUserProfile | null> {
+  const token = accessToken.trim();
+
+  if (!token) return null;
+
+  const supabase = createClient(getSupabaseUrl(), getAnonKey(), {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+  const { data: userData, error: userError } = await supabase.auth.getUser(token);
+
+  if (userError || !userData.user) {
+    return null;
+  }
+
+  return getProfileForAuthUser(userData.user);
 }
 
 export async function requireApprovedUser() {

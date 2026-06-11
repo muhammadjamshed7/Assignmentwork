@@ -109,14 +109,22 @@ function LoginContent({ mode }: { mode: LoginMode }) {
 
       await supabase.auth.signOut();
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
 
       if (signInError) throw signInError;
 
-      const response = await fetch("/api/auth/me", { cache: "no-store" });
+      const accessToken = signInData.session?.access_token;
+      if (!accessToken) throw new Error("Unable to create a login session.");
+
+      const response = await fetch("/api/auth/me", {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       const contentType = response.headers.get("content-type") ?? "";
       const payload = contentType.includes("application/json") ? await response.json() : null;
 
